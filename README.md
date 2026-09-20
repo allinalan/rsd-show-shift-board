@@ -57,9 +57,9 @@ editor list you'll be told. Owners add editors in the SQL editor or with
 `node scripts/board.mjs editors add`.
 
 ## What is private
-This repo and the page are public. Promoter contact names, phones and e-mails are not: they live
-in the editors-only `event_contacts` table and in `seed/private/` on the mini. Signed-out visitors
-never receive them. `scripts/check-public.mjs` (the pre-commit hook) refuses a commit that would
+The repo is public, so promoter contact names, phones and e-mails are never committed: they live
+in the `event_contacts` table and in `seed/private/` on the mini. The live page shows them to
+anyone with the link, because reps need to call promoters; only editors can change them. `scripts/check-public.mjs` (the pre-commit hook) refuses a commit that would
 publish one.
 
 ## Backups

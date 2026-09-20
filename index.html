@@ -1801,9 +1801,10 @@ function makeSupabaseDb(cfg){
   const mapErr=err=>{ const e=new Error(err&&err.message||String(err)); const m=String(err&&err.message||'').toLowerCase();
     e.code=/not an editor|row-level|42501|permission|policy|jwt/.test(m)?'invalid_argument':(err&&err.code)||'unknown'; return e; };
   let n=0; const chan=(t,cb)=>{ sb.channel('rt-'+t+'-'+(n++)).on('postgres_changes',{event:'*',schema:'public',table:t},cb).subscribe(); };
-  /* Promoter contact details live in `event_contacts`, which only editors can read (RLS). Every
-     events write is split here and every events read is merged here, so the rest of the page
-     still sees one event document. Anonymous visitors get zero contact rows, not an error. */
+  /* Promoter contact details live in `event_contacts`, a separate table so they never sit in the
+     public repo's seed. Everyone can read them on the live page (reps call promoters); only editors
+     write. Every events write is split here and every events read is merged here, so the rest of
+     the page still sees one event document. If RLS is ever tightened, readers just get no rows. */
   const PRIVATE=['contact','phone','email'], CT='event_contacts';
   const splitPriv=o=>{ const pub={},priv={}; for(const k in (o||{})){ (PRIVATE.includes(k)?priv:pub)[k]=o[k]; } return {pub,priv}; };
   const some=o=>Object.keys(o).length>0, filled=o=>Object.values(o).some(v=>v!=null&&String(v).trim()!=='');
@@ -1830,7 +1831,7 @@ function makeSupabaseDb(cfg){
         load(); chan(t,p=>{ const hit=(p.new&&p.new.id===id)||(p.old&&p.old.id===id); if(hit) load(); }); }
     }; },
     collection(t){ return {
-      onSnapshot(cb,err){ const load=async()=>{ try{ cb({docs:await fetchAll(t)}); }catch(e){ err&&err(e); } }; load(); chan(t,load); if(t==='events') reloaders.push(load); },
+      onSnapshot(cb,err){ const load=async()=>{ try{ cb({docs:await fetchAll(t)}); }catch(e){ err&&err(e); } }; load(); chan(t,load); if(t==='events'){ reloaders.push(load); chan(CT,load); } },
       async add(doc){ let priv={}; if(t==='events'){ const sp=splitPriv(doc); doc=sp.pub; priv=sp.priv; }
         const slug=String(doc.name||'event').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
         const id=(doc.year||'x')+'-'+slug+'-'+Math.random().toString(36).slice(2,7);

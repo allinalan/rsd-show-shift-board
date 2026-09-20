@@ -49,18 +49,18 @@ cannot see). Before seeding:
 ```
 node scripts/board.mjs seed                # refuses if the public seed carries contact fields
 ```
-Read back: `node scripts/board.mjs list --year 2026 | tail -1` shows the event count; an anonymous
-`curl "$URL/rest/v1/event_contacts?select=id" -H "apikey: <anon key>"` must return `[]`.
+Read back: `node scripts/board.mjs list --year 2026 | tail -1` shows the event count; open an event
+on the live page signed out and confirm the promoter's contact, phone and e-mail show.
 
 ## 5. Editors and meeting dates
 Values from Alan are in `seed/private/go-live.md` (gitignored). Run the three commands in it.
 
 ## 6. Live verification, with Alan watching
 1. Plan mode → Alan's email → **ALAN** taps the magic link → lands back signed in as owner.
-2. A second browser, signed out: no promoter contact, phone or e-mail anywhere; plan mode asks for
-   sign-in; an email not on the list gets "not on the editor list yet".
-3. Signed in: the contact fields appear; edit a phone, reload, it persists; signed-out window still
-   does not show it.
+2. A second browser, signed out: promoter contact, phone (tap to call) and e-mail show on an open
+   event, nothing is editable; plan mode asks for sign-in; an email not on the list gets "not on
+   the editor list yet".
+3. Signed in: edit a phone; it persists after reload and appears in the signed-out window.
 4. Two windows side by side: assign a shift in one; it appears in the other without refresh.
 5. `node scripts/board.mjs changelog --limit 3` shows those writes with Alan's email as actor.
 If 4 fails, check that `schema.sql`'s realtime block ran (Database → Replication).

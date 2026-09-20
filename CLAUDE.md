@@ -30,7 +30,8 @@ follows the show. Fields the routines care about: `name, year, weekend (Friday I
 endDate, datesEstimated, status, vcNumber, vcStatus, tier, access, cityState, location, address,
 setting, promoter, contact, phone, email, website, cost, costBasis, applyUrl, applyBy, notes,
 booths[{label,days,dates,shifts[{label,slots[{rep,ft[]}]}]}], dead, skipNext, neverWork`.
-`event_contacts` — promoter `contact, phone, email` per event id, **readable by editors only**. The
+`event_contacts` — promoter `contact, phone, email` per event id. **Visible to everyone on the live
+page** (reps call promoters; Alan's call, 2026-09-19) but **never in git**: the public seed stays stripped. The
 page's data layer and the CLI split those three fields out of every `events` write and merge them
 back on read, so everything else treats them as event fields. `history` — results by year per show base. `settings/division` — name, short, code, roster,
 `meetings` (ISO dates of shift-picking meetings). `never_work` — shows we never work again,

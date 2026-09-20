@@ -4,9 +4,11 @@
 --
 -- Model: one table per collection, each row = { id, data jsonb }. The page and the CLI treat
 -- `data` as the document. Reps read anonymously; only emails in `editors` can write.
--- One exception: `event_contacts` (promoter contact name, phone, email per event id) is readable
--- by editors only. The page and the CLI split those three fields out of `events` on every write
--- and merge them back in for editors on read, so nothing else has to know the table exists.
+-- `event_contacts` (promoter contact name, phone, email per event id) is its own table so those
+-- three fields never sit in the public git repo's seed. Reps need them to call a promoter, so the
+-- live page reads them like everything else (Alan, 2026-09-19). The page and the CLI split them out
+-- of `events` on every write and merge them back on read; nothing else knows the table exists.
+-- To lock contacts to editors later, change event_contacts_read to `using (is_editor())`.
 
 create extension if not exists pgcrypto;
 
@@ -17,7 +19,7 @@ create table if not exists settings   (id text primary key, data jsonb not null 
 create table if not exists seasons    (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
 create table if not exists never_work (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
 create table if not exists overrides  (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
-create table if not exists event_contacts (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());  -- editors only
+create table if not exists event_contacts (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());  -- readable on the page, never in git
 
 -- who may edit. Alan adds rows here (or via `board editors add`). role: owner | coordinator
 create table if not exists editors (
@@ -111,10 +113,10 @@ do $$ declare t text; begin
   end loop;
 end $$;
 
--- promoter contacts: editors (and the service key, which bypasses RLS) only. No anonymous read.
+-- promoter contacts: anyone with the link can read (reps call promoters); only editors write.
 alter table event_contacts enable row level security;
 drop policy if exists event_contacts_read on event_contacts;
-create policy event_contacts_read on event_contacts for select using (is_editor());
+create policy event_contacts_read on event_contacts for select using (true);
 drop policy if exists event_contacts_write on event_contacts;
 create policy event_contacts_write on event_contacts for all using (is_editor()) with check (is_editor());
 
@@ -138,6 +140,7 @@ do $$ begin
   begin execute 'alter publication supabase_realtime add table settings';   exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table never_work'; exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table overrides';  exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table event_contacts'; exception when duplicate_object then null; end;
 end $$;
 
 -- ---------- first owner ----------

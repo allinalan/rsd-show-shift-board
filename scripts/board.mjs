@@ -28,7 +28,7 @@
     board export [dir]                                  (dump every table to JSON — a backup)
 
   Promoter contact details (contact, phone, email) are not in `events`: they live in the
-  editors-only `event_contacts` table, keyed by event id. `get`, `list --full`, `set`, `add`,
+  `event_contacts` table, keyed by event id (readable on the live page, never in the git seed). `get`, `list --full`, `set`, `add`,
   `delete`, `rollforward`, `seed` and `export` handle the split, so routines still read and write
   them as plain event fields. Their seed is seed/private/event_contacts.json (gitignored).
 */
@@ -54,7 +54,7 @@ function die(msg, code = 1) { console.error('board: ' + msg); process.exit(code)
 
 // ---------- REST ----------
 const TABLES = ['events', 'history', 'settings', 'seasons', 'never_work', 'overrides'];
-const CONTACTS = 'event_contacts', PRIVATE = ['contact', 'phone', 'email'];   // editors-only; never in `events`, never in the public seed
+const CONTACTS = 'event_contacts', PRIVATE = ['contact', 'phone', 'email'];   // own table: shown on the live page, never in `events`, never in the public git seed
 const splitPriv = o => { const pub = {}, priv = {}; for (const k of Object.keys(o || {})) (PRIVATE.includes(k) ? priv : pub)[k] = o[k]; return { pub, priv }; };
 const hasKeys = o => Object.keys(o).length > 0, hasValue = o => Object.values(o).some(v => v != null && String(v).trim() !== '');
 const pickPriv = c => { const o = {}; for (const k of PRIVATE) if (c && c[k] != null) o[k] = c[k]; return o; };

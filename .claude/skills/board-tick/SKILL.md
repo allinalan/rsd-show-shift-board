@@ -53,7 +53,8 @@ file for Alan to forward.
   per rep with the recipient, the show and the message. There is no send path in this repo. Alan
   sends them himself, or asks for a send in a later message after he has read the list.
 - Promoter `contact`, `phone`, `email` come back from `board get` / `board list --json --full` like any
-  other field, but they are private: never copy them into a tracked file, a commit or `notes`.
+  other field. The live page shows them; git must not: never copy them into a tracked file, a
+  commit or `notes` (this repo is public, and `notes` lives in the public seed).
 
 ## Setup on the Mac mini (once)
 
