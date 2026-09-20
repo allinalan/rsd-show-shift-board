@@ -2,9 +2,12 @@
 #
 # Install the daily tick ON THE MAC MINI. Safe to re-run. Writes the job DISARMED by default.
 #
-#   ./install.sh            # preflight, install the pre-commit leak check, write the plist, leave it UNLOADED
+#   ./install.sh            # preflight, install the pre-commit leak check, render the plist to out/ (NOT installed)
 #   ./install.sh --arm      # same, then load the job (07:00 daily). Refuses off the mini or on any FAIL.
-#   ./install.sh --disarm   # unload the job (kill switch); code and state untouched
+#   ./install.sh --disarm   # unload the job and remove its plist (kill switch); code and state untouched
+#
+# Disarmed means there is NO plist in ~/Library/LaunchAgents: launchd loads everything in that
+# folder at login, so a plist left there would arm itself on the next reboot.
 #   ./install.sh --check    # preflight only
 #
 set -u
@@ -19,7 +22,8 @@ warn() { printf "  WARN  %s\n" "$1"; }
 FAILED=0
 
 if [ "${1:-}" = "--disarm" ]; then
-  launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null && echo "unloaded $LABEL" || echo "$LABEL was not loaded"
+  launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null && echo "unloaded $LABEL" || echo "$LABEL was not loaded"
+  [ -f "$PLIST" ] && rm -f "$PLIST" && echo "removed $PLIST (a plist left there would load itself at the next login)"
   exit 0
 fi
 
@@ -50,17 +54,19 @@ if [ -d "$PROJECT/.git" ]; then
   chmod +x "$PROJECT/.git/hooks/pre-commit" && ok "pre-commit leak check installed"
 fi
 
-mkdir -p "$PROJECT/logs"
-sed "s|__PROJECT__|$PROJECT|g" "$TEMPLATE" > "$PLIST"
-plutil -lint "$PLIST" >/dev/null && ok "plist written to $PLIST" || { bad "plist did not lint"; exit 1; }
-
+mkdir -p "$PROJECT/logs" "$PROJECT/out"
 if [ "${1:-}" != "--arm" ]; then
-  launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null
-  echo; echo "DISARMED: the plist is written but not loaded. Arm with: ./install.sh --arm"
+  sed "s|__PROJECT__|$PROJECT|g" "$TEMPLATE" > "$PROJECT/out/$LABEL.plist"
+  plutil -lint "$PROJECT/out/$LABEL.plist" >/dev/null && ok "plist renders and lints (preview: out/$LABEL.plist)" || { bad "plist did not lint"; exit 1; }
+  launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && warn "$LABEL is currently LOADED; this run did not change that (./install.sh --disarm to stop it)"
+  [ -f "$PLIST" ] && ! launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && warn "$PLIST exists but is not loaded: it will load itself at the next login. Run ./install.sh --disarm to remove it."
+  echo; echo "NOT INSTALLED: nothing was written to ~/Library/LaunchAgents. Arm with: ./install.sh --arm"
   exit $FAILED
 fi
 if [ $FAILED -ne 0 ]; then echo; echo "Refusing to arm. Fix the FAIL lines, then re-run."; exit 1; fi
-launchctl bootout "gui/$(id -u)" "$PLIST" 2>/dev/null
+sed "s|__PROJECT__|$PROJECT|g" "$TEMPLATE" > "$PLIST"
+plutil -lint "$PLIST" >/dev/null && ok "plist written to $PLIST" || { bad "plist did not lint"; exit 1; }
+launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null
 launchctl bootstrap "gui/$(id -u)" "$PLIST" && ok "loaded $LABEL (daily 07:00)" || bad "launchctl bootstrap failed"
 launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && ok "launchd knows $LABEL" || bad "$LABEL not registered"
 echo
