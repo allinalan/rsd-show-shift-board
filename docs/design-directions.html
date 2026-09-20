@@ -1,0 +1,498 @@
+<title>Almanac, Varsity, Instrument</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Source+Sans+3:wght@400;500;600;700&family=Archivo:wdth,wght@75..125,400;75..125,500;75..125,600;75..125,700;75..125,800&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* ============ page shell (theme-aware) ============ */
+:root{
+  --pg:#f4f4f6; --pg-2:#ffffff; --pg-ink:#16181d; --pg-ink-2:#4d535e; --pg-ink-3:#7b8290;
+  --pg-line:#dcdee4; --pg-line-2:#eaebf0; --pg-mark:#3538cd;
+  --pg-shadow:0 1px 2px rgba(16,18,24,.05),0 10px 28px -18px rgba(16,18,24,.30);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --pg:#0d0f13; --pg-2:#15181e; --pg-ink:#eceef3; --pg-ink-2:#a6adba; --pg-ink-3:#79808d;
+  --pg-line:#272b33; --pg-line-2:#1d2027; --pg-mark:#8b8df5;
+  --pg-shadow:0 1px 2px rgba(0,0,0,.5),0 12px 30px -18px rgba(0,0,0,.8);
+}}
+:root[data-theme="dark"]{
+  --pg:#0d0f13; --pg-2:#15181e; --pg-ink:#eceef3; --pg-ink-2:#a6adba; --pg-ink-3:#79808d;
+  --pg-line:#272b33; --pg-line-2:#1d2027; --pg-mark:#8b8df5;
+  --pg-shadow:0 1px 2px rgba(0,0,0,.5),0 12px 30px -18px rgba(0,0,0,.8);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--pg);color:var(--pg-ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+.page{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:0 64px}
+h1,h2,h3{margin:0;text-wrap:balance;font-family:"Instrument Sans",system-ui,sans-serif}
+a{color:var(--pg-mark)}
+
+/* intro */
+.intro{padding-block:48px 36px;border-bottom:1px solid var(--pg-line);display:flex;flex-direction:column;gap:18px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--pg-ink-3)}
+h1{font-size:clamp(1.9rem,4.4vw,2.9rem);font-weight:700;letter-spacing:-.025em;line-height:1.08}
+.lede{font-size:1.02rem;color:var(--pg-ink-2);max-width:64ch;margin:0}
+.lede b{color:var(--pg-ink);font-weight:600}
+
+/* the constraint box */
+.constraint{background:var(--pg-2);border:1px solid var(--pg-line);border-radius:12px;
+  padding:18px 20px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--pg-shadow)}
+.constraint h3{font-size:.95rem;font-weight:600}
+.constraint p{margin:0;font-size:.88rem;color:var(--pg-ink-2);max-width:66ch}
+.taken{display:flex;flex-wrap:wrap;gap:7px}
+.taken span{font-size:.72rem;font-weight:600;padding:4px 9px;border-radius:99px;
+  display:inline-flex;align-items:center;gap:6px;border:1px solid var(--pg-line)}
+.taken i{width:9px;height:9px;border-radius:99px;background:currentColor;flex:none;font-style:normal}
+.tk-open{color:#12714a} .tk-full{color:#5a6f80} .tk-warn{color:#9c5c06}
+.tk-elite{color:#6b3fa0} .tk-key{color:#0f7b76} .tk-trad{color:#26354a} .tk-cx{color:#a8431f}
+.left{font-size:.88rem;color:var(--pg-ink-2)}
+.left b{color:var(--pg-ink)}
+
+/* direction section */
+.dir{padding-block:52px 0;border-bottom:1px solid var(--pg-line)}
+.dir:last-of-type{border-bottom:0}
+.dir-h{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+.dir-n{font-family:"IBM Plex Mono",monospace;font-size:.78rem;font-weight:500;color:var(--pg-ink-3);
+  border:1px solid var(--pg-line);border-radius:6px;padding:3px 8px;margin-top:6px;flex:none}
+.dir-t{flex:1 1 320px;min-width:0}
+.dir-t h2{font-size:1.5rem;font-weight:700;letter-spacing:-.02em}
+.dir-t p{margin:5px 0 0;font-size:.92rem;color:var(--pg-ink-2);max-width:62ch}
+
+/* spec strip */
+.spec{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px 24px;
+  margin:20px 0 22px;padding:16px 0;border-top:1px solid var(--pg-line-2);border-bottom:1px solid var(--pg-line-2)}
+.spec dt{font-family:"IBM Plex Mono",monospace;font-size:.64rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--pg-ink-3);margin-bottom:7px}
+.spec dd{margin:0;font-size:.84rem;color:var(--pg-ink-2)}
+.spec dd b{color:var(--pg-ink);font-weight:600}
+.sw{display:flex;gap:0;border-radius:7px;overflow:hidden;border:1px solid var(--pg-line);width:max-content}
+.sw i{width:38px;height:26px;display:block}
+.tspec{display:flex;flex-direction:column;gap:3px}
+.tspec span{font-size:.8rem}
+.verdict{font-size:.84rem;color:var(--pg-ink-2)}
+.verdict b{color:var(--pg-ink)}
+
+/* ============ the mock: one markup, three skins ============ */
+.mock{border:1px solid var(--pg-line);border-radius:14px;overflow:hidden;box-shadow:var(--pg-shadow);
+  margin-bottom:52px;background:var(--m-ground);color:var(--m-ink);
+  font-family:var(--m-body);container-type:inline-size}
+.m-top{background:var(--m-surface);border-bottom:1px solid var(--m-line);padding:14px 18px 0}
+.m-brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.m-mark{font-family:var(--m-disp);font-weight:var(--m-disp-w,700);font-size:1.12rem;letter-spacing:var(--m-disp-ls,-.01em);
+  color:var(--m-ink);display:flex;align-items:center;gap:9px}
+.m-mark .glyph{width:26px;height:26px;border-radius:var(--m-glyph-r,7px);background:var(--m-accent);
+  color:var(--m-on-accent);display:grid;place-items:center;font-size:.72rem;font-weight:800;letter-spacing:.02em;flex:none}
+.m-div{font-family:var(--m-mono);font-size:.68rem;color:var(--m-ink-3);letter-spacing:.04em}
+.m-seg{display:inline-flex;border:1px solid var(--m-line);border-radius:99px;overflow:hidden;margin-left:auto}
+.m-seg b{font-family:var(--m-disp);font-size:.74rem;font-weight:600;padding:5px 13px;color:var(--m-ink-3)}
+.m-seg b.on{background:var(--m-accent);color:var(--m-on-accent)}
+.m-tally{display:flex;gap:26px;padding:13px 2px 12px;align-items:baseline;flex-wrap:wrap}
+.m-tally div{display:flex;align-items:baseline;gap:7px}
+.m-tally b{font-family:var(--m-disp);font-size:1.32rem;font-weight:var(--m-num-w,700);
+  font-variant-numeric:tabular-nums;letter-spacing:var(--m-num-ls,-.02em)}
+.m-tally .hero b{font-size:1.9rem;color:var(--m-open)}
+.m-tally span{font-size:.72rem;color:var(--m-ink-3);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.m-body{padding:18px}
+
+/* weekend header */
+.m-wk{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  border-bottom:var(--m-rule);padding-bottom:8px;margin-bottom:11px}
+.m-wk h4{margin:0;font-family:var(--m-disp);font-size:var(--m-wk-size,.86rem);font-weight:700;
+  text-transform:var(--m-wk-tt,uppercase);letter-spacing:var(--m-wk-ls,.1em);color:var(--m-accent-ink)}
+.m-wk .cnt{margin-left:auto;font-family:var(--m-mono);font-size:.76rem;color:var(--m-open);font-weight:500}
+.m-roll{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
+.m-roll span{font-size:.74rem;border:1px solid var(--m-line);border-radius:99px;padding:3px 10px;color:var(--m-ink-2)}
+.m-roll span.op{color:var(--m-open);background:var(--m-open-bg);border-color:transparent;font-weight:600}
+.m-roll b{font-family:var(--m-mono);font-size:.68rem;color:var(--m-ink-3);font-weight:400}
+
+/* card */
+.m-card{background:var(--m-surface);border:1px solid var(--m-line);border-radius:var(--m-r,10px);
+  padding:13px 15px;margin-bottom:9px;position:relative;overflow:hidden;
+  display:flex;gap:16px;align-items:flex-start;box-shadow:var(--m-card-shadow,none)}
+.m-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--m-rail,3px);background:var(--tier)}
+.m-card.key{--tier:var(--m-key)} .m-card.trad{--tier:var(--m-trad)}
+.m-main{flex:1;min-width:0}
+.m-name{font-family:var(--m-disp);font-size:1.02rem;font-weight:var(--m-name-w,700);
+  letter-spacing:var(--m-name-ls,-.01em);line-height:1.25;display:block;margin-bottom:6px}
+.m-meta{display:flex;gap:9px;flex-wrap:wrap;align-items:center;font-size:.79rem;color:var(--m-ink-3)}
+.m-meta .mono{font-family:var(--m-mono);font-size:.76rem}
+.m-tier{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--tier);border:1px solid currentColor;border-radius:3px;padding:1px 5px}
+.m-stats{display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:.79rem;
+  font-variant-numeric:tabular-nums;color:var(--m-ink-2)}
+.m-stats i{font-style:normal;font-family:var(--m-mono);font-size:.62rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--m-ink-3);margin-right:5px}
+.m-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
+.m-chips span{font-size:.75rem;font-weight:600;color:var(--m-open);background:var(--m-open-bg);
+  border-radius:var(--m-chip-r,6px);padding:4px 9px}
+.m-chips span.more{background:none;color:var(--m-ink-3);font-weight:400}
+.m-right{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.m-open{font-family:var(--m-disp);font-size:.74rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  background:var(--m-open);color:var(--m-on-open);padding:5px 11px;border-radius:var(--m-chip-r,6px);
+  display:inline-flex;gap:7px;align-items:center;white-space:nowrap}
+.m-open b{font-family:var(--m-mono);font-weight:500;font-size:.76rem;opacity:.92}
+.m-bk{font-size:.68rem;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap;
+  color:var(--m-ink-3);background:var(--m-mute-bg)}
+.m-bk.ok{color:var(--m-open);background:var(--m-open-bg)}
+
+/* grid slice */
+.m-gridwrap{border:1px solid var(--m-line);border-radius:var(--m-r,10px);overflow:hidden;
+  background:var(--m-surface);margin-top:16px}
+table.m-grid{border-collapse:separate;border-spacing:0;width:100%}
+table.m-grid th,table.m-grid td{padding:0;text-align:left;vertical-align:top}
+table.m-grid thead th{font-family:var(--m-disp);font-size:.64rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--m-ink-3);padding:8px 10px;background:var(--m-surface-2);
+  border-bottom:1px solid var(--m-line)}
+table.m-grid thead th+th{border-left:1px solid var(--m-line-soft)}
+tr.m-ghead td{padding:9px 13px;border-bottom:1px solid var(--m-line-soft);border-top:1px solid var(--m-line);
+  background:var(--m-surface)}
+tr.m-ghead:first-child td{border-top:0}
+.m-gh{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.m-gh .nm{font-family:var(--m-disp);font-weight:700;font-size:.86rem;letter-spacing:var(--m-name-ls,-.01em)}
+table.m-grid td.cell{padding:4px 5px;border-bottom:1px solid var(--m-line-soft);
+  border-left:1px solid var(--m-line-soft);min-width:92px}
+.m-slot{border:1px solid var(--m-line);border-radius:var(--m-chip-r,6px);background:var(--m-surface);
+  padding:6px 8px;font-size:.79rem;font-weight:500}
+.m-slot .ft{display:inline-block;margin-top:3px;font-size:.64rem;color:var(--m-ink-3);
+  background:var(--m-mute-bg);border-radius:3px;padding:1px 5px}
+.m-slot.free{border:0;background:none;padding:7px 8px;color:var(--m-open);opacity:.72;font-weight:500;font-size:.75rem}
+td.na{background:var(--m-na);background-clip:content-box}
+
+/* ---------- A · Almanac ---------- */
+.d-almanac{
+  --m-ground:#e9e3d7; --m-surface:#fbf9f4; --m-surface-2:#f2ede2;
+  --m-ink:#241f19; --m-ink-2:#514738; --m-ink-3:#7d7263;
+  --m-line:#d2c8b4; --m-line-soft:#e3dbca; --m-na:#d9d0bd;
+  --m-accent:#8a6212; --m-accent-ink:#6d4c0b; --m-on-accent:#fbf9f4;
+  --m-open:#2f6b45; --m-open-bg:#dfeadf; --m-on-open:#fbf9f4;
+  --m-mute-bg:#e6dfd0; --m-key:#0f7b76; --m-trad:#3a3123;
+  --m-disp:"Bricolage Grotesque",system-ui,sans-serif;
+  --m-body:"Source Sans 3",system-ui,sans-serif;
+  --m-mono:"IBM Plex Mono",monospace;
+  --m-rule:2px solid #8a6212; --m-r:8px; --m-chip-r:5px; --m-rail:4px;
+  --m-card-shadow:0 1px 0 rgba(90,70,30,.07);
+}
+/* ---------- B · Varsity ---------- */
+.d-varsity{
+  --m-ground:#0a1524; --m-surface:#11213a; --m-surface-2:#16294a;
+  --m-ink:#eef3fa; --m-ink-2:#a9bdd6; --m-ink-3:#7690ae;
+  --m-line:#24395a; --m-line-soft:#1b2c47; --m-na:#152741;
+  --m-accent:#f5b422; --m-accent-ink:#f5b422; --m-on-accent:#0a1524;
+  --m-open:#3fd189; --m-open-bg:#0f3a2a; --m-on-open:#04170d;
+  --m-mute-bg:#1c3050; --m-key:#4fd0c4; --m-trad:#9db3cd;
+  --m-disp:"Archivo",system-ui,sans-serif;
+  --m-body:"Archivo",system-ui,sans-serif;
+  --m-mono:"IBM Plex Mono",monospace;
+  --m-rule:2px solid #f5b422; --m-r:6px; --m-chip-r:4px; --m-rail:4px;
+  --m-disp-w:800; --m-disp-ls:-.02em; --m-name-w:700; --m-num-w:800; --m-num-ls:-.03em;
+  --m-glyph-r:5px; --m-wk-ls:.13em;
+}
+.d-varsity .m-mark{text-transform:uppercase;letter-spacing:.01em}
+.d-varsity .m-name{text-transform:uppercase;letter-spacing:.005em;font-size:.97rem}
+.d-varsity .m-gh .nm{text-transform:uppercase;font-size:.82rem}
+/* ---------- C · Instrument ---------- */
+.d-instrument{
+  --m-ground:#f7f8fa; --m-surface:#ffffff; --m-surface-2:#fafbfc;
+  --m-ink:#0e1116; --m-ink-2:#464e5c; --m-ink-3:#757d8c;
+  --m-line:#e1e4ea; --m-line-soft:#eef0f4; --m-na:#e8ebf0;
+  --m-accent:#3538cd; --m-accent-ink:#2d30b8; --m-on-accent:#ffffff;
+  --m-open:#0f7048; --m-open-bg:#e4f3ea; --m-on-open:#ffffff;
+  --m-mute-bg:#eef0f4; --m-key:#0f7b76; --m-trad:#2b3545;
+  --m-disp:"Instrument Sans",system-ui,sans-serif;
+  --m-body:"IBM Plex Sans",system-ui,sans-serif;
+  --m-mono:"IBM Plex Mono",monospace;
+  --m-rule:1px solid #e1e4ea; --m-r:9px; --m-chip-r:6px; --m-rail:3px;
+  --m-wk-size:.8rem; --m-name-ls:-.015em;
+  --m-card-shadow:0 1px 2px rgba(14,17,22,.05);
+}
+.d-instrument .m-wk h4{color:var(--m-ink)}
+.d-instrument .m-wk{border-bottom:1px solid var(--m-line)}
+
+/* closing */
+.close{padding-block:46px 0;display:flex;flex-direction:column;gap:16px}
+.close h2{font-size:1.25rem;font-weight:700;letter-spacing:-.02em}
+.close p{margin:0;font-size:.92rem;color:var(--pg-ink-2);max-width:64ch}
+.close ol{margin:0;padding-left:20px;font-size:.92rem;color:var(--pg-ink-2);max-width:64ch}
+.close li{margin-bottom:7px}
+.close li b{color:var(--pg-ink)}
+
+@container (max-width:640px){
+  .m-tally{gap:16px} .m-card{flex-wrap:wrap}
+  .m-right{flex-direction:row;align-items:center;width:100%;margin-top:4px}
+  .m-gridwrap{overflow-x:auto}
+}
+@media (max-width:620px){
+  .m-seg{margin-left:0;order:3}
+  .spec{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="page">
+
+<header class="intro">
+  <span class="eyebrow">RSD Show Shift Board · visual direction</span>
+  <h1>Almanac, Varsity, Instrument</h1>
+  <p class="lede">Three ways the board could look, each applied to the same real weekend — <b>9/11</b>, 21 open shifts, Sierra Vista and Navajo Nation. Same markup in all three, so what you're comparing is the identity, not the layout.</p>
+
+  <div class="constraint">
+    <h3>First, the thing that's been holding the design back</h3>
+    <p>Every strong color on this board already means something. That's why the current version looks washed out — the chrome had nowhere left to go, so it defaulted to grey-blue.</p>
+    <div class="taken">
+      <span class="tk-open"><i></i>green = open</span>
+      <span class="tk-full"><i></i>grey = full</span>
+      <span class="tk-warn"><i></i>amber = needs action</span>
+      <span class="tk-cx"><i></i>burnt orange = pending</span>
+      <span class="tk-elite"><i></i>violet = Elite tier</span>
+      <span class="tk-key"><i></i>teal = Key tier</span>
+      <span class="tk-trad"><i></i>near-black = Traditional</span>
+    </div>
+    <p class="left">What's actually left to brand with: <b>brass, gold, indigo, oxblood</b>, and the ground itself. Each direction below picks one and commits — the accent never touches a status color, so a rep never has to wonder whether gold means something.</p>
+  </div>
+</header>
+
+<!-- ============ A ============ -->
+<section class="dir">
+  <div class="dir-h">
+    <span class="dir-n">A</span>
+    <div class="dir-t">
+      <h2>Almanac</h2>
+      <p>A printed field guide to the Arizona show circuit. Warm stone ground, brass rules, a display face with some grain to it. Reads like something made by people who've worked these fairs for years, not software that got pointed at a spreadsheet.</p>
+    </div>
+  </div>
+  <dl class="spec">
+    <div><dt>Palette</dt><dd><div class="sw"><i style="background:#e9e3d7"></i><i style="background:#fbf9f4"></i><i style="background:#8a6212"></i><i style="background:#241f19"></i><i style="background:#2f6b45"></i></div></dd></div>
+    <div><dt>Type</dt><dd class="tspec"><span style="font-family:'Bricolage Grotesque'"><b>Bricolage Grotesque</b> — display</span><span style="font-family:'Source Sans 3'">Source Sans 3 — body</span><span style="font-family:'IBM Plex Mono';font-size:.76rem">IBM Plex Mono — data</span></dd></div>
+    <div><dt>Accent</dt><dd><b>Brass #8A6212</b><br>Warm, low-saturation, impossible to confuse with the amber warning state.</dd></div>
+    <div><dt>What it costs you</dt><dd class="verdict">The warm ground makes the green "open" state slightly quieter. <b>Best if you want the board to feel like yours.</b></dd></div>
+  </dl>
+
+  <div class="mock d-almanac">
+    <div class="m-top">
+      <div class="m-brand">
+        <span class="m-mark"><span class="glyph">RSD</span>Show Shift Board</span>
+        <span class="m-div">Rising Sun Division</span>
+        <span class="m-seg"><b class="on">Cards</b><b>Grid</b></span>
+      </div>
+      <div class="m-tally">
+        <div class="hero"><b>177</b><span>open shifts</span></div>
+        <div><b>67</b><span>booked</span></div>
+        <div><b>68</b><span>full</span></div>
+      </div>
+    </div>
+    <div class="m-body">
+      <div class="m-wk"><h4>Weekend of 9/11</h4><span class="cnt">21 open shifts</span></div>
+      <div class="m-roll"><span>Matt A. <b>×4</b></span><span>Jerry <b>×3</b></span><span>Alan <b>×2</b></span><span class="op">21 open</span></div>
+
+      <div class="m-card key">
+        <div class="m-main">
+          <span class="m-name">Sierra Vista Oktoberfest</span>
+          <div class="m-meta"><span class="m-tier">Key</span><span class="mono">9/11–9/13</span><span>Sierra Vista, AZ</span></div>
+          <div class="m-stats"><span><i>Best</i>$37k</span><span><i>Cost</i>$125</span><span><i>Per shift</i>$63</span><span><i>Filled</i>2 of 3</span></div>
+          <div class="m-chips"><span>Sun 9/13 · Shift 1</span></div>
+        </div>
+        <div class="m-right"><span class="m-open">Open <b>1</b></span><span class="m-bk ok">booked</span></div>
+      </div>
+
+      <div class="m-card trad">
+        <div class="m-main">
+          <span class="m-name">Navajo Nation Fair</span>
+          <div class="m-meta"><span class="mono">9/8–9/13</span><span>Holbrook, AZ</span></div>
+          <div class="m-stats"><span><i>Best</i>$2.6k</span><span><i>Cost</i>$850</span><span><i>Filled</i>none yet</span></div>
+          <div class="m-chips"><span>Tue 9/8 · Shift 1</span><span>Wed 9/9 · Shift 1</span><span>Thu 9/10 · Shift 1</span><span class="more">+3 more</span></div>
+        </div>
+        <div class="m-right"><span class="m-open">Open <b>6</b></span><span class="m-bk">prospective</span></div>
+      </div>
+
+      <div class="m-gridwrap">
+        <table class="m-grid">
+          <thead><tr><th>Fri 9/11</th><th>Sat 9/12</th><th>Sun 9/13</th><th>Mon 9/14</th></tr></thead>
+          <tbody>
+            <tr class="m-ghead"><td colspan="4"><div class="m-gh"><span class="nm">Sierra Vista Oktoberfest</span><span class="m-tier" style="--tier:var(--m-key)">Key</span></div></td></tr>
+            <tr>
+              <td class="cell"><div class="m-slot">Alan<br><span class="ft">ft. Kendall</span></div></td>
+              <td class="cell"><div class="m-slot">Alan<br><span class="ft">ft. Kendall</span></div></td>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell na"></td>
+            </tr>
+            <tr class="m-ghead"><td colspan="4"><div class="m-gh"><span class="nm">RV Show USA Glendale</span></div></td></tr>
+            <tr>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell na"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ B ============ -->
+<section class="dir">
+  <div class="dir-h">
+    <span class="dir-n">B</span>
+    <div class="dir-t">
+      <h2>Varsity</h2>
+      <p>You already sort reps into Freshmen, JV, Varsity and Elite. That's team-sport language, so this direction stops pretending otherwise — deep navy, jersey gold, heavy uppercase display, and the open-shift count treated like a score on a board.</p>
+    </div>
+  </div>
+  <dl class="spec">
+    <div><dt>Palette</dt><dd><div class="sw"><i style="background:#0a1524"></i><i style="background:#11213a"></i><i style="background:#f5b422"></i><i style="background:#eef3fa"></i><i style="background:#3fd189"></i></div></dd></div>
+    <div><dt>Type</dt><dd class="tspec"><span style="font-family:'Archivo';font-weight:800;text-transform:uppercase"><b>Archivo 800</b> — display</span><span style="font-family:'Archivo'">Archivo — body</span><span style="font-family:'IBM Plex Mono';font-size:.76rem">IBM Plex Mono — data</span></dd></div>
+    <div><dt>Accent</dt><dd><b>Jersey gold #F5B422</b><br>Only ever used for chrome and the active state — never for a booking status.</dd></div>
+    <div><dt>What it costs you</dt><dd class="verdict">Dark-first is harder to read in a bright hall, and a 7-column grid on navy gets heavy. <b>Best if you want reps to feel recruited.</b></dd></div>
+  </dl>
+
+  <div class="mock d-varsity">
+    <div class="m-top">
+      <div class="m-brand">
+        <span class="m-mark"><span class="glyph">RSD</span>Show Shift Board</span>
+        <span class="m-div">Rising Sun Division</span>
+        <span class="m-seg"><b class="on">Cards</b><b>Grid</b></span>
+      </div>
+      <div class="m-tally">
+        <div class="hero"><b>177</b><span>open shifts</span></div>
+        <div><b>67</b><span>booked</span></div>
+        <div><b>68</b><span>full</span></div>
+      </div>
+    </div>
+    <div class="m-body">
+      <div class="m-wk"><h4>Weekend of 9/11</h4><span class="cnt">21 open shifts</span></div>
+      <div class="m-roll"><span>Matt A. <b>×4</b></span><span>Jerry <b>×3</b></span><span>Alan <b>×2</b></span><span class="op">21 open</span></div>
+
+      <div class="m-card key">
+        <div class="m-main">
+          <span class="m-name">Sierra Vista Oktoberfest</span>
+          <div class="m-meta"><span class="m-tier">Key</span><span class="mono">9/11–9/13</span><span>Sierra Vista, AZ</span></div>
+          <div class="m-stats"><span><i>Best</i>$37k</span><span><i>Cost</i>$125</span><span><i>Per shift</i>$63</span><span><i>Filled</i>2 of 3</span></div>
+          <div class="m-chips"><span>Sun 9/13 · Shift 1</span></div>
+        </div>
+        <div class="m-right"><span class="m-open">Open <b>1</b></span><span class="m-bk ok">booked</span></div>
+      </div>
+
+      <div class="m-card trad">
+        <div class="m-main">
+          <span class="m-name">Navajo Nation Fair</span>
+          <div class="m-meta"><span class="mono">9/8–9/13</span><span>Holbrook, AZ</span></div>
+          <div class="m-stats"><span><i>Best</i>$2.6k</span><span><i>Cost</i>$850</span><span><i>Filled</i>none yet</span></div>
+          <div class="m-chips"><span>Tue 9/8 · Shift 1</span><span>Wed 9/9 · Shift 1</span><span>Thu 9/10 · Shift 1</span><span class="more">+3 more</span></div>
+        </div>
+        <div class="m-right"><span class="m-open">Open <b>6</b></span><span class="m-bk">prospective</span></div>
+      </div>
+
+      <div class="m-gridwrap">
+        <table class="m-grid">
+          <thead><tr><th>Fri 9/11</th><th>Sat 9/12</th><th>Sun 9/13</th><th>Mon 9/14</th></tr></thead>
+          <tbody>
+            <tr class="m-ghead"><td colspan="4"><div class="m-gh"><span class="nm">Sierra Vista Oktoberfest</span><span class="m-tier" style="--tier:var(--m-key)">Key</span></div></td></tr>
+            <tr>
+              <td class="cell"><div class="m-slot">Alan<br><span class="ft">ft. Kendall</span></div></td>
+              <td class="cell"><div class="m-slot">Alan<br><span class="ft">ft. Kendall</span></div></td>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell na"></td>
+            </tr>
+            <tr class="m-ghead"><td colspan="4"><div class="m-gh"><span class="nm">RV Show USA Glendale</span></div></td></tr>
+            <tr>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell na"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ C ============ -->
+<section class="dir">
+  <div class="dir-h">
+    <span class="dir-n">C</span>
+    <div class="dir-t">
+      <h2>Instrument</h2>
+      <p>The current board, done properly. Same bones, but a real type scale, deliberate ink levels, tighter density and one saturated indigo that isn't competing with any status color. The least surprising of the three and the one that survives a move to GitHub with the fewest decisions to re-litigate.</p>
+    </div>
+  </div>
+  <dl class="spec">
+    <div><dt>Palette</dt><dd><div class="sw"><i style="background:#f7f8fa"></i><i style="background:#ffffff"></i><i style="background:#3538cd"></i><i style="background:#0e1116"></i><i style="background:#0f7048"></i></div></dd></div>
+    <div><dt>Type</dt><dd class="tspec"><span style="font-family:'Instrument Sans'"><b>Instrument Sans</b> — display</span><span style="font-family:'IBM Plex Sans'">IBM Plex Sans — body</span><span style="font-family:'IBM Plex Mono';font-size:.76rem">IBM Plex Mono — data</span></dd></div>
+    <div><dt>Accent</dt><dd><b>Indigo #3538CD</b><br>Saturated enough to lead the eye, far from green, amber, violet and teal.</dd></div>
+    <div><dt>What it costs you</dt><dd class="verdict">It's the safe one — nothing about it says Arizona or Cutco. <b>Best if you want it to disappear and just work.</b></dd></div>
+  </dl>
+
+  <div class="mock d-instrument">
+    <div class="m-top">
+      <div class="m-brand">
+        <span class="m-mark"><span class="glyph">RSD</span>Show Shift Board</span>
+        <span class="m-div">Rising Sun Division</span>
+        <span class="m-seg"><b class="on">Cards</b><b>Grid</b></span>
+      </div>
+      <div class="m-tally">
+        <div class="hero"><b>177</b><span>open shifts</span></div>
+        <div><b>67</b><span>booked</span></div>
+        <div><b>68</b><span>full</span></div>
+      </div>
+    </div>
+    <div class="m-body">
+      <div class="m-wk"><h4>Weekend of 9/11</h4><span class="cnt">21 open shifts</span></div>
+      <div class="m-roll"><span>Matt A. <b>×4</b></span><span>Jerry <b>×3</b></span><span>Alan <b>×2</b></span><span class="op">21 open</span></div>
+
+      <div class="m-card key">
+        <div class="m-main">
+          <span class="m-name">Sierra Vista Oktoberfest</span>
+          <div class="m-meta"><span class="m-tier">Key</span><span class="mono">9/11–9/13</span><span>Sierra Vista, AZ</span></div>
+          <div class="m-stats"><span><i>Best</i>$37k</span><span><i>Cost</i>$125</span><span><i>Per shift</i>$63</span><span><i>Filled</i>2 of 3</span></div>
+          <div class="m-chips"><span>Sun 9/13 · Shift 1</span></div>
+        </div>
+        <div class="m-right"><span class="m-open">Open <b>1</b></span><span class="m-bk ok">booked</span></div>
+      </div>
+
+      <div class="m-card trad">
+        <div class="m-main">
+          <span class="m-name">Navajo Nation Fair</span>
+          <div class="m-meta"><span class="mono">9/8–9/13</span><span>Holbrook, AZ</span></div>
+          <div class="m-stats"><span><i>Best</i>$2.6k</span><span><i>Cost</i>$850</span><span><i>Filled</i>none yet</span></div>
+          <div class="m-chips"><span>Tue 9/8 · Shift 1</span><span>Wed 9/9 · Shift 1</span><span>Thu 9/10 · Shift 1</span><span class="more">+3 more</span></div>
+        </div>
+        <div class="m-right"><span class="m-open">Open <b>6</b></span><span class="m-bk">prospective</span></div>
+      </div>
+
+      <div class="m-gridwrap">
+        <table class="m-grid">
+          <thead><tr><th>Fri 9/11</th><th>Sat 9/12</th><th>Sun 9/13</th><th>Mon 9/14</th></tr></thead>
+          <tbody>
+            <tr class="m-ghead"><td colspan="4"><div class="m-gh"><span class="nm">Sierra Vista Oktoberfest</span><span class="m-tier" style="--tier:var(--m-key)">Key</span></div></td></tr>
+            <tr>
+              <td class="cell"><div class="m-slot">Alan<br><span class="ft">ft. Kendall</span></div></td>
+              <td class="cell"><div class="m-slot">Alan<br><span class="ft">ft. Kendall</span></div></td>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell na"></td>
+            </tr>
+            <tr class="m-ghead"><td colspan="4"><div class="m-gh"><span class="nm">RV Show USA Glendale</span></div></td></tr>
+            <tr>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell"><div class="m-slot free">open</div></td>
+              <td class="cell na"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="close">
+  <h2>Four things I'd fix no matter which you pick</h2>
+  <ol>
+    <li><b>The board opens on history.</b> Weekends of 8/28 and 9/4 sit above this weekend. A rep lands on two dead rows before seeing a single open shift — it should open on the next live weekend.</li>
+    <li><b>The tally shouts the wrong number.</b> "Full 68" is currently darker and louder than "Open 177". Open shifts are the only figure a rep can act on, so it leads and the rest step back.</li>
+    <li><b>Open shifts are styled like code.</b> The green day chips are the single most important thing on a card and they're set in mono at 11px. In all three directions above they're a real control.</li>
+    <li><b>On a phone you scroll ~1,400px before an event appears.</b> Masthead, tally, four filters, two chip rows and a legend paragraph come first. The filters should collapse behind one button until a rep asks for them.</li>
+  </ol>
+  <p>Pick a letter and I'll build it into the live board — identity, the four fixes, and the motion pass — then we look at it on your laptop and your phone before any of it goes near GitHub.</p>
+</section>
+
+</div>

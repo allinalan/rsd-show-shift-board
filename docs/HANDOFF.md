@@ -1,0 +1,82 @@
+# Go-live: bringing the board up from the Mac mini
+
+Production checkout: `~/automations/rsd-show-shift-board` on the mini. Read `CLAUDE.md` and
+`docs/ROADMAP.md` first. Steps marked **ALAN** are his alone; stop at each. Nothing here touches
+reps, and nothing here touches the Google Sheet: the Sheet stays the truth for every other system
+(stage 1).
+
+## 1. Repo → GitHub → Pages  (done 2026-09-19)
+`gh repo create allinalan/rsd-show-shift-board --public --source . --push`, then Pages from `main` /
+root. Public is required for free Pages. `node scripts/check-public.mjs` must be clean first; the
+pre-commit hook runs it on every commit. https://allinalan.github.io/rsd-show-shift-board/ shows the
+read-only preview (seed data, no promoter contacts) until step 2.
+
+## 2. **ALAN** — create the Supabase project
+supabase.com → New project (free, US West). Then:
+1. SQL Editor → New query → paste all of `supabase/schema.sql` → Run. (Re-runnable.)
+2. Authentication → Providers → Email: **Confirm email OFF**.
+3. Authentication → URL Configuration → Site URL `https://allinalan.github.io/rsd-show-shift-board/`,
+   and add it under Redirect URLs.
+4. Project Settings → API: give Claude the **Project URL** and the **anon public** key (both public).
+   The **service_role** key is a secret. Alan types it into the file himself, never into chat:
+   ```
+   mkdir -p ~/.rsd && nano ~/.rsd/board.env      # three lines:
+   BOARD_SUPABASE_URL=https://xxxx.supabase.co
+   BOARD_SERVICE_KEY=<service_role key>
+   BOARD_ALAN_IMESSAGE=<the number or Apple ID the mini should iMessage>
+   chmod 600 ~/.rsd/board.env
+   ```
+Claude then writes the URL + anon key into `config.js`, commits, pushes.
+
+## 3. Smoke test
+```
+./install.sh --check                       # every line OK
+node scripts/board.mjs editors list        # → Alan as owner
+node scripts/board.mjs settings get        # → {} (nothing seeded yet)
+python3 deploy/tick.py --dry               # → nothing due, or a printed notice; sends nothing
+```
+
+## 4. Cutover snapshot — do NOT skip
+`seed/events.json` is the Sheet as of 2026-09-13. A first diff against the live Sheet is in
+`out/reports/sheet-vs-seed-diff-2026-09-19.md` (56 status changes; read its notes on what it
+cannot see). Before seeding:
+1. Re-pull the Sheet (public xlsx export of file `10p5Ro2WpeJ7mMOyS92OWIT3w3Nl-KGX4vBMkXJoOCTs`, tab `2026`).
+2. Parse rep assignments the way the **event-check** skill does (aliases such as Cam = Cameron, SE
+   days, Mesa A/B rows, event rows whose day cells are dates).
+3. **ALAN** approves the diff table.
+4. Write the approved changes into `seed/events.json` (ids stay stable: `2026-<base>`; a brand-new
+   row gets `2026-<slug>-r<row>`); contact fields go to `seed/private/event_contacts.json`. Commit.
+```
+node scripts/board.mjs seed                # refuses if the public seed carries contact fields
+```
+Read back: `node scripts/board.mjs list --year 2026 | tail -1` shows the event count; an anonymous
+`curl "$URL/rest/v1/event_contacts?select=id" -H "apikey: <anon key>"` must return `[]`.
+
+## 5. Editors and meeting dates
+Values from Alan are in `seed/private/go-live.md` (gitignored). Run the three commands in it.
+
+## 6. Live verification, with Alan watching
+1. Plan mode → Alan's email → **ALAN** taps the magic link → lands back signed in as owner.
+2. A second browser, signed out: no promoter contact, phone or e-mail anywhere; plan mode asks for
+   sign-in; an email not on the list gets "not on the editor list yet".
+3. Signed in: the contact fields appear; edit a phone, reload, it persists; signed-out window still
+   does not show it.
+4. Two windows side by side: assign a shift in one; it appears in the other without refresh.
+5. `node scripts/board.mjs changelog --limit 3` shows those writes with Alan's email as actor.
+If 4 fails, check that `schema.sql`'s realtime block ran (Database → Replication).
+
+## 7. Arm the daily tick
+```
+./install.sh --arm
+touch PAUSED && launchctl start com.allinalan.rsd-board-tick && sleep 3 && tail -2 logs/tick.log && rm PAUSED
+```
+The log must say `PAUSED file present`. TCC for the iMessage can only be proven by a real launchd
+run on a day something is due (first one: Wednesday). Read `logs/tick.log` after it.
+Update the registry entry's status from PREPARED to production in the same sitting.
+
+## 8. Tell the coordinators, not the reps
+Matt and JP get the link and sign in. Reps keep using the Sheet until stage 3 of the roadmap.
+
+## If something breaks later
+`touch PAUSED` stops the job. `node scripts/board.mjs export` before any big change (includes the
+private contacts; `backups/` is gitignored). `board changelog` says who did what.

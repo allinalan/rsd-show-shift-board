@@ -1,0 +1,9 @@
+backups/
+.DS_Store
+*.log
+node_modules/
+# machine-local, never public
+seed/private/
+logs/
+out/
+PAUSED

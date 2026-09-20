@@ -1,0 +1,5626 @@
+[
+ {
+  "id": "4th-avenue-winter-street-fair-r374",
+  "name": "4th Avenue Winter Street Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 24909,
+    "date": "2019-12-13",
+    "orders": 61,
+    "vc": "00024602"
+   },
+   "2021": {
+    "cpo": 65350,
+    "date": "2021-12-10",
+    "orders": 110,
+    "vc": "00039298"
+   },
+   "2022": {
+    "cpo": 61318,
+    "date": "2022-12-09",
+    "orders": 114,
+    "vc": "00053323"
+   },
+   "2023": {
+    "cpo": 51977,
+    "date": "2023-12-08",
+    "orders": 74,
+    "vc": "00064484"
+   },
+   "2024": {
+    "cpo": 23254,
+    "date": "2024-12-13",
+    "orders": 72,
+    "vc": "00077489"
+   },
+   "2025": {
+    "cpo": 15532,
+    "date": "2025-12-12",
+    "orders": 36,
+    "vc": "00089677"
+   }
+  }
+ },
+ {
+  "id": "a-christmas-fair-r232",
+  "name": "A Christmas Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 25084,
+    "date": "2019-11-01",
+    "orders": 59,
+    "vc": "00019482"
+   },
+   "2021": {
+    "cpo": 37774,
+    "date": "2021-11-04",
+    "orders": 83,
+    "vc": "00038797"
+   },
+   "2022": {
+    "cpo": 38822,
+    "date": "2022-11-03",
+    "orders": 74,
+    "vc": "00052392"
+   },
+   "2023": {
+    "cpo": 35086,
+    "date": "2023-11-02",
+    "orders": 70,
+    "vc": "00056308"
+   },
+   "2024": {
+    "cpo": 35394,
+    "date": "2024-11-22",
+    "orders": 62,
+    "vc": "00073321"
+   },
+   "2025": {
+    "cpo": 15590,
+    "date": "2025-10-31",
+    "orders": 43,
+    "vc": "00089095"
+   }
+  }
+ },
+ {
+  "id": "anthem-autumnfest-r247",
+  "name": "Anthem Autumnfest",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 1520,
+    "date": "2019-10-19",
+    "orders": 6,
+    "vc": "00024168"
+   },
+   "2021": {
+    "cpo": 5285,
+    "date": "2021-10-23",
+    "orders": 9,
+    "vc": "00038801"
+   },
+   "2022": {
+    "cpo": 5011,
+    "date": "2022-10-22",
+    "orders": 12,
+    "vc": "00052397"
+   },
+   "2023": {
+    "cpo": 5003,
+    "date": "2023-10-14",
+    "orders": 11,
+    "vc": "00064469"
+   },
+   "2024": {
+    "cpo": 0,
+    "date": "2024-10-26",
+    "orders": 0,
+    "vc": "00076718"
+   },
+   "2025": {
+    "cpo": 3598,
+    "date": "2025-10-18",
+    "orders": 9,
+    "vc": "00090448"
+   }
+  }
+ },
+ {
+  "id": "apache-county-fair-r5",
+  "name": "Apache County Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 3867,
+    "date": "2022-09-07",
+    "orders": 10,
+    "vc": "00041580"
+   },
+   "2023": {
+    "cpo": 3206,
+    "date": "2023-08-23",
+    "orders": 4,
+    "vc": "00059786"
+   },
+   "2024": {
+    "cpo": 6120,
+    "date": "2024-08-21",
+    "orders": 7,
+    "vc": "00071512"
+   },
+   "2025": {
+    "cpo": 15998,
+    "date": "2025-08-20",
+    "orders": 17,
+    "vc": "00083070"
+   }
+  }
+ },
+ {
+  "id": "arizona-international-auto-show-r333",
+  "name": "Arizona International Auto Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 3656,
+    "date": "2024-11-28",
+    "orders": 7,
+    "vc": "00080285"
+   },
+   "2025": {
+    "cpo": 3452,
+    "date": "2025-11-27",
+    "orders": 7,
+    "vc": "00090383"
+   }
+  }
+ },
+ {
+  "id": "arizona-national-livestock-show-r405",
+  "name": "Arizona National Livestock Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-12-26",
+    "orders": 0,
+    "vc": "00024831"
+   },
+   "2021": {
+    "cpo": 5679,
+    "date": "2021-12-26",
+    "orders": 8,
+    "vc": "00038125"
+   },
+   "2022": {
+    "cpo": 5873,
+    "date": "2022-12-27",
+    "orders": 8,
+    "vc": "00052376"
+   },
+   "2023": {
+    "cpo": 3338,
+    "date": "2023-12-28",
+    "orders": 7,
+    "vc": "00064471"
+   },
+   "2024": {
+    "cpo": 3852,
+    "date": "2024-12-27",
+    "orders": 7,
+    "vc": "00077371"
+   }
+  }
+ },
+ {
+  "id": "arizona-sun-circuit-wk1-r618",
+  "name": "Arizona Sun Circuit - WK1",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2023": {
+    "cpo": 4137,
+    "date": "2023-03-04",
+    "orders": 10,
+    "vc": "00048670"
+   },
+   "2024": {
+    "cpo": 9849,
+    "date": "2024-03-01",
+    "orders": 8,
+    "vc": "00068531"
+   },
+   "2025": {
+    "cpo": 1152,
+    "date": "2025-02-28",
+    "orders": 5,
+    "vc": "00079523"
+   },
+   "2026": {
+    "cpo": 1097,
+    "date": "2026-02-27",
+    "orders": 6,
+    "vc": "00092716"
+   }
+  }
+ },
+ {
+  "id": "arizona-wine-festival-formerly-heritage-r506",
+  "name": "Arizona Wine Festival (Formerly Heritage Wine Festival)",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2020": {
+    "cpo": 0,
+    "date": "2020-01-25",
+    "orders": 0,
+    "vc": "00024413"
+   },
+   "2022": {
+    "cpo": 1612,
+    "date": "2022-01-29",
+    "orders": 5,
+    "vc": "00041368"
+   }
+  }
+ },
+ {
+  "id": "barrett-jackson-car-auction-w-1-r473",
+  "name": "Barrett- Jackson Car auction W 1",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 47234,
+    "date": "2019-01-12",
+    "orders": 74,
+    "vc": "00015404"
+   },
+   "2020": {
+    "cpo": 54328,
+    "date": "2020-01-11",
+    "orders": 71,
+    "vc": "00023247"
+   },
+   "2022": {
+    "cpo": 69329,
+    "date": "2022-01-22",
+    "orders": 64,
+    "vc": "00038260"
+   }
+  }
+ },
+ {
+  "id": "barrett-jackson-car-auction-w-2-r498",
+  "name": "Barrett- Jackson Car auction W 2",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 47234,
+    "date": "2019-01-12",
+    "orders": 74,
+    "vc": "00015404"
+   },
+   "2020": {
+    "cpo": 54328,
+    "date": "2020-01-11",
+    "orders": 71,
+    "vc": "00023247"
+   },
+   "2022": {
+    "cpo": 69329,
+    "date": "2022-01-22",
+    "orders": 64,
+    "vc": "00038260"
+   }
+  }
+ },
+ {
+  "id": "beeline-car-show-payson-days-r142",
+  "name": "Beeline Car Show & Payson Days",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2023": {
+    "cpo": 213,
+    "date": "2023-10-14",
+    "orders": 2,
+    "vc": "00065340"
+   },
+   "2024": {
+    "cpo": 270,
+    "date": "2024-10-12",
+    "orders": 2,
+    "vc": "00077521"
+   }
+  }
+ },
+ {
+  "id": "bentley-scottsdale-polo-championships-r253",
+  "name": "Bentley Scottsdale Polo Championships",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 3088,
+    "date": "2021-10-23",
+    "orders": 3,
+    "vc": "00039866"
+   },
+   "2024": {
+    "cpo": 1129,
+    "date": "2024-10-26",
+    "orders": 1,
+    "vc": "00079212"
+   }
+  }
+ },
+ {
+  "id": "bluegrass-on-the-beach-music-festival-r608",
+  "name": "Bluegrass on the Beach Music Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-03-01",
+    "orders": 0,
+    "vc": "00017837"
+   },
+   "2020": {
+    "cpo": 0,
+    "date": "2020-03-06",
+    "orders": 0,
+    "vc": "00029107"
+   },
+   "2022": {
+    "cpo": 6416,
+    "date": "2022-03-04",
+    "orders": 10,
+    "vc": "00046915"
+   },
+   "2023": {
+    "cpo": 2808,
+    "date": "2023-03-03",
+    "orders": 6,
+    "vc": "00055894"
+   },
+   "2024": {
+    "cpo": 5771,
+    "date": "2024-03-01",
+    "orders": 15,
+    "vc": "00067472"
+   },
+   "2025": {
+    "cpo": 463,
+    "date": "2025-02-28",
+    "orders": 3,
+    "vc": "00077603"
+   }
+  }
+ },
+ {
+  "id": "buckeye-air-fair-r620",
+  "name": "Buckeye Air Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2025": {
+    "cpo": 1832,
+    "date": "2025-02-14",
+    "orders": 6,
+    "vc": "00082558"
+   }
+  }
+ },
+ {
+  "id": "buckeye-days-r487",
+  "name": "Buckeye Days",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 0,
+    "date": "2022-01-29",
+    "orders": 0,
+    "vc": "00046235"
+   }
+  }
+ },
+ {
+  "id": "buckeye-sangria-shopping-event-r121",
+  "name": "Buckeye Sangria & Shopping Event",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 1256,
+    "date": "2024-10-12",
+    "orders": 4,
+    "vc": "00077522"
+   }
+  }
+ },
+ {
+  "id": "bullhead-city-balloon-festival-r221",
+  "name": "Bullhead City Balloon Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 4461,
+    "date": "2024-10-25",
+    "orders": 4,
+    "vc": "00076466"
+   },
+   "2025": {
+    "cpo": 2440,
+    "date": "2025-11-07",
+    "orders": 3,
+    "vc": "00087071"
+   }
+  }
+ },
+ {
+  "id": "cars-in-the-park-r148",
+  "name": "Cars in the Park",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2023": {
+    "cpo": 0,
+    "date": "2023-10-14",
+    "orders": 0,
+    "vc": "00063097"
+   },
+   "2024": {
+    "cpo": 611,
+    "date": "2024-10-12",
+    "orders": 2,
+    "vc": "00071609"
+   }
+  }
+ },
+ {
+  "id": "casa-grande-downtown-street-fair-r464",
+  "name": "Casa Grande Downtown Street Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 9871,
+    "date": "2022-01-22",
+    "orders": 14,
+    "vc": "00045787"
+   },
+   "2023": {
+    "cpo": 11614,
+    "date": "2023-01-21",
+    "orders": 15,
+    "vc": "00056312"
+   },
+   "2024": {
+    "cpo": 5965,
+    "date": "2024-01-20",
+    "orders": 8,
+    "vc": "00067473"
+   },
+   "2025": {
+    "cpo": 13472,
+    "date": "2025-01-18",
+    "orders": 10,
+    "vc": "00077594"
+   },
+   "2026": {
+    "cpo": 942,
+    "date": "2026-01-17",
+    "orders": 5,
+    "vc": "00091746"
+   }
+  }
+ },
+ {
+  "id": "casa-grande-gun-show-r219",
+  "name": "Casa Grande Gun Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 0,
+    "date": "2024-12-14",
+    "orders": 0,
+    "vc": "00081005"
+   },
+   "2025": {
+    "cpo": 214,
+    "date": "2025-02-07",
+    "orders": 1,
+    "vc": "00077586"
+   }
+  }
+ },
+ {
+  "id": "cave-creek-sculpture-wine-festival-r482",
+  "name": "Cave Creek Sculpture & Wine Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2023": {
+    "cpo": 11362,
+    "date": "2023-03-10",
+    "orders": 10,
+    "vc": "00054808"
+   },
+   "2024": {
+    "cpo": 6915,
+    "date": "2024-03-15",
+    "orders": 10,
+    "vc": "00065714"
+   }
+  }
+ },
+ {
+  "id": "charlie-clark-s-labor-day-fine-art-craft-r28",
+  "name": "Charlie Clark's Labor Day Fine Art & Craft Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 6041,
+    "date": "2019-08-31",
+    "orders": 15,
+    "vc": "00022933"
+   },
+   "2021": {
+    "cpo": 5737,
+    "date": "2021-09-04",
+    "orders": 14,
+    "vc": "00037053"
+   }
+  }
+ },
+ {
+  "id": "cochise-county-fair-r87",
+  "name": "Cochise County Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 2024,
+    "date": "2019-09-26",
+    "orders": 10,
+    "vc": "00024164"
+   }
+  }
+ },
+ {
+  "id": "coconino-county-fair-r19",
+  "name": "Coconino County Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 24762,
+    "date": "2019-08-30",
+    "orders": 28,
+    "vc": "00018171"
+   },
+   "2021": {
+    "cpo": 13996,
+    "date": "2021-09-03",
+    "orders": 25,
+    "vc": "00035923"
+   },
+   "2022": {
+    "cpo": 32525,
+    "date": "2022-09-02",
+    "orders": 44,
+    "vc": "00046993"
+   },
+   "2023": {
+    "cpo": 27870,
+    "date": "2023-09-01",
+    "orders": 37,
+    "vc": "00059675"
+   },
+   "2024": {
+    "cpo": 13551,
+    "date": "2024-08-30",
+    "orders": 26,
+    "vc": "00071494"
+   },
+   "2025": {
+    "cpo": 7526,
+    "date": "2025-08-29",
+    "orders": 23,
+    "vc": "00083370"
+   }
+  }
+ },
+ {
+  "id": "crossroads-of-the-west-gun-show-phoenix-r357",
+  "name": "Crossroads of the West Gun Show - Phoenix",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 228,
+    "date": "2019-01-19",
+    "orders": 2,
+    "vc": "00018161"
+   },
+   "2020": {
+    "cpo": 0,
+    "date": "2020-12-04",
+    "orders": 0,
+    "vc": "00032607"
+   },
+   "2021": {
+    "cpo": 1898,
+    "date": "2021-12-03",
+    "orders": 8,
+    "vc": "00037042"
+   },
+   "2022": {
+    "cpo": 1450,
+    "date": "2022-12-02",
+    "orders": 4,
+    "vc": "00052240"
+   },
+   "2023": {
+    "cpo": 932,
+    "date": "2023-12-01",
+    "orders": 3,
+    "vc": "00068420"
+   },
+   "2024": {
+    "cpo": 1211,
+    "date": "2024-12-06",
+    "orders": 4,
+    "vc": "00074166"
+   },
+   "2025": {
+    "cpo": 0,
+    "date": "2025-12-05",
+    "orders": 0,
+    "vc": "00081645"
+   }
+  }
+ },
+ {
+  "id": "crossroads-of-the-west-gun-show-phoenix-r57",
+  "name": "Crossroads of the West Gun Show - Phoenix",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 128,
+    "date": "2019-09-07",
+    "orders": 1,
+    "vc": "00022989"
+   },
+   "2021": {
+    "cpo": 3919,
+    "date": "2021-09-11",
+    "orders": 6,
+    "vc": "00037036"
+   },
+   "2022": {
+    "cpo": 1102,
+    "date": "2022-09-10",
+    "orders": 3,
+    "vc": "00052239"
+   },
+   "2023": {
+    "cpo": 1106,
+    "date": "2023-09-09",
+    "orders": 3,
+    "vc": "00056698"
+   },
+   "2024": {
+    "cpo": 1911,
+    "date": "2024-09-07",
+    "orders": 2,
+    "vc": "00074165"
+   },
+   "2025": {
+    "cpo": 872,
+    "date": "2025-09-06",
+    "orders": 2,
+    "vc": "00081639"
+   }
+  }
+ },
+ {
+  "id": "crossroads-of-the-west-gun-show-prescott-r171",
+  "name": "Crossroads of the West Gun Show - Prescott",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 707,
+    "date": "2019-08-16",
+    "orders": 4,
+    "vc": "00022991"
+   },
+   "2021": {
+    "cpo": 2485,
+    "date": "2021-10-16",
+    "orders": 4,
+    "vc": "00037039"
+   },
+   "2024": {
+    "cpo": 0,
+    "date": "2024-08-17",
+    "orders": 0,
+    "vc": "00074169"
+   }
+  }
+ },
+ {
+  "id": "crossroads-of-the-west-gun-show-tucson-r313",
+  "name": "Crossroads of the West Gun Show - Tucson",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2020": {
+    "cpo": 0,
+    "date": "2020-11-28",
+    "orders": 0,
+    "vc": "00032605"
+   },
+   "2021": {
+    "cpo": 2125,
+    "date": "2021-11-27",
+    "orders": 3,
+    "vc": "00037040"
+   },
+   "2022": {
+    "cpo": 0,
+    "date": "2022-11-05",
+    "orders": 0,
+    "vc": "00052245"
+   },
+   "2023": {
+    "cpo": 967,
+    "date": "2023-11-04",
+    "orders": 5,
+    "vc": "00068344"
+   },
+   "2024": {
+    "cpo": 775,
+    "date": "2024-11-02",
+    "orders": 1,
+    "vc": "00074168"
+   },
+   "2025": {
+    "cpo": 0,
+    "date": "2025-11-22",
+    "orders": 0,
+    "vc": "00081644"
+   }
+  }
+ },
+ {
+  "id": "crossroads-of-the-west-gun-show-tucson-r97",
+  "name": "Crossroads of the West Gun Show - Tucson",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 942,
+    "date": "2019-09-14",
+    "orders": 3,
+    "vc": "00024745"
+   },
+   "2021": {
+    "cpo": 5511,
+    "date": "2021-09-18",
+    "orders": 10,
+    "vc": "00037037"
+   },
+   "2022": {
+    "cpo": 0,
+    "date": "2022-09-17",
+    "orders": 0,
+    "vc": "00052244"
+   },
+   "2023": {
+    "cpo": 530,
+    "date": "2023-09-16",
+    "orders": 2,
+    "vc": "00056684"
+   },
+   "2024": {
+    "cpo": 2658,
+    "date": "2024-09-14",
+    "orders": 1,
+    "vc": "00074167"
+   },
+   "2025": {
+    "cpo": 0,
+    "date": "2025-09-27",
+    "orders": 0,
+    "vc": "00081641"
+   }
+  }
+ },
+ {
+  "id": "crossroads-of-the-west-gun-shows-mesa-r300",
+  "name": "Crossroads of the West Gun Shows - Mesa",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 267,
+    "date": "2019-11-23",
+    "orders": 2,
+    "vc": "00024746"
+   },
+   "2021": {
+    "cpo": 0,
+    "date": "2021-11-13",
+    "orders": 0,
+    "vc": "00037041"
+   },
+   "2022": {
+    "cpo": 499,
+    "date": "2022-11-12",
+    "orders": 3,
+    "vc": "00052242"
+   },
+   "2025": {
+    "cpo": 0,
+    "date": "2025-11-08",
+    "orders": 0,
+    "vc": "00081643"
+   }
+  }
+ },
+ {
+  "id": "crossroads-of-the-west-mesa-r13",
+  "name": "Crossroads of the West - Mesa",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-09-21",
+    "orders": 0,
+    "vc": "00024747"
+   },
+   "2021": {
+    "cpo": 1909,
+    "date": "2021-09-25",
+    "orders": 4,
+    "vc": "00037038"
+   },
+   "2022": {
+    "cpo": 0,
+    "date": "2022-09-24",
+    "orders": 0,
+    "vc": "00052241"
+   },
+   "2023": {
+    "cpo": 526,
+    "date": "2023-09-23",
+    "orders": 1,
+    "vc": "00056688"
+   },
+   "2025": {
+    "cpo": 298,
+    "date": "2025-09-20",
+    "orders": 4,
+    "vc": "00081640"
+   }
+  }
+ },
+ {
+  "id": "crossroads-of-the-west-mesa-r446",
+  "name": "Crossroads of the west- mesa",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-01-05",
+    "orders": 0,
+    "vc": "00018160"
+   },
+   "2020": {
+    "cpo": 0,
+    "date": "2020-01-11",
+    "orders": 0,
+    "vc": "00027413"
+   },
+   "2022": {
+    "cpo": 0,
+    "date": "2022-01-01",
+    "orders": 0,
+    "vc": "00041308"
+   },
+   "2023": {
+    "cpo": 3473,
+    "date": "2023-01-14",
+    "orders": 9,
+    "vc": "00056685"
+   },
+   "2024": {
+    "cpo": 9304,
+    "date": "2024-01-13",
+    "orders": 3,
+    "vc": "00068073"
+   },
+   "2025": {
+    "cpo": 3593,
+    "date": "2025-01-11",
+    "orders": 7,
+    "vc": "00077593"
+   }
+  }
+ },
+ {
+  "id": "dayspring-holiday-boutique-r319",
+  "name": "Dayspring Holiday Boutique",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 1409,
+    "date": "2021-11-19",
+    "orders": 5,
+    "vc": "00040859"
+   },
+   "2022": {
+    "cpo": 1203,
+    "date": "2022-11-18",
+    "orders": 4,
+    "vc": "00052388"
+   },
+   "2023": {
+    "cpo": 2621,
+    "date": "2023-11-17",
+    "orders": 5,
+    "vc": "00061284"
+   },
+   "2024": {
+    "cpo": 4788,
+    "date": "2024-11-22",
+    "orders": 5,
+    "vc": "00072815"
+   },
+   "2025": {
+    "cpo": 6174,
+    "date": "2025-11-21",
+    "orders": 6,
+    "vc": "00093422"
+   }
+  }
+ },
+ {
+  "id": "dirt-expo-r351",
+  "name": "Dirt Expo",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 8645,
+    "date": "2022-12-03",
+    "orders": 12,
+    "vc": "00054102"
+   },
+   "2023": {
+    "cpo": 19960,
+    "date": "2023-12-02",
+    "orders": 20,
+    "vc": "00063521"
+   },
+   "2024": {
+    "cpo": 17576,
+    "date": "2024-12-07",
+    "orders": 17,
+    "vc": "00074891"
+   },
+   "2025": {
+    "cpo": 12155,
+    "date": "2025-12-05",
+    "orders": 21,
+    "vc": "00086234"
+   }
+  }
+ },
+ {
+  "id": "downtown-chandler-fine-art-wine-festival-r603",
+  "name": "Downtown Chandler Fine Art & Wine Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2023": {
+    "cpo": 12135,
+    "date": "2023-02-17",
+    "orders": 17,
+    "vc": "00054807"
+   },
+   "2024": {
+    "cpo": 7829,
+    "date": "2024-02-16",
+    "orders": 9,
+    "vc": "00065712"
+   },
+   "2025": {
+    "cpo": 8714,
+    "date": "2025-02-14",
+    "orders": 10,
+    "vc": "00076808"
+   },
+   "2026": {
+    "cpo": 2587,
+    "date": "2026-02-13",
+    "orders": 10,
+    "vc": "00089218"
+   }
+  }
+ },
+ {
+  "id": "eastern-new-mexico-state-fair-r132",
+  "name": "Eastern New Mexico State fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2025": {
+    "cpo": 5347,
+    "date": "2025-09-29",
+    "orders": 7,
+    "vc": "00079500"
+   }
+  }
+ },
+ {
+  "id": "el-paso-home-garden-show-r573",
+  "name": "El Paso Home & garden show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 5062,
+    "date": "2019-03-08",
+    "orders": 7,
+    "vc": "00013599"
+   },
+   "2020": {
+    "cpo": 8680,
+    "date": "2020-03-06",
+    "orders": 12,
+    "vc": "00022608"
+   },
+   "2021": {
+    "cpo": 13112,
+    "date": "2021-10-01",
+    "orders": 20,
+    "vc": "00030548"
+   },
+   "2022": {
+    "cpo": 21610,
+    "date": "2022-02-18",
+    "orders": 34,
+    "vc": "00041544"
+   },
+   "2023": {
+    "cpo": 22402,
+    "date": "2023-02-24",
+    "orders": 27,
+    "vc": "00052149"
+   },
+   "2024": {
+    "cpo": 22164,
+    "date": "2024-02-16",
+    "orders": 20,
+    "vc": "00063436"
+   },
+   "2025": {
+    "cpo": 10471,
+    "date": "2025-02-14",
+    "orders": 21,
+    "vc": "00071956"
+   },
+   "2026": {
+    "cpo": 18716,
+    "date": "2026-03-06",
+    "orders": 24,
+    "vc": "00087821"
+   }
+  }
+ },
+ {
+  "id": "el-paso-home-show-r315",
+  "name": "El Paso Home Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 2427,
+    "date": "2019-01-25",
+    "orders": 7,
+    "vc": "00013377"
+   },
+   "2020": {
+    "cpo": 2503,
+    "date": "2020-01-24",
+    "orders": 4,
+    "vc": "00020256"
+   }
+  }
+ },
+ {
+  "id": "el-zaribah-cornfest-arts-crafts-show-r3",
+  "name": "El Zaribah Cornfest & Arts & Crafts Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 1933,
+    "date": "2021-08-21",
+    "orders": 6,
+    "vc": "00034119"
+   },
+   "2022": {
+    "cpo": 2120,
+    "date": "2022-08-27",
+    "orders": 4,
+    "vc": "00048086"
+   },
+   "2023": {
+    "cpo": 2481,
+    "date": "2023-08-26",
+    "orders": 4,
+    "vc": "00061405"
+   },
+   "2024": {
+    "cpo": 3246,
+    "date": "2024-08-24",
+    "orders": 3,
+    "vc": "00071120"
+   },
+   "2025": {
+    "cpo": 314,
+    "date": "2025-08-23",
+    "orders": 1,
+    "vc": "00085810"
+   }
+  }
+ },
+ {
+  "id": "fall-carefree-fine-art-wine-festival-r239",
+  "name": "Fall Carefree Fine Art & Wine Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 11839,
+    "date": "2022-11-04",
+    "orders": 12,
+    "vc": "00052395"
+   },
+   "2023": {
+    "cpo": 8142,
+    "date": "2023-11-03",
+    "orders": 12,
+    "vc": "00065716"
+   },
+   "2024": {
+    "cpo": 8782,
+    "date": "2024-11-01",
+    "orders": 14,
+    "vc": "00076805"
+   },
+   "2025": {
+    "cpo": 7406,
+    "date": "2025-11-07",
+    "orders": 12,
+    "vc": "00089215"
+   }
+  }
+ },
+ {
+  "id": "fallfest-in-the-park-r104",
+  "name": "FallFest In the Park",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 10769,
+    "date": "2024-10-05",
+    "orders": 22,
+    "vc": "00073587"
+   },
+   "2025": {
+    "cpo": 11330,
+    "date": "2025-10-04",
+    "orders": 15,
+    "vc": "00082524"
+   }
+  }
+ },
+ {
+  "id": "fiddle-food-truck-festival-r53",
+  "name": "Fiddle & Food Truck Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 0,
+    "date": "2024-09-20",
+    "orders": 0,
+    "vc": "00073750"
+   },
+   "2025": {
+    "cpo": 0,
+    "date": "2025-09-04",
+    "orders": 0,
+    "vc": "00082113"
+   }
+  }
+ },
+ {
+  "id": "flagstaff-art-in-the-park-r26",
+  "name": "Flagstaff Art in the Park",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2023": {
+    "cpo": 3677,
+    "date": "2023-09-02",
+    "orders": 7,
+    "vc": "00062191"
+   },
+   "2024": {
+    "cpo": 7796,
+    "date": "2024-08-30",
+    "orders": 12,
+    "vc": "00075710"
+   },
+   "2025": {
+    "cpo": 10990,
+    "date": "2025-08-30",
+    "orders": 13,
+    "vc": "00086518"
+   }
+  }
+ },
+ {
+  "id": "fort-huachuca-fun-fest-r91",
+  "name": "Fort Huachuca Fun Fest",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 0,
+    "date": "2024-09-20",
+    "orders": 0,
+    "vc": "00077443"
+   },
+   "2025": {
+    "cpo": 427,
+    "date": "2025-09-19",
+    "orders": 3,
+    "vc": "00090441"
+   }
+  }
+ },
+ {
+  "id": "founder-s-day-r72",
+  "name": "Founder's Day",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-09-21",
+    "orders": 0,
+    "vc": "00023107"
+   },
+   "2022": {
+    "cpo": 0,
+    "date": "2022-09-17",
+    "orders": 0,
+    "vc": "00049443"
+   },
+   "2023": {
+    "cpo": 0,
+    "date": "2023-09-16",
+    "orders": 0,
+    "vc": "00064077"
+   }
+  }
+ },
+ {
+  "id": "fountain-hills-festival-of-fine-arts-cra-r273",
+  "name": "Fountain Hills Festival of Fine Arts & Crafts",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2020": {
+    "cpo": 8502,
+    "date": "2020-11-13",
+    "orders": 15,
+    "vc": "00032077"
+   },
+   "2021": {
+    "cpo": 5119,
+    "date": "2021-11-12",
+    "orders": 16,
+    "vc": "00038989"
+   },
+   "2022": {
+    "cpo": 15553,
+    "date": "2022-11-11",
+    "orders": 38,
+    "vc": "00047454"
+   },
+   "2023": {
+    "cpo": 34705,
+    "date": "2023-11-10",
+    "orders": 65,
+    "vc": "00059783"
+   },
+   "2024": {
+    "cpo": 15660,
+    "date": "2024-11-08",
+    "orders": 44,
+    "vc": "00071761"
+   },
+   "2025": {
+    "cpo": 18452,
+    "date": "2025-11-14",
+    "orders": 25,
+    "vc": "00084239"
+   }
+  }
+ },
+ {
+  "id": "four-corner-states-bluegrass-festival-r294",
+  "name": "Four Corner States Bluegrass Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 4666,
+    "date": "2022-11-11",
+    "orders": 8,
+    "vc": "00052757"
+   },
+   "2023": {
+    "cpo": 2696,
+    "date": "2023-11-10",
+    "orders": 8,
+    "vc": "00064893"
+   },
+   "2024": {
+    "cpo": 1296,
+    "date": "2024-11-08",
+    "orders": 5,
+    "vc": "00077567"
+   }
+  }
+ },
+ {
+  "id": "gilbert-days-rodeo-r311",
+  "name": "Gilbert Days Rodeo",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 2379,
+    "date": "2024-11-22",
+    "orders": 6,
+    "vc": "00080760"
+   },
+   "2025": {
+    "cpo": 2398,
+    "date": "2025-11-21",
+    "orders": 4,
+    "vc": "00090442"
+   }
+  }
+ },
+ {
+  "id": "glendale-chocolate-affaire-r560",
+  "name": "Glendale Chocolate Affaire",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 7137,
+    "date": "2019-02-09",
+    "orders": 22,
+    "vc": "00015659"
+   },
+   "2020": {
+    "cpo": 581,
+    "date": "2020-02-15",
+    "orders": 1,
+    "vc": "00025110"
+   },
+   "2025": {
+    "cpo": 693,
+    "date": "2025-02-15",
+    "orders": 3,
+    "vc": "00078523"
+   },
+   "2026": {
+    "cpo": 5718,
+    "date": "2026-02-14",
+    "orders": 15,
+    "vc": "00093479"
+   }
+  }
+ },
+ {
+  "id": "gold-rush-days-r554",
+  "name": "Gold Rush Days",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 15128,
+    "date": "2022-02-11",
+    "orders": 24,
+    "vc": "00046574"
+   },
+   "2023": {
+    "cpo": 20973,
+    "date": "2023-02-09",
+    "orders": 23,
+    "vc": "00057030"
+   },
+   "2024": {
+    "cpo": 7384,
+    "date": "2024-02-08",
+    "orders": 17,
+    "vc": "00066443"
+   },
+   "2025": {
+    "cpo": 1849,
+    "date": "2025-02-13",
+    "orders": 7,
+    "vc": "00077621"
+   },
+   "2026": {
+    "cpo": 9839,
+    "date": "2026-02-13",
+    "orders": 18,
+    "vc": "00090303"
+   }
+  }
+ },
+ {
+  "id": "goodguys-southwest-nationals-r309",
+  "name": "Goodguys Southwest Nationals",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2023": {
+    "cpo": 3395,
+    "date": "2023-11-17",
+    "orders": 4,
+    "vc": "00058003"
+   },
+   "2024": {
+    "cpo": 5914,
+    "date": "2024-11-22",
+    "orders": 5,
+    "vc": "00067761"
+   },
+   "2025": {
+    "cpo": 3328,
+    "date": "2025-11-21",
+    "orders": 3,
+    "vc": "00080171"
+   }
+  }
+ },
+ {
+  "id": "graham-county-fair-r134",
+  "name": "Graham County Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 5819,
+    "date": "2021-10-07",
+    "orders": 8,
+    "vc": "00038126"
+   },
+   "2022": {
+    "cpo": 3263,
+    "date": "2022-10-06",
+    "orders": 6,
+    "vc": "00052393"
+   },
+   "2023": {
+    "cpo": 6154,
+    "date": "2023-10-05",
+    "orders": 16,
+    "vc": "00066701"
+   },
+   "2024": {
+    "cpo": 9351,
+    "date": "2024-10-10",
+    "orders": 8,
+    "vc": "00077523"
+   },
+   "2025": {
+    "cpo": 3184,
+    "date": "2025-10-09",
+    "orders": 5,
+    "vc": "00089988"
+   }
+  }
+ },
+ {
+  "id": "hatch-chili-festival-r34",
+  "name": "Hatch Chili Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 9005,
+    "date": "2022-09-03",
+    "orders": 20,
+    "vc": "00048672"
+   },
+   "2023": {
+    "cpo": 3942,
+    "date": "2023-09-01",
+    "orders": 8,
+    "vc": "00061409"
+   },
+   "2024": {
+    "cpo": 6027,
+    "date": "2024-08-31",
+    "orders": 9,
+    "vc": "00074396"
+   },
+   "2025": {
+    "cpo": 7860,
+    "date": "2025-08-30",
+    "orders": 8,
+    "vc": "00086415"
+   }
+  }
+ },
+ {
+  "id": "havasu-christmas-craft-gift-show-r286",
+  "name": "Havasu Christmas Craft & Gift Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 6787,
+    "date": "2021-11-20",
+    "orders": 17,
+    "vc": "00036783"
+   },
+   "2022": {
+    "cpo": 3309,
+    "date": "2022-11-19",
+    "orders": 12,
+    "vc": "00052389"
+   },
+   "2024": {
+    "cpo": 830,
+    "date": "2024-11-16",
+    "orders": 5,
+    "vc": "00077587"
+   },
+   "2025": {
+    "cpo": 1364,
+    "date": "2025-11-22",
+    "orders": 3,
+    "vc": "00087074"
+   }
+  }
+ },
+ {
+  "id": "havasu-island-balloon-festival-r479",
+  "name": "Havasu Island Balloon festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 6365,
+    "date": "2019-01-10",
+    "orders": 15,
+    "vc": "00015655"
+   },
+   "2020": {
+    "cpo": 4311,
+    "date": "2020-01-09",
+    "orders": 14,
+    "vc": "00022976"
+   },
+   "2022": {
+    "cpo": 7635,
+    "date": "2022-01-20",
+    "orders": 11,
+    "vc": "00038497"
+   },
+   "2023": {
+    "cpo": 33045,
+    "date": "2023-01-19",
+    "orders": 31,
+    "vc": "00052598"
+   },
+   "2024": {
+    "cpo": 40421,
+    "date": "2024-01-18",
+    "orders": 38,
+    "vc": "00065542"
+   },
+   "2025": {
+    "cpo": 21078,
+    "date": "2025-01-09",
+    "orders": 22,
+    "vc": "00076790"
+   },
+   "2026": {
+    "cpo": 35786,
+    "date": "2026-01-22",
+    "orders": 39,
+    "vc": "00090301"
+   }
+  }
+ },
+ {
+  "id": "heber-overgaard-oktoberfest-r156",
+  "name": "Heber-Overgaard Oktoberfest",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 2387,
+    "date": "2021-09-24",
+    "orders": 4,
+    "vc": "00038153"
+   },
+   "2022": {
+    "cpo": 12469,
+    "date": "2022-09-03",
+    "orders": 16,
+    "vc": "00052384"
+   },
+   "2023": {
+    "cpo": 4535,
+    "date": "2023-09-30",
+    "orders": 5,
+    "vc": "00058880"
+   },
+   "2024": {
+    "cpo": 0,
+    "date": "2024-08-31",
+    "orders": 0,
+    "vc": "00077005"
+   },
+   "2025": {
+    "cpo": 1077,
+    "date": "2025-09-27",
+    "orders": 4,
+    "vc": "00083541"
+   }
+  }
+ },
+ {
+  "id": "hondo-rodeo-fest-r279",
+  "name": "Hondo Rodeo Fest",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2025": {
+    "cpo": 23361,
+    "date": "2025-11-07",
+    "orders": 26,
+    "vc": "00090609"
+   }
+  }
+ },
+ {
+  "id": "lake-havasu-home-garden-show-r282",
+  "name": "Lake Havasu Home & Garden Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 2568,
+    "date": "2022-09-23",
+    "orders": 8,
+    "vc": "00050517"
+   },
+   "2023": {
+    "cpo": 5665,
+    "date": "2023-09-22",
+    "orders": 5,
+    "vc": "00059963"
+   },
+   "2024": {
+    "cpo": 9690,
+    "date": "2024-11-15",
+    "orders": 13,
+    "vc": "00071642"
+   },
+   "2025": {
+    "cpo": 9224,
+    "date": "2025-11-14",
+    "orders": 14,
+    "vc": "00087034"
+   }
+  }
+ },
+ {
+  "id": "lake-havasu-home-garden-show-spring-r504",
+  "name": "Lake Havasu Home & Garden Show Spring",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 2568,
+    "date": "2022-09-23",
+    "orders": 8,
+    "vc": "00050517"
+   },
+   "2023": {
+    "cpo": 5665,
+    "date": "2023-09-22",
+    "orders": 5,
+    "vc": "00059963"
+   },
+   "2024": {
+    "cpo": 9690,
+    "date": "2024-11-15",
+    "orders": 13,
+    "vc": "00071642"
+   },
+   "2025": {
+    "cpo": 9224,
+    "date": "2025-11-14",
+    "orders": 14,
+    "vc": "00087034"
+   }
+  }
+ },
+ {
+  "id": "lake-havasu-rockabilly-union-r518",
+  "name": "Lake Havasu Rockabilly Union",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2023": {
+    "cpo": 2283,
+    "date": "2023-02-18",
+    "orders": 6,
+    "vc": "00056234"
+   },
+   "2024": {
+    "cpo": 2197,
+    "date": "2024-02-16",
+    "orders": 5,
+    "vc": "00065231"
+   },
+   "2025": {
+    "cpo": 3583,
+    "date": "2025-02-14",
+    "orders": 5,
+    "vc": "00077571"
+   },
+   "2026": {
+    "cpo": 2462,
+    "date": "2026-02-13",
+    "orders": 3,
+    "vc": "00087262"
+   }
+  }
+ },
+ {
+  "id": "lake-havasu-sand-water-rv-show-r288",
+  "name": "Lake Havasu Sand & Water & RV Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 2583,
+    "date": "2021-11-19",
+    "orders": 4,
+    "vc": "00036888"
+   },
+   "2022": {
+    "cpo": 3657,
+    "date": "2022-11-18",
+    "orders": 6,
+    "vc": "00052386"
+   },
+   "2023": {
+    "cpo": 30744,
+    "date": "2023-11-17",
+    "orders": 12,
+    "vc": "00064470"
+   },
+   "2024": {
+    "cpo": 13416,
+    "date": "2024-11-15",
+    "orders": 11,
+    "vc": "00077589"
+   },
+   "2025": {
+    "cpo": 4312,
+    "date": "2025-11-14",
+    "orders": 6,
+    "vc": "00091745"
+   }
+  }
+ },
+ {
+  "id": "las-cruces-harvest-wine-fest-r30",
+  "name": "Las Cruces Harvest Wine Fest",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 4838,
+    "date": "2024-08-31",
+    "orders": 8,
+    "vc": "00077189"
+   },
+   "2025": {
+    "cpo": 6834,
+    "date": "2025-08-30",
+    "orders": 9,
+    "vc": "00086674"
+   }
+  }
+ },
+ {
+  "id": "laveen-bbq-festival-r587",
+  "name": "Laveen BBQ Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-02-16",
+    "orders": 0,
+    "vc": "00018730"
+   },
+   "2020": {
+    "cpo": 614,
+    "date": "2020-02-08",
+    "orders": 2,
+    "vc": "00027694"
+   },
+   "2022": {
+    "cpo": 2851,
+    "date": "2022-02-26",
+    "orders": 4,
+    "vc": "00041854"
+   },
+   "2023": {
+    "cpo": 0,
+    "date": "2023-02-25",
+    "orders": 0,
+    "vc": "00056594"
+   },
+   "2024": {
+    "cpo": 1512,
+    "date": "2024-02-24",
+    "orders": 3,
+    "vc": "00067476"
+   },
+   "2025": {
+    "cpo": 979,
+    "date": "2025-02-22",
+    "orders": 2,
+    "vc": "00079734"
+   },
+   "2026": {
+    "cpo": 414,
+    "date": "2026-02-21",
+    "orders": 2,
+    "vc": "00084956"
+   }
+  }
+ },
+ {
+  "id": "litchfield-christmas-in-the-park-r381",
+  "name": "Litchfield Christmas in the Park",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2020": {
+    "cpo": 3861,
+    "date": "2020-12-12",
+    "orders": 9,
+    "vc": "00033311"
+   },
+   "2021": {
+    "cpo": 1653,
+    "date": "2021-12-11",
+    "orders": 2,
+    "vc": "00041032"
+   },
+   "2022": {
+    "cpo": 908,
+    "date": "2022-12-10",
+    "orders": 1,
+    "vc": "00052378"
+   },
+   "2023": {
+    "cpo": 862,
+    "date": "2023-12-09",
+    "orders": 3,
+    "vc": "00064472"
+   },
+   "2024": {
+    "cpo": 45,
+    "date": "2024-12-14",
+    "orders": 1,
+    "vc": "00077602"
+   },
+   "2025": {
+    "cpo": 1192,
+    "date": "2025-12-13",
+    "orders": 2,
+    "vc": "00093400"
+   }
+  }
+ },
+ {
+  "id": "litchfield-park-festival-of-arts-r236",
+  "name": "Litchfield Park Festival of Arts",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 9086,
+    "date": "2019-11-02",
+    "orders": 27,
+    "vc": "00024744"
+   },
+   "2020": {
+    "cpo": 4735,
+    "date": "2020-11-07",
+    "orders": 8,
+    "vc": "00032363"
+   },
+   "2021": {
+    "cpo": 15947,
+    "date": "2021-11-06",
+    "orders": 31,
+    "vc": "00039540"
+   },
+   "2022": {
+    "cpo": 12684,
+    "date": "2022-11-05",
+    "orders": 18,
+    "vc": "00052391"
+   },
+   "2023": {
+    "cpo": 7724,
+    "date": "2023-11-04",
+    "orders": 18,
+    "vc": "00064486"
+   },
+   "2024": {
+    "cpo": 10611,
+    "date": "2024-11-02",
+    "orders": 19,
+    "vc": "00077149"
+   },
+   "2025": {
+    "cpo": 14997,
+    "date": "2025-11-01",
+    "orders": 22,
+    "vc": "00090906"
+   }
+  }
+ },
+ {
+  "id": "lost-dutchman-days-rodeo-r610",
+  "name": "Lost Dutchman Days Rodeo",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2026": {
+    "cpo": 4585,
+    "date": "2026-02-27",
+    "orders": 11,
+    "vc": "00095271"
+   }
+  }
+ },
+ {
+  "id": "maricopa-county-home-garden-show-r449",
+  "name": "Maricopa County Home & Garden Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 51311,
+    "date": "2019-01-11",
+    "orders": 103,
+    "vc": "00010696"
+   },
+   "2020": {
+    "cpo": 41895,
+    "date": "2020-01-10",
+    "orders": 81,
+    "vc": "00019419"
+   },
+   "2022": {
+    "cpo": 87073,
+    "date": "2022-01-07",
+    "orders": 113,
+    "vc": "00039241"
+   },
+   "2023": {
+    "cpo": 98205,
+    "date": "2023-01-13",
+    "orders": 131,
+    "vc": "00041769"
+   },
+   "2024": {
+    "cpo": 76934,
+    "date": "2024-01-12",
+    "orders": 118,
+    "vc": "00057009"
+   },
+   "2025": {
+    "cpo": 73353,
+    "date": "2025-01-10",
+    "orders": 97,
+    "vc": "00068960"
+   },
+   "2026": {
+    "cpo": 87061,
+    "date": "2026-01-09",
+    "orders": 102,
+    "vc": "00081320"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r113",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 6210,
+    "date": "2019-09-26",
+    "orders": 23,
+    "vc": "00024729"
+   },
+   "2020": {
+    "cpo": 4981,
+    "date": "2020-10-01",
+    "orders": 18,
+    "vc": "00032735"
+   },
+   "2021": {
+    "cpo": 13652,
+    "date": "2021-09-26",
+    "orders": 23,
+    "vc": "00039412"
+   },
+   "2022": {
+    "cpo": 9460,
+    "date": "2022-10-01",
+    "orders": 23,
+    "vc": "00039480"
+   },
+   "2023": {
+    "cpo": 6343,
+    "date": "2023-09-29",
+    "orders": 23,
+    "vc": "00057890"
+   },
+   "2024": {
+    "cpo": 12651,
+    "date": "2024-10-01",
+    "orders": 34,
+    "vc": "00070724"
+   },
+   "2025": {
+    "cpo": 11234,
+    "date": "2025-10-06",
+    "orders": 27,
+    "vc": "00082642"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r150",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 7685,
+    "date": "2019-10-22",
+    "orders": 28,
+    "vc": "00024730"
+   },
+   "2020": {
+    "cpo": 4981,
+    "date": "2020-10-01",
+    "orders": 18,
+    "vc": "00032735"
+   },
+   "2021": {
+    "cpo": 13652,
+    "date": "2021-09-26",
+    "orders": 23,
+    "vc": "00039412"
+   },
+   "2022": {
+    "cpo": 9460,
+    "date": "2022-10-01",
+    "orders": 23,
+    "vc": "00039480"
+   },
+   "2023": {
+    "cpo": 6343,
+    "date": "2023-09-29",
+    "orders": 23,
+    "vc": "00057890"
+   },
+   "2024": {
+    "cpo": 12651,
+    "date": "2024-10-01",
+    "orders": 34,
+    "vc": "00070724"
+   },
+   "2025": {
+    "cpo": 11234,
+    "date": "2025-10-06",
+    "orders": 27,
+    "vc": "00082642"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r177",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 7685,
+    "date": "2019-10-22",
+    "orders": 28,
+    "vc": "00024730"
+   },
+   "2020": {
+    "cpo": 4981,
+    "date": "2020-10-01",
+    "orders": 18,
+    "vc": "00032735"
+   },
+   "2021": {
+    "cpo": 13652,
+    "date": "2021-09-26",
+    "orders": 23,
+    "vc": "00039412"
+   },
+   "2022": {
+    "cpo": 9460,
+    "date": "2022-10-01",
+    "orders": 23,
+    "vc": "00039480"
+   },
+   "2023": {
+    "cpo": 6343,
+    "date": "2023-09-29",
+    "orders": 23,
+    "vc": "00057890"
+   },
+   "2024": {
+    "cpo": 12651,
+    "date": "2024-10-01",
+    "orders": 34,
+    "vc": "00070724"
+   },
+   "2025": {
+    "cpo": 11234,
+    "date": "2025-10-06",
+    "orders": 27,
+    "vc": "00082642"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r206",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 7685,
+    "date": "2019-10-22",
+    "orders": 28,
+    "vc": "00024730"
+   },
+   "2020": {
+    "cpo": 11730,
+    "date": "2020-11-01",
+    "orders": 32,
+    "vc": "00032736"
+   },
+   "2021": {
+    "cpo": 29263,
+    "date": "2021-10-24",
+    "orders": 68,
+    "vc": "00039413"
+   },
+   "2022": {
+    "cpo": 19279,
+    "date": "2022-11-01",
+    "orders": 45,
+    "vc": "00039481"
+   },
+   "2023": {
+    "cpo": 18736,
+    "date": "2023-11-03",
+    "orders": 61,
+    "vc": "00057891"
+   },
+   "2024": {
+    "cpo": 21795,
+    "date": "2024-11-01",
+    "orders": 60,
+    "vc": "00070729"
+   },
+   "2025": {
+    "cpo": 25757,
+    "date": "2025-11-03",
+    "orders": 39,
+    "vc": "00082643"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r225",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 7685,
+    "date": "2019-10-22",
+    "orders": 28,
+    "vc": "00024730"
+   },
+   "2020": {
+    "cpo": 11730,
+    "date": "2020-11-01",
+    "orders": 32,
+    "vc": "00032736"
+   },
+   "2021": {
+    "cpo": 29263,
+    "date": "2021-10-24",
+    "orders": 68,
+    "vc": "00039413"
+   },
+   "2022": {
+    "cpo": 19279,
+    "date": "2022-11-01",
+    "orders": 45,
+    "vc": "00039481"
+   },
+   "2023": {
+    "cpo": 18736,
+    "date": "2023-11-03",
+    "orders": 61,
+    "vc": "00057891"
+   },
+   "2024": {
+    "cpo": 21795,
+    "date": "2024-11-01",
+    "orders": 60,
+    "vc": "00070729"
+   },
+   "2025": {
+    "cpo": 25757,
+    "date": "2025-11-03",
+    "orders": 39,
+    "vc": "00082643"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r263",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 5570,
+    "date": "2019-11-19",
+    "orders": 21,
+    "vc": "00024732"
+   },
+   "2020": {
+    "cpo": 11730,
+    "date": "2020-11-01",
+    "orders": 32,
+    "vc": "00032736"
+   },
+   "2021": {
+    "cpo": 29263,
+    "date": "2021-10-24",
+    "orders": 68,
+    "vc": "00039413"
+   },
+   "2022": {
+    "cpo": 19279,
+    "date": "2022-11-01",
+    "orders": 45,
+    "vc": "00039481"
+   },
+   "2023": {
+    "cpo": 18736,
+    "date": "2023-11-03",
+    "orders": 61,
+    "vc": "00057891"
+   },
+   "2024": {
+    "cpo": 21795,
+    "date": "2024-11-01",
+    "orders": 60,
+    "vc": "00070729"
+   },
+   "2025": {
+    "cpo": 25757,
+    "date": "2025-11-03",
+    "orders": 39,
+    "vc": "00082643"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r302",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 5570,
+    "date": "2019-11-19",
+    "orders": 21,
+    "vc": "00024732"
+   },
+   "2020": {
+    "cpo": 11730,
+    "date": "2020-11-01",
+    "orders": 32,
+    "vc": "00032736"
+   },
+   "2021": {
+    "cpo": 25062,
+    "date": "2021-11-21",
+    "orders": 58,
+    "vc": "00039414"
+   },
+   "2022": {
+    "cpo": 19279,
+    "date": "2022-11-01",
+    "orders": 45,
+    "vc": "00039481"
+   },
+   "2023": {
+    "cpo": 18736,
+    "date": "2023-11-03",
+    "orders": 61,
+    "vc": "00057891"
+   },
+   "2024": {
+    "cpo": 21795,
+    "date": "2024-11-01",
+    "orders": 60,
+    "vc": "00070729"
+   },
+   "2025": {
+    "cpo": 25757,
+    "date": "2025-11-03",
+    "orders": 39,
+    "vc": "00082643"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r326",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 5570,
+    "date": "2019-11-19",
+    "orders": 21,
+    "vc": "00024732"
+   },
+   "2020": {
+    "cpo": 11597,
+    "date": "2020-12-01",
+    "orders": 28,
+    "vc": "00032737"
+   },
+   "2021": {
+    "cpo": 25062,
+    "date": "2021-11-21",
+    "orders": 58,
+    "vc": "00039414"
+   },
+   "2022": {
+    "cpo": 23578,
+    "date": "2022-12-01",
+    "orders": 67,
+    "vc": "00039482"
+   },
+   "2023": {
+    "cpo": 32132,
+    "date": "2023-12-01",
+    "orders": 72,
+    "vc": "00057892"
+   },
+   "2024": {
+    "cpo": 15385,
+    "date": "2024-12-01",
+    "orders": 49,
+    "vc": "00070730"
+   },
+   "2025": {
+    "cpo": 30144,
+    "date": "2025-12-01",
+    "orders": 80,
+    "vc": "00082644"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r341",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 5570,
+    "date": "2019-11-19",
+    "orders": 21,
+    "vc": "00024732"
+   },
+   "2020": {
+    "cpo": 11597,
+    "date": "2020-12-01",
+    "orders": 28,
+    "vc": "00032737"
+   },
+   "2021": {
+    "cpo": 25062,
+    "date": "2021-11-21",
+    "orders": 58,
+    "vc": "00039414"
+   },
+   "2022": {
+    "cpo": 23578,
+    "date": "2022-12-01",
+    "orders": 67,
+    "vc": "00039482"
+   },
+   "2023": {
+    "cpo": 32132,
+    "date": "2023-12-01",
+    "orders": 72,
+    "vc": "00057892"
+   },
+   "2024": {
+    "cpo": 15385,
+    "date": "2024-12-01",
+    "orders": 49,
+    "vc": "00070730"
+   },
+   "2025": {
+    "cpo": 30144,
+    "date": "2025-12-01",
+    "orders": 80,
+    "vc": "00082644"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r365",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 10162,
+    "date": "2019-12-17",
+    "orders": 32,
+    "vc": "00024734"
+   },
+   "2020": {
+    "cpo": 11597,
+    "date": "2020-12-01",
+    "orders": 28,
+    "vc": "00032737"
+   },
+   "2021": {
+    "cpo": 25062,
+    "date": "2021-11-21",
+    "orders": 58,
+    "vc": "00039414"
+   },
+   "2022": {
+    "cpo": 23578,
+    "date": "2022-12-01",
+    "orders": 67,
+    "vc": "00039482"
+   },
+   "2023": {
+    "cpo": 32132,
+    "date": "2023-12-01",
+    "orders": 72,
+    "vc": "00057892"
+   },
+   "2024": {
+    "cpo": 15385,
+    "date": "2024-12-01",
+    "orders": 49,
+    "vc": "00070730"
+   },
+   "2025": {
+    "cpo": 30144,
+    "date": "2025-12-01",
+    "orders": 80,
+    "vc": "00082644"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r387",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 10162,
+    "date": "2019-12-17",
+    "orders": 32,
+    "vc": "00024734"
+   },
+   "2020": {
+    "cpo": 11597,
+    "date": "2020-12-01",
+    "orders": 28,
+    "vc": "00032737"
+   },
+   "2021": {
+    "cpo": 9574,
+    "date": "2021-12-19",
+    "orders": 24,
+    "vc": "00039415"
+   },
+   "2022": {
+    "cpo": 23578,
+    "date": "2022-12-01",
+    "orders": 67,
+    "vc": "00039482"
+   },
+   "2023": {
+    "cpo": 32132,
+    "date": "2023-12-01",
+    "orders": 72,
+    "vc": "00057892"
+   },
+   "2024": {
+    "cpo": 15385,
+    "date": "2024-12-01",
+    "orders": 49,
+    "vc": "00070730"
+   },
+   "2025": {
+    "cpo": 30144,
+    "date": "2025-12-01",
+    "orders": 80,
+    "vc": "00082644"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r398",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 10162,
+    "date": "2019-12-17",
+    "orders": 32,
+    "vc": "00024734"
+   },
+   "2020": {
+    "cpo": 11597,
+    "date": "2020-12-01",
+    "orders": 28,
+    "vc": "00032737"
+   },
+   "2021": {
+    "cpo": 9574,
+    "date": "2021-12-19",
+    "orders": 24,
+    "vc": "00039415"
+   },
+   "2022": {
+    "cpo": 23578,
+    "date": "2022-12-01",
+    "orders": 67,
+    "vc": "00039482"
+   },
+   "2023": {
+    "cpo": 11589,
+    "date": "2023-01-01",
+    "orders": 38,
+    "vc": "00057886"
+   },
+   "2024": {
+    "cpo": 14282,
+    "date": "2024-01-01",
+    "orders": 40,
+    "vc": "00062022"
+   },
+   "2025": {
+    "cpo": 19426,
+    "date": "2025-01-01",
+    "orders": 44,
+    "vc": "00082633"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r409",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 10162,
+    "date": "2019-12-17",
+    "orders": 32,
+    "vc": "00024734"
+   },
+   "2020": {
+    "cpo": 11208,
+    "date": "2020-01-14",
+    "orders": 35,
+    "vc": "00024735"
+   },
+   "2021": {
+    "cpo": 9574,
+    "date": "2021-12-19",
+    "orders": 24,
+    "vc": "00039415"
+   },
+   "2022": {
+    "cpo": 27031,
+    "date": "2022-01-16",
+    "orders": 65,
+    "vc": "00039471"
+   },
+   "2023": {
+    "cpo": 11589,
+    "date": "2023-01-01",
+    "orders": 38,
+    "vc": "00057886"
+   },
+   "2024": {
+    "cpo": 14282,
+    "date": "2024-01-01",
+    "orders": 40,
+    "vc": "00062022"
+   },
+   "2025": {
+    "cpo": 19426,
+    "date": "2025-01-01",
+    "orders": 44,
+    "vc": "00082633"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r418",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 14091,
+    "date": "2019-01-04",
+    "orders": 60,
+    "vc": "00013669"
+   },
+   "2020": {
+    "cpo": 11208,
+    "date": "2020-01-14",
+    "orders": 35,
+    "vc": "00024735"
+   },
+   "2021": {
+    "cpo": 22202,
+    "date": "2021-01-01",
+    "orders": 51,
+    "vc": "00032738"
+   },
+   "2022": {
+    "cpo": 27031,
+    "date": "2022-01-16",
+    "orders": 65,
+    "vc": "00039471"
+   },
+   "2023": {
+    "cpo": 11589,
+    "date": "2023-01-01",
+    "orders": 38,
+    "vc": "00057886"
+   },
+   "2024": {
+    "cpo": 14282,
+    "date": "2024-01-01",
+    "orders": 40,
+    "vc": "00062022"
+   },
+   "2025": {
+    "cpo": 19426,
+    "date": "2025-01-01",
+    "orders": 44,
+    "vc": "00082633"
+   },
+   "2026": {
+    "cpo": 14569,
+    "date": "2026-01-01",
+    "orders": 34,
+    "vc": "00094424"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r440",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 14091,
+    "date": "2019-01-04",
+    "orders": 60,
+    "vc": "00013669"
+   },
+   "2020": {
+    "cpo": 11208,
+    "date": "2020-01-14",
+    "orders": 35,
+    "vc": "00024735"
+   },
+   "2021": {
+    "cpo": 22202,
+    "date": "2021-01-01",
+    "orders": 51,
+    "vc": "00032738"
+   },
+   "2022": {
+    "cpo": 27031,
+    "date": "2022-01-16",
+    "orders": 65,
+    "vc": "00039471"
+   },
+   "2023": {
+    "cpo": 11589,
+    "date": "2023-01-01",
+    "orders": 38,
+    "vc": "00057886"
+   },
+   "2024": {
+    "cpo": 14282,
+    "date": "2024-01-01",
+    "orders": 40,
+    "vc": "00062022"
+   },
+   "2025": {
+    "cpo": 19426,
+    "date": "2025-01-01",
+    "orders": 44,
+    "vc": "00082633"
+   },
+   "2026": {
+    "cpo": 14569,
+    "date": "2026-01-01",
+    "orders": 34,
+    "vc": "00094424"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r466",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 14091,
+    "date": "2019-01-04",
+    "orders": 60,
+    "vc": "00013669"
+   },
+   "2020": {
+    "cpo": 11208,
+    "date": "2020-01-14",
+    "orders": 35,
+    "vc": "00024735"
+   },
+   "2021": {
+    "cpo": 22202,
+    "date": "2021-01-01",
+    "orders": 51,
+    "vc": "00032738"
+   },
+   "2022": {
+    "cpo": 27031,
+    "date": "2022-01-16",
+    "orders": 65,
+    "vc": "00039471"
+   },
+   "2023": {
+    "cpo": 11589,
+    "date": "2023-01-01",
+    "orders": 38,
+    "vc": "00057886"
+   },
+   "2024": {
+    "cpo": 14282,
+    "date": "2024-01-01",
+    "orders": 40,
+    "vc": "00062022"
+   },
+   "2025": {
+    "cpo": 19426,
+    "date": "2025-01-01",
+    "orders": 44,
+    "vc": "00082633"
+   },
+   "2026": {
+    "cpo": 14569,
+    "date": "2026-01-01",
+    "orders": 34,
+    "vc": "00094424"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r491",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 13518,
+    "date": "2019-02-01",
+    "orders": 66,
+    "vc": "00013670"
+   },
+   "2020": {
+    "cpo": 11208,
+    "date": "2020-01-14",
+    "orders": 35,
+    "vc": "00024735"
+   },
+   "2021": {
+    "cpo": 19410,
+    "date": "2021-02-01",
+    "orders": 56,
+    "vc": "00032739"
+   },
+   "2022": {
+    "cpo": 27031,
+    "date": "2022-01-16",
+    "orders": 65,
+    "vc": "00039471"
+   },
+   "2023": {
+    "cpo": 28044,
+    "date": "2023-02-03",
+    "orders": 58,
+    "vc": "00057887"
+   },
+   "2024": {
+    "cpo": 14131,
+    "date": "2024-02-01",
+    "orders": 34,
+    "vc": "00070716"
+   },
+   "2025": {
+    "cpo": 21228,
+    "date": "2025-02-03",
+    "orders": 60,
+    "vc": "00082634"
+   },
+   "2026": {
+    "cpo": 18041,
+    "date": "2026-02-01",
+    "orders": 46,
+    "vc": "00094425"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r520",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 13518,
+    "date": "2019-02-01",
+    "orders": 66,
+    "vc": "00013670"
+   },
+   "2020": {
+    "cpo": 27954,
+    "date": "2020-02-11",
+    "orders": 72,
+    "vc": "00024736"
+   },
+   "2021": {
+    "cpo": 19410,
+    "date": "2021-02-01",
+    "orders": 56,
+    "vc": "00032739"
+   },
+   "2022": {
+    "cpo": 27031,
+    "date": "2022-01-16",
+    "orders": 65,
+    "vc": "00039471"
+   },
+   "2023": {
+    "cpo": 28044,
+    "date": "2023-02-03",
+    "orders": 58,
+    "vc": "00057887"
+   },
+   "2024": {
+    "cpo": 14131,
+    "date": "2024-02-01",
+    "orders": 34,
+    "vc": "00070716"
+   },
+   "2025": {
+    "cpo": 21228,
+    "date": "2025-02-03",
+    "orders": 60,
+    "vc": "00082634"
+   },
+   "2026": {
+    "cpo": 18041,
+    "date": "2026-02-01",
+    "orders": 46,
+    "vc": "00094425"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r545",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 13518,
+    "date": "2019-02-01",
+    "orders": 66,
+    "vc": "00013670"
+   },
+   "2020": {
+    "cpo": 27954,
+    "date": "2020-02-11",
+    "orders": 72,
+    "vc": "00024736"
+   },
+   "2021": {
+    "cpo": 19410,
+    "date": "2021-02-01",
+    "orders": 56,
+    "vc": "00032739"
+   },
+   "2022": {
+    "cpo": 22454,
+    "date": "2022-02-13",
+    "orders": 54,
+    "vc": "00039472"
+   },
+   "2023": {
+    "cpo": 28044,
+    "date": "2023-02-03",
+    "orders": 58,
+    "vc": "00057887"
+   },
+   "2024": {
+    "cpo": 14131,
+    "date": "2024-02-01",
+    "orders": 34,
+    "vc": "00070716"
+   },
+   "2025": {
+    "cpo": 21228,
+    "date": "2025-02-03",
+    "orders": 60,
+    "vc": "00082634"
+   },
+   "2026": {
+    "cpo": 18041,
+    "date": "2026-02-01",
+    "orders": 46,
+    "vc": "00094425"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r564",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 13518,
+    "date": "2019-02-01",
+    "orders": 66,
+    "vc": "00013670"
+   },
+   "2020": {
+    "cpo": 27954,
+    "date": "2020-02-11",
+    "orders": 72,
+    "vc": "00024736"
+   },
+   "2021": {
+    "cpo": 19410,
+    "date": "2021-02-01",
+    "orders": 56,
+    "vc": "00032739"
+   },
+   "2022": {
+    "cpo": 22454,
+    "date": "2022-02-13",
+    "orders": 54,
+    "vc": "00039472"
+   },
+   "2023": {
+    "cpo": 28044,
+    "date": "2023-02-03",
+    "orders": 58,
+    "vc": "00057887"
+   },
+   "2024": {
+    "cpo": 14131,
+    "date": "2024-02-01",
+    "orders": 34,
+    "vc": "00070716"
+   },
+   "2025": {
+    "cpo": 21228,
+    "date": "2025-02-03",
+    "orders": 60,
+    "vc": "00082634"
+   },
+   "2026": {
+    "cpo": 18041,
+    "date": "2026-02-01",
+    "orders": 46,
+    "vc": "00094425"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r593",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 29755,
+    "date": "2019-03-01",
+    "orders": 78,
+    "vc": "00013671"
+   },
+   "2020": {
+    "cpo": 27954,
+    "date": "2020-02-11",
+    "orders": 72,
+    "vc": "00024736"
+   },
+   "2021": {
+    "cpo": 22418,
+    "date": "2021-03-01",
+    "orders": 64,
+    "vc": "00032741"
+   },
+   "2022": {
+    "cpo": 22454,
+    "date": "2022-02-13",
+    "orders": 54,
+    "vc": "00039472"
+   },
+   "2023": {
+    "cpo": 24699,
+    "date": "2023-03-03",
+    "orders": 66,
+    "vc": "00057888"
+   },
+   "2024": {
+    "cpo": 20177,
+    "date": "2024-03-01",
+    "orders": 54,
+    "vc": "00070717"
+   },
+   "2025": {
+    "cpo": 14399,
+    "date": "2025-03-03",
+    "orders": 45,
+    "vc": "00082635"
+   },
+   "2026": {
+    "cpo": 15385,
+    "date": "2026-03-01",
+    "orders": 37,
+    "vc": "00094426"
+   }
+  }
+ },
+ {
+  "id": "mesa-market-place-swapmeet-r623",
+  "name": "Mesa Market Place Swapmeet",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 29755,
+    "date": "2019-03-01",
+    "orders": 78,
+    "vc": "00013671"
+   },
+   "2020": {
+    "cpo": 2519,
+    "date": "2020-03-10",
+    "orders": 7,
+    "vc": "00024737"
+   },
+   "2021": {
+    "cpo": 22418,
+    "date": "2021-03-01",
+    "orders": 64,
+    "vc": "00032741"
+   },
+   "2022": {
+    "cpo": 22454,
+    "date": "2022-02-13",
+    "orders": 54,
+    "vc": "00039472"
+   },
+   "2023": {
+    "cpo": 24699,
+    "date": "2023-03-03",
+    "orders": 66,
+    "vc": "00057888"
+   },
+   "2024": {
+    "cpo": 20177,
+    "date": "2024-03-01",
+    "orders": 54,
+    "vc": "00070717"
+   },
+   "2025": {
+    "cpo": 14399,
+    "date": "2025-03-03",
+    "orders": 45,
+    "vc": "00082635"
+   },
+   "2026": {
+    "cpo": 15385,
+    "date": "2026-03-01",
+    "orders": 37,
+    "vc": "00094426"
+   }
+  }
+ },
+ {
+  "id": "mingle-jingle-christmas-bazaar-r363",
+  "name": "Mingle Jingle Christmas Bazaar",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2023": {
+    "cpo": 540,
+    "date": "2023-12-02",
+    "orders": 2,
+    "vc": "00064647"
+   },
+   "2024": {
+    "cpo": 0,
+    "date": "2024-12-07",
+    "orders": 0,
+    "vc": "00077588"
+   }
+  }
+ },
+ {
+  "id": "mohave-county-fair-r68",
+  "name": "Mohave County Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 3867,
+    "date": "2021-09-16",
+    "orders": 10,
+    "vc": "00037897"
+   },
+   "2023": {
+    "cpo": 7354,
+    "date": "2023-09-14",
+    "orders": 11,
+    "vc": "00063231"
+   },
+   "2024": {
+    "cpo": 10569,
+    "date": "2024-09-12",
+    "orders": 12,
+    "vc": "00075083"
+   },
+   "2025": {
+    "cpo": 17214,
+    "date": "2025-09-11",
+    "orders": 18,
+    "vc": "00082151"
+   }
+  }
+ },
+ {
+  "id": "navajo-county-fair-r66",
+  "name": "Navajo County Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 9841,
+    "date": "2022-09-14",
+    "orders": 16,
+    "vc": "00048666"
+   },
+   "2023": {
+    "cpo": 17301,
+    "date": "2023-09-13",
+    "orders": 20,
+    "vc": "00061412"
+   },
+   "2024": {
+    "cpo": 7886,
+    "date": "2024-09-11",
+    "orders": 17,
+    "vc": "00073955"
+   },
+   "2025": {
+    "cpo": 2200,
+    "date": "2025-09-10",
+    "orders": 3,
+    "vc": "00086519"
+   }
+  }
+ },
+ {
+  "id": "navajo-nation-fair-r51",
+  "name": "Navajo Nation Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2025": {
+    "cpo": 2606,
+    "date": "2025-09-03",
+    "orders": 7,
+    "vc": "00090440"
+   }
+  }
+ },
+ {
+  "id": "northern-gila-county-fair-r109",
+  "name": "Northern Gila County Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 1538,
+    "date": "2019-09-05",
+    "orders": 5,
+    "vc": "00022980"
+   },
+   "2021": {
+    "cpo": 4722,
+    "date": "2021-09-09",
+    "orders": 8,
+    "vc": "00032942"
+   },
+   "2022": {
+    "cpo": 10102,
+    "date": "2022-09-08",
+    "orders": 12,
+    "vc": "00049442"
+   },
+   "2023": {
+    "cpo": 4093,
+    "date": "2023-09-08",
+    "orders": 8,
+    "vc": "00059819"
+   },
+   "2024": {
+    "cpo": 3358,
+    "date": "2024-09-06",
+    "orders": 9,
+    "vc": "00074394"
+   },
+   "2025": {
+    "cpo": 3720,
+    "date": "2025-09-04",
+    "orders": 9,
+    "vc": "00084656"
+   }
+  }
+ },
+ {
+  "id": "oak-creek-arts-crafts-show-bell-rock-pla-r119",
+  "name": "Oak Creek Arts & Crafts Show - Bell Rock Plaza",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 0,
+    "date": "2022-10-01",
+    "orders": 0,
+    "vc": "00051458"
+   },
+   "2023": {
+    "cpo": 1537,
+    "date": "2023-10-14",
+    "orders": 2,
+    "vc": "00057042"
+   },
+   "2024": {
+    "cpo": 0,
+    "date": "2024-10-05",
+    "orders": 0,
+    "vc": "00079298"
+   }
+  }
+ },
+ {
+  "id": "oak-creek-arts-crafts-show-bell-rock-pla-r175",
+  "name": "Oak Creek Arts & Crafts Show - Bell Rock Plaza",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 0,
+    "date": "2022-10-01",
+    "orders": 0,
+    "vc": "00051458"
+   },
+   "2023": {
+    "cpo": 1537,
+    "date": "2023-10-14",
+    "orders": 2,
+    "vc": "00057042"
+   },
+   "2024": {
+    "cpo": 0,
+    "date": "2024-10-05",
+    "orders": 0,
+    "vc": "00079298"
+   }
+  }
+ },
+ {
+  "id": "oak-creek-arts-crafts-show-bell-rock-pla-r298",
+  "name": "Oak Creek Arts & Crafts Show - Bell Rock Plaza",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 664,
+    "date": "2022-11-12",
+    "orders": 5,
+    "vc": "00051460"
+   },
+   "2023": {
+    "cpo": 2089,
+    "date": "2023-10-28",
+    "orders": 2,
+    "vc": "00057043"
+   },
+   "2024": {
+    "cpo": 0,
+    "date": "2024-11-02",
+    "orders": 0,
+    "vc": "00079299"
+   }
+  }
+ },
+ {
+  "id": "oak-creek-arts-crafts-show-bell-rock-pla-r59",
+  "name": "Oak Creek Arts & Crafts Show - Bell Rock Plaza",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 2554,
+    "date": "2022-09-10",
+    "orders": 4,
+    "vc": "00051456"
+   },
+   "2023": {
+    "cpo": 7155,
+    "date": "2023-09-09",
+    "orders": 12,
+    "vc": "00057040"
+   },
+   "2024": {
+    "cpo": 0,
+    "date": "2024-09-14",
+    "orders": 0,
+    "vc": "00079296"
+   }
+  }
+ },
+ {
+  "id": "oak-creek-arts-crafts-show-sedona-vista-r144",
+  "name": "Oak Creek Arts & Crafts Show - Sedona Vista",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 0,
+    "date": "2022-09-02",
+    "orders": 0,
+    "vc": "00051445"
+   },
+   "2025": {
+    "cpo": 0,
+    "date": "2025-09-26",
+    "orders": 0,
+    "vc": "00080252"
+   }
+  }
+ },
+ {
+  "id": "oak-creek-arts-crafts-show-sedona-vista-r194",
+  "name": "Oak Creek Arts & Crafts Show - Sedona Vista",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 2909,
+    "date": "2022-11-25",
+    "orders": 6,
+    "vc": "00051450"
+   },
+   "2025": {
+    "cpo": 0,
+    "date": "2025-09-26",
+    "orders": 0,
+    "vc": "00080252"
+   }
+  }
+ },
+ {
+  "id": "oak-creek-arts-crafts-show-sedona-vista-r255",
+  "name": "Oak Creek Arts & Crafts Show - Sedona Vista",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 2909,
+    "date": "2022-11-25",
+    "orders": 6,
+    "vc": "00051450"
+   },
+   "2025": {
+    "cpo": 0,
+    "date": "2025-09-26",
+    "orders": 0,
+    "vc": "00080252"
+   }
+  }
+ },
+ {
+  "id": "oak-creek-arts-crafts-show-sedona-vista-r339",
+  "name": "Oak Creek Arts & Crafts Show - Sedona Vista",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 2909,
+    "date": "2022-11-25",
+    "orders": 6,
+    "vc": "00051450"
+   }
+  }
+ },
+ {
+  "id": "oak-creek-arts-crafts-show-sedona-vista-r396",
+  "name": "Oak Creek Arts & Crafts Show - Sedona Vista",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 2909,
+    "date": "2022-11-25",
+    "orders": 6,
+    "vc": "00051450"
+   }
+  }
+ },
+ {
+  "id": "oak-creek-arts-crafts-show-sedona-vista-r7",
+  "name": "Oak Creek Arts & Crafts Show Sedona Vista",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 0,
+    "date": "2022-09-02",
+    "orders": 0,
+    "vc": "00051445"
+   },
+   "2025": {
+    "cpo": 46,
+    "date": "2025-08-29",
+    "orders": 1,
+    "vc": "00080250"
+   }
+  }
+ },
+ {
+  "id": "oak-creek-arts-crafts-show-sedona-vista-r81",
+  "name": "Oak Creek Arts & Crafts Show - Sedona Vista",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 0,
+    "date": "2022-09-02",
+    "orders": 0,
+    "vc": "00051445"
+   },
+   "2025": {
+    "cpo": 0,
+    "date": "2025-09-26",
+    "orders": 0,
+    "vc": "00080252"
+   }
+  }
+ },
+ {
+  "id": "oro-valley-festival-of-the-arts-r354",
+  "name": "Oro Valley Festival of the Arts",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 6615,
+    "date": "2019-12-07",
+    "orders": 22,
+    "vc": "00026154"
+   },
+   "2021": {
+    "cpo": 9709,
+    "date": "2021-12-04",
+    "orders": 30,
+    "vc": "00039315"
+   },
+   "2022": {
+    "cpo": 4773,
+    "date": "2022-12-03",
+    "orders": 14,
+    "vc": "00051039"
+   },
+   "2023": {
+    "cpo": 7277,
+    "date": "2023-12-02",
+    "orders": 22,
+    "vc": "00065341"
+   },
+   "2024": {
+    "cpo": 5367,
+    "date": "2024-12-07",
+    "orders": 19,
+    "vc": "00075706"
+   },
+   "2025": {
+    "cpo": 7085,
+    "date": "2025-12-06",
+    "orders": 15,
+    "vc": "00088142"
+   }
+  }
+ },
+ {
+  "id": "otero-county-fair-r85",
+  "name": "Otero County Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2025": {
+    "cpo": 0,
+    "date": "2025-09-20",
+    "orders": 0,
+    "vc": "00091440"
+   }
+  }
+ },
+ {
+  "id": "page-lake-powell-balloon-festival-r251",
+  "name": "Page-Lake Powell Balloon Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 8285,
+    "date": "2024-10-31",
+    "orders": 7,
+    "vc": "00080036"
+   },
+   "2025": {
+    "cpo": 7198,
+    "date": "2025-10-30",
+    "orders": 18,
+    "vc": "00090231"
+   }
+  }
+ },
+ {
+  "id": "patagonia-fall-festival-r138",
+  "name": "Patagonia Fall Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 2252,
+    "date": "2019-10-12",
+    "orders": 9,
+    "vc": "00024742"
+   },
+   "2024": {
+    "cpo": 4183,
+    "date": "2024-10-12",
+    "orders": 4,
+    "vc": "00075708"
+   },
+   "2025": {
+    "cpo": 3810,
+    "date": "2025-10-11",
+    "orders": 6,
+    "vc": "00088140"
+   }
+  }
+ },
+ {
+  "id": "payson-aerofair-r185",
+  "name": "Payson AeroFair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 1993,
+    "date": "2024-10-19",
+    "orders": 3,
+    "vc": "00073758"
+   }
+  }
+ },
+ {
+  "id": "phoenix-festival-of-the-arts-r377",
+  "name": "Phoenix Festival of the Arts",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 2406,
+    "date": "2022-12-10",
+    "orders": 3,
+    "vc": "00052638"
+   },
+   "2024": {
+    "cpo": 0,
+    "date": "2024-12-14",
+    "orders": 0,
+    "vc": "00076943"
+   }
+  }
+ },
+ {
+  "id": "phoenix-pizza-festival-r292",
+  "name": "Phoenix Pizza Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 0,
+    "date": "2022-11-12",
+    "orders": 0,
+    "vc": "00052461"
+   },
+   "2023": {
+    "cpo": 2807,
+    "date": "2023-11-11",
+    "orders": 5,
+    "vc": "00063691"
+   },
+   "2025": {
+    "cpo": 2107,
+    "date": "2025-11-15",
+    "orders": 2,
+    "vc": "00086332"
+   }
+  }
+ },
+ {
+  "id": "pine-fall-festival-r107",
+  "name": "Pine Fall Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-10-12",
+    "orders": 0,
+    "vc": "00024743"
+   },
+   "2020": {
+    "cpo": 0,
+    "date": "2020-10-10",
+    "orders": 0,
+    "vc": "00028997"
+   },
+   "2021": {
+    "cpo": 4374,
+    "date": "2021-10-09",
+    "orders": 13,
+    "vc": "00036808"
+   },
+   "2023": {
+    "cpo": 458,
+    "date": "2023-10-07",
+    "orders": 2,
+    "vc": "00061765"
+   },
+   "2024": {
+    "cpo": 4234,
+    "date": "2024-10-05",
+    "orders": 4,
+    "vc": "00075166"
+   },
+   "2025": {
+    "cpo": 269,
+    "date": "2025-10-04",
+    "orders": 1,
+    "vc": "00083546"
+   }
+  }
+ },
+ {
+  "id": "pine-strawberry-arts-crafts-festival-lab-r38",
+  "name": "Pine-Strawberry Arts & Crafts Festival - Labor Day",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 2685,
+    "date": "2019-06-15",
+    "orders": 7,
+    "vc": "00020733"
+   },
+   "2021": {
+    "cpo": 354,
+    "date": "2021-06-12",
+    "orders": 2,
+    "vc": "00036809"
+   },
+   "2022": {
+    "cpo": 2873,
+    "date": "2022-10-08",
+    "orders": 4,
+    "vc": "00050751"
+   },
+   "2023": {
+    "cpo": 1635,
+    "date": "2023-06-17",
+    "orders": 1,
+    "vc": "00061764"
+   },
+   "2024": {
+    "cpo": 0,
+    "date": "2024-06-15",
+    "orders": 0,
+    "vc": "00075165"
+   },
+   "2025": {
+    "cpo": 442,
+    "date": "2025-06-14",
+    "orders": 3,
+    "vc": "00086321"
+   }
+  }
+ },
+ {
+  "id": "pinetop-lakeside-fall-artisian-festival-r89",
+  "name": "Pinetop-Lakeside Fall Artisian Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 6068,
+    "date": "2019-09-27",
+    "orders": 16,
+    "vc": "00017103"
+   },
+   "2021": {
+    "cpo": 0,
+    "date": "2021-09-24",
+    "orders": 0,
+    "vc": "00039332"
+   },
+   "2022": {
+    "cpo": 7187,
+    "date": "2022-09-24",
+    "orders": 8,
+    "vc": "00049501"
+   },
+   "2023": {
+    "cpo": 8477,
+    "date": "2023-09-22",
+    "orders": 13,
+    "vc": "00065347"
+   },
+   "2025": {
+    "cpo": 3741,
+    "date": "2025-09-26",
+    "orders": 8,
+    "vc": "00086829"
+   }
+  }
+ },
+ {
+  "id": "pinners-conference-expo-az-r270",
+  "name": "Pinners Conference & Expo - AZ",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 4513,
+    "date": "2019-11-08",
+    "orders": 11,
+    "vc": "00018985"
+   },
+   "2020": {
+    "cpo": 2117,
+    "date": "2020-11-13",
+    "orders": 10,
+    "vc": "00028536"
+   },
+   "2021": {
+    "cpo": 5088,
+    "date": "2021-11-12",
+    "orders": 11,
+    "vc": "00039312"
+   },
+   "2022": {
+    "cpo": 14672,
+    "date": "2022-11-11",
+    "orders": 27,
+    "vc": "00047315"
+   },
+   "2023": {
+    "cpo": 12771,
+    "date": "2023-11-10",
+    "orders": 34,
+    "vc": "00051529"
+   },
+   "2024": {
+    "cpo": 7569,
+    "date": "2024-11-08",
+    "orders": 9,
+    "vc": "00077528"
+   },
+   "2025": {
+    "cpo": 22038,
+    "date": "2025-11-14",
+    "orders": 26,
+    "vc": "00081897"
+   }
+  }
+ },
+ {
+  "id": "prescott-labor-day-show-r21",
+  "name": "Prescott Labor Day Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2025": {
+    "cpo": 23669,
+    "date": "2025-08-30",
+    "orders": 29,
+    "vc": "00082525"
+   }
+  }
+ },
+ {
+  "id": "quartzsite-rv-show-w-1-r461",
+  "name": "Quartzsite RV Show w 1",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 36760,
+    "date": "2019-01-19",
+    "orders": 83,
+    "vc": "00015656"
+   },
+   "2020": {
+    "cpo": 25483,
+    "date": "2020-01-18",
+    "orders": 61,
+    "vc": "00024884"
+   },
+   "2021": {
+    "cpo": 43214,
+    "date": "2021-01-16",
+    "orders": 64,
+    "vc": "00031690"
+   },
+   "2022": {
+    "cpo": 50121,
+    "date": "2022-01-22",
+    "orders": 94,
+    "vc": "00039245"
+   },
+   "2023": {
+    "cpo": 57734,
+    "date": "2023-01-21",
+    "orders": 88,
+    "vc": "00049215"
+   },
+   "2024": {
+    "cpo": 64287,
+    "date": "2024-01-20",
+    "orders": 100,
+    "vc": "00060497"
+   },
+   "2025": {
+    "cpo": 31881,
+    "date": "2025-01-18",
+    "orders": 70,
+    "vc": "00074345"
+   },
+   "2026": {
+    "cpo": 47981,
+    "date": "2026-01-17",
+    "orders": 80,
+    "vc": "00083545"
+   }
+  }
+ },
+ {
+  "id": "quartzsite-rv-show-w-2-r476",
+  "name": "Quartzsite RV Show W 2",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 36760,
+    "date": "2019-01-19",
+    "orders": 83,
+    "vc": "00015656"
+   },
+   "2020": {
+    "cpo": 25483,
+    "date": "2020-01-18",
+    "orders": 61,
+    "vc": "00024884"
+   },
+   "2021": {
+    "cpo": 43214,
+    "date": "2021-01-16",
+    "orders": 64,
+    "vc": "00031690"
+   },
+   "2022": {
+    "cpo": 50121,
+    "date": "2022-01-22",
+    "orders": 94,
+    "vc": "00039245"
+   },
+   "2023": {
+    "cpo": 57734,
+    "date": "2023-01-21",
+    "orders": 88,
+    "vc": "00049215"
+   },
+   "2024": {
+    "cpo": 64287,
+    "date": "2024-01-20",
+    "orders": 100,
+    "vc": "00060497"
+   },
+   "2025": {
+    "cpo": 31881,
+    "date": "2025-01-18",
+    "orders": 70,
+    "vc": "00074345"
+   },
+   "2026": {
+    "cpo": 47981,
+    "date": "2026-01-17",
+    "orders": 80,
+    "vc": "00083545"
+   }
+  }
+ },
+ {
+  "id": "queen-creek-family-market-december-r359",
+  "name": "Queen Creek Family Market-December",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 1014,
+    "date": "2019-12-14",
+    "orders": 8,
+    "vc": "00027545"
+   },
+   "2020": {
+    "cpo": 65,
+    "date": "2020-01-11",
+    "orders": 1,
+    "vc": "00027547"
+   },
+   "2022": {
+    "cpo": 4526,
+    "date": "2022-12-01",
+    "orders": 4,
+    "vc": "00049581"
+   },
+   "2023": {
+    "cpo": 210,
+    "date": "2023-01-01",
+    "orders": 2,
+    "vc": "00049582"
+   }
+  }
+ },
+ {
+  "id": "queen-creek-family-market-december-r385",
+  "name": "Queen Creek Family Market-December",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 1014,
+    "date": "2019-12-14",
+    "orders": 8,
+    "vc": "00027545"
+   },
+   "2020": {
+    "cpo": 65,
+    "date": "2020-01-11",
+    "orders": 1,
+    "vc": "00027547"
+   },
+   "2022": {
+    "cpo": 4526,
+    "date": "2022-12-01",
+    "orders": 4,
+    "vc": "00049581"
+   },
+   "2023": {
+    "cpo": 210,
+    "date": "2023-01-01",
+    "orders": 2,
+    "vc": "00049582"
+   }
+  }
+ },
+ {
+  "id": "queen-creek-family-market-december-r394",
+  "name": "Queen Creek Family Market-December",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-12-21",
+    "orders": 0,
+    "vc": "00027546"
+   },
+   "2020": {
+    "cpo": 65,
+    "date": "2020-01-11",
+    "orders": 1,
+    "vc": "00027547"
+   },
+   "2022": {
+    "cpo": 4526,
+    "date": "2022-12-01",
+    "orders": 4,
+    "vc": "00049581"
+   },
+   "2023": {
+    "cpo": 210,
+    "date": "2023-01-01",
+    "orders": 2,
+    "vc": "00049582"
+   }
+  }
+ },
+ {
+  "id": "queen-creek-family-market-january-r438",
+  "name": "Queen Creek Family Market- January",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-12-21",
+    "orders": 0,
+    "vc": "00027546"
+   },
+   "2020": {
+    "cpo": 65,
+    "date": "2020-01-11",
+    "orders": 1,
+    "vc": "00027547"
+   },
+   "2022": {
+    "cpo": 4526,
+    "date": "2022-12-01",
+    "orders": 4,
+    "vc": "00049581"
+   },
+   "2023": {
+    "cpo": 210,
+    "date": "2023-01-01",
+    "orders": 2,
+    "vc": "00049582"
+   }
+  }
+ },
+ {
+  "id": "queen-creek-family-market-november-r324",
+  "name": "Queen Creek Family Market-November",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 1014,
+    "date": "2019-12-14",
+    "orders": 8,
+    "vc": "00027545"
+   },
+   "2020": {
+    "cpo": 65,
+    "date": "2020-01-11",
+    "orders": 1,
+    "vc": "00027547"
+   },
+   "2022": {
+    "cpo": 4526,
+    "date": "2022-12-01",
+    "orders": 4,
+    "vc": "00049581"
+   },
+   "2023": {
+    "cpo": 210,
+    "date": "2023-01-01",
+    "orders": 2,
+    "vc": "00049582"
+   }
+  }
+ },
+ {
+  "id": "queen-creek-family-market-october-r198",
+  "name": "Queen Creek Family Market-October",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 118,
+    "date": "2019-10-26",
+    "orders": 1,
+    "vc": "00025934"
+   },
+   "2022": {
+    "cpo": 252,
+    "date": "2022-11-01",
+    "orders": 1,
+    "vc": "00049580"
+   }
+  }
+ },
+ {
+  "id": "queen-creek-family-market-october-r217",
+  "name": "Queen Creek Family Market-October",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 118,
+    "date": "2019-10-26",
+    "orders": 1,
+    "vc": "00025934"
+   },
+   "2022": {
+    "cpo": 252,
+    "date": "2022-11-01",
+    "orders": 1,
+    "vc": "00049580"
+   }
+  }
+ },
+ {
+  "id": "queen-creek-family-market-r489",
+  "name": "Queen Creek Family Market",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-12-21",
+    "orders": 0,
+    "vc": "00027546"
+   },
+   "2020": {
+    "cpo": 65,
+    "date": "2020-01-11",
+    "orders": 1,
+    "vc": "00027547"
+   },
+   "2023": {
+    "cpo": 300,
+    "date": "2023-02-01",
+    "orders": 3,
+    "vc": "00049584"
+   }
+  }
+ },
+ {
+  "id": "queen-creek-family-market-r540",
+  "name": "Queen Creek Family market",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2020": {
+    "cpo": 65,
+    "date": "2020-01-11",
+    "orders": 1,
+    "vc": "00027547"
+   },
+   "2023": {
+    "cpo": 300,
+    "date": "2023-02-01",
+    "orders": 3,
+    "vc": "00049584"
+   }
+  }
+ },
+ {
+  "id": "queen-creek-family-market-r591",
+  "name": "Queen Creek Family Market",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2020": {
+    "cpo": 243,
+    "date": "2020-03-07",
+    "orders": 2,
+    "vc": "00027551"
+   },
+   "2023": {
+    "cpo": 910,
+    "date": "2023-03-01",
+    "orders": 2,
+    "vc": "00049585"
+   }
+  }
+ },
+ {
+  "id": "queen-creek-holiday-festival-parade-r361",
+  "name": "Queen Creek Holiday Festival & Parade",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 5513,
+    "date": "2021-12-04",
+    "orders": 6,
+    "vc": "00039522"
+   },
+   "2022": {
+    "cpo": 0,
+    "date": "2022-12-03",
+    "orders": 0,
+    "vc": "00052157"
+   },
+   "2023": {
+    "cpo": 1433,
+    "date": "2023-12-02",
+    "orders": 3,
+    "vc": "00065139"
+   }
+  }
+ },
+ {
+  "id": "quilt-craft-sewing-festival-phoenix-r501",
+  "name": "Quilt, Craft & Sewing Festival - Phoenix",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 3076,
+    "date": "2019-01-31",
+    "orders": 13,
+    "vc": "00015657"
+   },
+   "2020": {
+    "cpo": 12219,
+    "date": "2020-01-31",
+    "orders": 28,
+    "vc": "00020150"
+   },
+   "2021": {
+    "cpo": 5398,
+    "date": "2021-09-02",
+    "orders": 22,
+    "vc": "00035993"
+   },
+   "2022": {
+    "cpo": 9398,
+    "date": "2022-01-27",
+    "orders": 21,
+    "vc": "00039452"
+   },
+   "2023": {
+    "cpo": 17215,
+    "date": "2023-01-26",
+    "orders": 38,
+    "vc": "00049833"
+   },
+   "2024": {
+    "cpo": 12749,
+    "date": "2024-01-25",
+    "orders": 23,
+    "vc": "00067478"
+   },
+   "2025": {
+    "cpo": 8651,
+    "date": "2025-01-30",
+    "orders": 21,
+    "vc": "00077595"
+   },
+   "2026": {
+    "cpo": 4256,
+    "date": "2026-01-29",
+    "orders": 23,
+    "vc": "00090913"
+   }
+  }
+ },
+ {
+  "id": "quilt-craft-sewing-festival-scottsdale-r16",
+  "name": "Quilt, Craft & Sewing Festival Scottsdale",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 10505,
+    "date": "2022-09-01",
+    "orders": 19,
+    "vc": "00049444"
+   },
+   "2023": {
+    "cpo": 17591,
+    "date": "2023-08-31",
+    "orders": 28,
+    "vc": "00054095"
+   },
+   "2024": {
+    "cpo": 3547,
+    "date": "2024-08-29",
+    "orders": 9,
+    "vc": "00074160"
+   },
+   "2025": {
+    "cpo": 4230,
+    "date": "2025-08-28",
+    "orders": 15,
+    "vc": "00082309"
+   }
+  }
+ },
+ {
+  "id": "quilt-craft-sewing-festival-tucson-r241",
+  "name": "Quilt, Craft & Sewing Festival - Tucson",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 4718,
+    "date": "2019-11-07",
+    "orders": 16,
+    "vc": "00025290"
+   },
+   "2021": {
+    "cpo": 6058,
+    "date": "2021-11-04",
+    "orders": 17,
+    "vc": "00035995"
+   },
+   "2022": {
+    "cpo": 5472,
+    "date": "2022-11-10",
+    "orders": 18,
+    "vc": "00039501"
+   },
+   "2023": {
+    "cpo": 7930,
+    "date": "2023-11-09",
+    "orders": 31,
+    "vc": "00054097"
+   },
+   "2024": {
+    "cpo": 6496,
+    "date": "2024-11-07",
+    "orders": 19,
+    "vc": "00077529"
+   },
+   "2025": {
+    "cpo": 4552,
+    "date": "2025-11-06",
+    "orders": 18,
+    "vc": "00082311"
+   }
+  }
+ },
+ {
+  "id": "run-to-the-pines-car-show-r83",
+  "name": "Run to the Pines Car Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 599,
+    "date": "2019-09-27",
+    "orders": 2,
+    "vc": "00023170"
+   },
+   "2022": {
+    "cpo": 2604,
+    "date": "2022-09-23",
+    "orders": 12,
+    "vc": "00049500"
+   },
+   "2023": {
+    "cpo": 10760,
+    "date": "2023-09-22",
+    "orders": 12,
+    "vc": "00064018"
+   },
+   "2025": {
+    "cpo": 3630,
+    "date": "2025-09-26",
+    "orders": 4,
+    "vc": "00086673"
+   }
+  }
+ },
+ {
+  "id": "run-to-the-sun-r188",
+  "name": "Run to the Sun",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 853,
+    "date": "2019-10-18",
+    "orders": 2,
+    "vc": "00024088"
+   },
+   "2021": {
+    "cpo": 5608,
+    "date": "2021-10-22",
+    "orders": 9,
+    "vc": "00038555"
+   },
+   "2022": {
+    "cpo": 8919,
+    "date": "2022-10-21",
+    "orders": 8,
+    "vc": "00051555"
+   },
+   "2023": {
+    "cpo": 5784,
+    "date": "2023-10-20",
+    "orders": 6,
+    "vc": "00058037"
+   },
+   "2024": {
+    "cpo": 3081,
+    "date": "2024-10-16",
+    "orders": 6,
+    "vc": "00077525"
+   },
+   "2025": {
+    "cpo": 2412,
+    "date": "2025-10-17",
+    "orders": 6,
+    "vc": "00087990"
+   }
+  }
+ },
+ {
+  "id": "sahuarita-art-on-the-lake-festival-r429",
+  "name": "Sahuarita Art on the Lake Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 2988,
+    "date": "2022-03-12",
+    "orders": 3,
+    "vc": "00040881"
+   },
+   "2026": {
+    "cpo": 0,
+    "date": "2026-01-10",
+    "orders": 0,
+    "vc": "00088143"
+   }
+  }
+ },
+ {
+  "id": "salt-river-fields-spooktacular-hot-air-b-r190",
+  "name": "Salt River Fields Spooktacular Hot Air Balloon Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 3445,
+    "date": "2019-10-25",
+    "orders": 3,
+    "vc": "00024564"
+   },
+   "2022": {
+    "cpo": 1308,
+    "date": "2022-10-28",
+    "orders": 3,
+    "vc": "00052155"
+   },
+   "2023": {
+    "cpo": 4892,
+    "date": "2023-10-27",
+    "orders": 5,
+    "vc": "00064001"
+   },
+   "2024": {
+    "cpo": 0,
+    "date": "2024-10-25",
+    "orders": 0,
+    "vc": "00077527"
+   }
+  }
+ },
+ {
+  "id": "santa-cruz-county-fair-r78",
+  "name": "Santa Cruz County Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 3527,
+    "date": "2022-09-16",
+    "orders": 7,
+    "vc": "00046702"
+   },
+   "2023": {
+    "cpo": 2661,
+    "date": "2023-09-15",
+    "orders": 4,
+    "vc": "00057897"
+   },
+   "2024": {
+    "cpo": 161,
+    "date": "2024-09-13",
+    "orders": 2,
+    "vc": "00074393"
+   }
+  }
+ },
+ {
+  "id": "scottsdale-arabian-horse-show-w1-r558",
+  "name": "Scottsdale Arabian Horse Show W1",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 7672,
+    "date": "2019-02-14",
+    "orders": 29,
+    "vc": "00015666"
+   },
+   "2020": {
+    "cpo": 2959,
+    "date": "2020-02-13",
+    "orders": 12,
+    "vc": "00015667"
+   },
+   "2022": {
+    "cpo": 11758,
+    "date": "2022-02-17",
+    "orders": 21,
+    "vc": "00040587"
+   },
+   "2023": {
+    "cpo": 9254,
+    "date": "2023-02-16",
+    "orders": 16,
+    "vc": "00052520"
+   },
+   "2024": {
+    "cpo": 13555,
+    "date": "2024-02-15",
+    "orders": 24,
+    "vc": "00064444"
+   },
+   "2025": {
+    "cpo": 11484,
+    "date": "2025-02-13",
+    "orders": 17,
+    "vc": "00077194"
+   },
+   "2026": {
+    "cpo": 4422,
+    "date": "2026-02-12",
+    "orders": 18,
+    "vc": "00089581"
+   }
+  }
+ },
+ {
+  "id": "scottsdale-arabian-horse-show-wk2-r578",
+  "name": "Scottsdale Arabian Horse Show (WK2)",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 7672,
+    "date": "2019-02-14",
+    "orders": 29,
+    "vc": "00015666"
+   },
+   "2020": {
+    "cpo": 2959,
+    "date": "2020-02-13",
+    "orders": 12,
+    "vc": "00015667"
+   },
+   "2022": {
+    "cpo": 11758,
+    "date": "2022-02-17",
+    "orders": 21,
+    "vc": "00040587"
+   },
+   "2023": {
+    "cpo": 9254,
+    "date": "2023-02-16",
+    "orders": 16,
+    "vc": "00052520"
+   },
+   "2024": {
+    "cpo": 13555,
+    "date": "2024-02-15",
+    "orders": 24,
+    "vc": "00064444"
+   },
+   "2025": {
+    "cpo": 11484,
+    "date": "2025-02-13",
+    "orders": 17,
+    "vc": "00077194"
+   },
+   "2026": {
+    "cpo": 4422,
+    "date": "2026-02-12",
+    "orders": 18,
+    "vc": "00089581"
+   }
+  }
+ },
+ {
+  "id": "sedona-farmers-market-r40",
+  "name": "Sedona Farmers Market",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-09-06",
+    "orders": 0,
+    "vc": "00023619"
+   },
+   "2023": {
+    "cpo": 0,
+    "date": "2023-08-20",
+    "orders": 0,
+    "vc": "00066853"
+   }
+  }
+ },
+ {
+  "id": "sedona-farmers-market-r63",
+  "name": "Sedona Farmers Market",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-09-13",
+    "orders": 0,
+    "vc": "00024121"
+   },
+   "2023": {
+    "cpo": 0,
+    "date": "2023-08-20",
+    "orders": 0,
+    "vc": "00066853"
+   }
+  }
+ },
+ {
+  "id": "sedona-farmers-market-r9",
+  "name": "Sedona Farmers Market",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 0,
+    "date": "2019-08-30",
+    "orders": 0,
+    "vc": "00023618"
+   },
+   "2023": {
+    "cpo": 0,
+    "date": "2023-08-20",
+    "orders": 0,
+    "vc": "00066853"
+   }
+  }
+ },
+ {
+  "id": "sierra-vista-oktoberfest-r45",
+  "name": "Sierra Vista Oktoberfest",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 10293,
+    "date": "2019-09-13",
+    "orders": 15,
+    "vc": "00022970"
+   },
+   "2021": {
+    "cpo": 25221,
+    "date": "2021-09-17",
+    "orders": 30,
+    "vc": "00039314"
+   },
+   "2022": {
+    "cpo": 36992,
+    "date": "2022-09-16",
+    "orders": 36,
+    "vc": "00046978"
+   },
+   "2023": {
+    "cpo": 16508,
+    "date": "2023-09-15",
+    "orders": 14,
+    "vc": "00061768"
+   },
+   "2024": {
+    "cpo": 8002,
+    "date": "2024-09-13",
+    "orders": 14,
+    "vc": "00077555"
+   },
+   "2025": {
+    "cpo": 14360,
+    "date": "2025-09-12",
+    "orders": 16,
+    "vc": "00087846"
+   }
+  }
+ },
+ {
+  "id": "snowflake-harvest-fest-r130",
+  "name": "Snowflake Harvest Fest",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2020": {
+    "cpo": 0,
+    "date": "2020-10-10",
+    "orders": 0,
+    "vc": "00032429"
+   },
+   "2022": {
+    "cpo": 0,
+    "date": "2022-10-08",
+    "orders": 0,
+    "vc": "00047101"
+   },
+   "2023": {
+    "cpo": 172,
+    "date": "2023-10-14",
+    "orders": 1,
+    "vc": "00060667"
+   },
+   "2024": {
+    "cpo": 104,
+    "date": "2024-10-12",
+    "orders": 1,
+    "vc": "00071411"
+   }
+  }
+ },
+ {
+  "id": "sonoita-labor-day-rodeo-r32",
+  "name": "Sonoita Labor Day Rodeo",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2020": {
+    "cpo": 342,
+    "date": "2020-09-05",
+    "orders": 2,
+    "vc": "00031746"
+   },
+   "2021": {
+    "cpo": 4297,
+    "date": "2021-09-04",
+    "orders": 9,
+    "vc": "00036511"
+   },
+   "2022": {
+    "cpo": 3895,
+    "date": "2022-09-03",
+    "orders": 9,
+    "vc": "00049445"
+   },
+   "2023": {
+    "cpo": 1990,
+    "date": "2023-09-02",
+    "orders": 4,
+    "vc": "00057899"
+   },
+   "2024": {
+    "cpo": 2061,
+    "date": "2024-08-31",
+    "orders": 5,
+    "vc": "00074392"
+   },
+   "2025": {
+    "cpo": 1375,
+    "date": "2025-08-30",
+    "orders": 4,
+    "vc": "00086672"
+   }
+  }
+ },
+ {
+  "id": "southern-arizona-home-show-r159",
+  "name": "Southern Arizona Home Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 18998,
+    "date": "2024-10-25",
+    "orders": 31,
+    "vc": "00067732"
+   },
+   "2025": {
+    "cpo": 27048,
+    "date": "2025-10-03",
+    "orders": 44,
+    "vc": "00081207"
+   }
+  }
+ },
+ {
+  "id": "southern-new-mexico-state-fair-rodeo-r111",
+  "name": "Southern New Mexico State Fair & Rodeo",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 9141,
+    "date": "2022-09-28",
+    "orders": 15,
+    "vc": "00048669"
+   },
+   "2023": {
+    "cpo": 7059,
+    "date": "2023-09-27",
+    "orders": 14,
+    "vc": "00059600"
+   },
+   "2024": {
+    "cpo": 7476,
+    "date": "2024-09-25",
+    "orders": 15,
+    "vc": "00072117"
+   },
+   "2025": {
+    "cpo": 953,
+    "date": "2025-09-24",
+    "orders": 4,
+    "vc": "00084895"
+   }
+  }
+ },
+ {
+  "id": "spring-fountain-hills-festival-of-fine-a-r600",
+  "name": "Spring Fountain Hills Festival of Fine Arts & Crafts",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2020": {
+    "cpo": 12350,
+    "date": "2020-02-21",
+    "orders": 33,
+    "vc": "00020475"
+   },
+   "2021": {
+    "cpo": 23392,
+    "date": "2021-04-09",
+    "orders": 41,
+    "vc": "00032078"
+   },
+   "2022": {
+    "cpo": 31234,
+    "date": "2022-02-25",
+    "orders": 75,
+    "vc": "00038990"
+   },
+   "2023": {
+    "cpo": 7892,
+    "date": "2023-02-24",
+    "orders": 26,
+    "vc": "00047455"
+   },
+   "2024": {
+    "cpo": 31329,
+    "date": "2024-02-23",
+    "orders": 44,
+    "vc": "00067475"
+   },
+   "2025": {
+    "cpo": 21264,
+    "date": "2025-02-21",
+    "orders": 45,
+    "vc": "00077601"
+   },
+   "2026": {
+    "cpo": 29622,
+    "date": "2026-02-20",
+    "orders": 53,
+    "vc": "00090302"
+   }
+  }
+ },
+ {
+  "id": "taylor-sweet-corn-festival-r24",
+  "name": "Taylor Sweet Corn Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2020": {
+    "cpo": 3920,
+    "date": "2020-09-05",
+    "orders": 5,
+    "vc": "00031792"
+   },
+   "2022": {
+    "cpo": 4722,
+    "date": "2022-09-03",
+    "orders": 6,
+    "vc": "00047100"
+   },
+   "2023": {
+    "cpo": 4143,
+    "date": "2023-09-02",
+    "orders": 6,
+    "vc": "00060668"
+   },
+   "2024": {
+    "cpo": 1556,
+    "date": "2024-08-31",
+    "orders": 3,
+    "vc": "00071412"
+   },
+   "2025": {
+    "cpo": 1023,
+    "date": "2025-08-30",
+    "orders": 4,
+    "vc": "00084208"
+   }
+  }
+ },
+ {
+  "id": "thunder-valley-rally-r76",
+  "name": "Thunder Valley Rally",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 861,
+    "date": "2021-09-17",
+    "orders": 4,
+    "vc": "00039329"
+   },
+   "2023": {
+    "cpo": 2205,
+    "date": "2023-09-15",
+    "orders": 8,
+    "vc": "00061416"
+   },
+   "2024": {
+    "cpo": 154,
+    "date": "2024-09-20",
+    "orders": 1,
+    "vc": "00073959"
+   }
+  }
+ },
+ {
+  "id": "travel-adventure-show-phoenix-r511",
+  "name": "Travel & Adventure Show - Phoenix",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2024": {
+    "cpo": 9776,
+    "date": "2024-02-17",
+    "orders": 9,
+    "vc": "00060180"
+   },
+   "2025": {
+    "cpo": 1996,
+    "date": "2025-02-15",
+    "orders": 7,
+    "vc": "00077249"
+   }
+  }
+ },
+ {
+  "id": "tubac-festival-of-the-arts-r556",
+  "name": "Tubac Festival of the Arts",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2025": {
+    "cpo": 9915,
+    "date": "2025-02-05",
+    "orders": 42,
+    "vc": "00077151"
+   },
+   "2026": {
+    "cpo": 20596,
+    "date": "2026-02-04",
+    "orders": 40,
+    "vc": "00088212"
+   }
+  }
+ },
+ {
+  "id": "tucson-home-show-r427",
+  "name": "Tucson Home Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2025": {
+    "cpo": 738,
+    "date": "2025-01-04",
+    "orders": 3,
+    "vc": "00081769"
+   }
+  }
+ },
+ {
+  "id": "tucson-meet-yourself-r169",
+  "name": "Tucson Meet Yourself",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 8741,
+    "date": "2021-10-08",
+    "orders": 12,
+    "vc": "00039537"
+   },
+   "2022": {
+    "cpo": 3677,
+    "date": "2022-10-07",
+    "orders": 10,
+    "vc": "00052390"
+   },
+   "2023": {
+    "cpo": 4498,
+    "date": "2023-10-13",
+    "orders": 7,
+    "vc": "00064079"
+   }
+  }
+ },
+ {
+  "id": "tucson-rodeo-wk1-r580",
+  "name": "Tucson Rodeo (WK1)",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 7580,
+    "date": "2022-02-19",
+    "orders": 13,
+    "vc": "00041540"
+   },
+   "2023": {
+    "cpo": 6839,
+    "date": "2023-02-18",
+    "orders": 7,
+    "vc": "00052874"
+   },
+   "2024": {
+    "cpo": 7901,
+    "date": "2024-02-17",
+    "orders": 13,
+    "vc": "00065138"
+   },
+   "2025": {
+    "cpo": 4791,
+    "date": "2025-02-15",
+    "orders": 9,
+    "vc": "00077600"
+   },
+   "2026": {
+    "cpo": 7438,
+    "date": "2026-02-21",
+    "orders": 15,
+    "vc": "00089901"
+   }
+  }
+ },
+ {
+  "id": "tucson-rodeo-wk2-r606",
+  "name": "Tucson Rodeo - WK2",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2022": {
+    "cpo": 7580,
+    "date": "2022-02-19",
+    "orders": 13,
+    "vc": "00041540"
+   },
+   "2023": {
+    "cpo": 6839,
+    "date": "2023-02-18",
+    "orders": 7,
+    "vc": "00052874"
+   },
+   "2024": {
+    "cpo": 7901,
+    "date": "2024-02-17",
+    "orders": 13,
+    "vc": "00065138"
+   },
+   "2025": {
+    "cpo": 4791,
+    "date": "2025-02-15",
+    "orders": 9,
+    "vc": "00077600"
+   },
+   "2026": {
+    "cpo": 7438,
+    "date": "2026-02-21",
+    "orders": 15,
+    "vc": "00089901"
+   }
+  }
+ },
+ {
+  "id": "tyson-wells-rock-gem-show-r416",
+  "name": "Tyson Wells Rock & Gem Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2026": {
+    "cpo": 2374,
+    "date": "2026-01-02",
+    "orders": 8,
+    "vc": "00090355"
+   }
+  }
+ },
+ {
+  "id": "tyson-wells-rock-gem-show-wk-2-r433",
+  "name": "Tyson Wells Rock & Gem Show WK 2",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2026": {
+    "cpo": 2374,
+    "date": "2026-01-02",
+    "orders": 8,
+    "vc": "00090355"
+   }
+  }
+ },
+ {
+  "id": "ultimate-rv-show-r431",
+  "name": "Ultimate RV Show",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2026": {
+    "cpo": 3383,
+    "date": "2026-01-08",
+    "orders": 9,
+    "vc": "00091125"
+   }
+  }
+ },
+ {
+  "id": "vailfest-r259",
+  "name": "VailFest",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 0,
+    "date": "2021-12-04",
+    "orders": 0,
+    "vc": "00037891"
+   },
+   "2022": {
+    "cpo": 0,
+    "date": "2022-11-12",
+    "orders": 0,
+    "vc": "00052400"
+   },
+   "2023": {
+    "cpo": 874,
+    "date": "2023-10-21",
+    "orders": 2,
+    "vc": "00063494"
+   },
+   "2024": {
+    "cpo": 924,
+    "date": "2024-11-02",
+    "orders": 1,
+    "vc": "00075902"
+   },
+   "2025": {
+    "cpo": 322,
+    "date": "2025-11-08",
+    "orders": 2,
+    "vc": "00088892"
+   }
+  }
+ },
+ {
+  "id": "waterfront-fine-art-wine-festival-r508",
+  "name": "Waterfront Fine Art & Wine Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 9583,
+    "date": "2019-02-08",
+    "orders": 32,
+    "vc": "00015665"
+   },
+   "2020": {
+    "cpo": 14699,
+    "date": "2020-02-07",
+    "orders": 30,
+    "vc": "00024157"
+   },
+   "2023": {
+    "cpo": 12847,
+    "date": "2023-02-03",
+    "orders": 13,
+    "vc": "00054806"
+   },
+   "2024": {
+    "cpo": 5533,
+    "date": "2024-02-02",
+    "orders": 11,
+    "vc": "00065711"
+   },
+   "2025": {
+    "cpo": 4770,
+    "date": "2025-01-31",
+    "orders": 15,
+    "vc": "00076804"
+   },
+   "2026": {
+    "cpo": 6475,
+    "date": "2026-01-30",
+    "orders": 17,
+    "vc": "00089214"
+   }
+  }
+ },
+ {
+  "id": "willcox-wine-country-fall-festival-r165",
+  "name": "Willcox Wine Country Fall Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 1608,
+    "date": "2019-10-19",
+    "orders": 7,
+    "vc": "00024409"
+   },
+   "2022": {
+    "cpo": 1141,
+    "date": "2022-10-15",
+    "orders": 4,
+    "vc": "00052402"
+   },
+   "2023": {
+    "cpo": 2129,
+    "date": "2023-10-20",
+    "orders": 6,
+    "vc": "00064080"
+   },
+   "2024": {
+    "cpo": 759,
+    "date": "2024-10-18",
+    "orders": 7,
+    "vc": "00077119"
+   }
+  }
+ },
+ {
+  "id": "winter-care-free-fine-art-wine-festival-r458",
+  "name": "Winter Care Free Fine Art & Wine Festival",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 8674,
+    "date": "2021-01-15",
+    "orders": 18,
+    "vc": "00031264"
+   },
+   "2022": {
+    "cpo": 11062,
+    "date": "2022-01-14",
+    "orders": 26,
+    "vc": "00040858"
+   },
+   "2023": {
+    "cpo": 11741,
+    "date": "2023-01-20",
+    "orders": 22,
+    "vc": "00054805"
+   },
+   "2024": {
+    "cpo": 3477,
+    "date": "2024-01-19",
+    "orders": 16,
+    "vc": "00065717"
+   },
+   "2025": {
+    "cpo": 5028,
+    "date": "2025-01-17",
+    "orders": 16,
+    "vc": "00076806"
+   },
+   "2026": {
+    "cpo": 7708,
+    "date": "2026-01-16",
+    "orders": 26,
+    "vc": "00089216"
+   }
+  }
+ },
+ {
+  "id": "wnea-shopping-extravaganza-lake-havasu-r371",
+  "name": "WNEA Shopping Extravaganza (Lake Havasu)",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 252,
+    "date": "2019-12-07",
+    "orders": 1,
+    "vc": "00024605"
+   },
+   "2021": {
+    "cpo": 0,
+    "date": "2021-12-04",
+    "orders": 0,
+    "vc": "00038140"
+   },
+   "2022": {
+    "cpo": 0,
+    "date": "2022-12-03",
+    "orders": 0,
+    "vc": "00052381"
+   },
+   "2023": {
+    "cpo": 0,
+    "date": "2023-12-02",
+    "orders": 0,
+    "vc": "00065312"
+   }
+  }
+ },
+ {
+  "id": "women-s-day-out-expo-glendale-r173",
+  "name": "Women's Day Out Expo - Glendale",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 372,
+    "date": "2021-10-16",
+    "orders": 1,
+    "vc": "00032392"
+   },
+   "2022": {
+    "cpo": 80,
+    "date": "2022-03-05",
+    "orders": 1,
+    "vc": "00039751"
+   },
+   "2023": {
+    "cpo": 2916,
+    "date": "2023-03-04",
+    "orders": 2,
+    "vc": "00056797"
+   },
+   "2025": {
+    "cpo": 0,
+    "date": "2025-10-11",
+    "orders": 0,
+    "vc": "00077114"
+   }
+  }
+ },
+ {
+  "id": "women-s-day-out-expo-mesa-r257",
+  "name": "Women's Day Out Expo - Mesa",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 1215,
+    "date": "2021-11-06",
+    "orders": 1,
+    "vc": "00032394"
+   },
+   "2022": {
+    "cpo": 0,
+    "date": "2022-11-05",
+    "orders": 0,
+    "vc": "00039759"
+   }
+  }
+ },
+ {
+  "id": "women-s-day-out-expo-tucson-r196",
+  "name": "Women's Day Out Expo - Tucson",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2021": {
+    "cpo": 2378,
+    "date": "2021-04-24",
+    "orders": 3,
+    "vc": "00032389"
+   },
+   "2022": {
+    "cpo": 1079,
+    "date": "2022-10-08",
+    "orders": 4,
+    "vc": "00039755"
+   },
+   "2023": {
+    "cpo": 1442,
+    "date": "2023-10-21",
+    "orders": 2,
+    "vc": "00056700"
+   },
+   "2024": {
+    "cpo": 1341,
+    "date": "2024-04-20",
+    "orders": 5,
+    "vc": "00067709"
+   }
+  }
+ },
+ {
+  "id": "yavapai-county-fair-r43",
+  "name": "Yavapai County Fair",
+  "source": "eventSales-export 2026-09-13",
+  "updatedAt": "2026-09-13T04:15:45",
+  "years": {
+   "2019": {
+    "cpo": 3457,
+    "date": "2019-09-05",
+    "orders": 14,
+    "vc": "00018172"
+   },
+   "2022": {
+    "cpo": 318,
+    "date": "2022-09-08",
+    "orders": 2,
+    "vc": "00048667"
+   },
+   "2023": {
+    "cpo": 5938,
+    "date": "2023-09-07",
+    "orders": 13,
+    "vc": "00061410"
+   },
+   "2024": {
+    "cpo": 1194,
+    "date": "2024-09-05",
+    "orders": 6,
+    "vc": "00073954"
+   },
+   "2025": {
+    "cpo": 1000,
+    "date": "2025-09-04",
+    "orders": 5,
+    "vc": "00082149"
+   }
+  }
+ }
+]

@@ -1,0 +1,1887 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%238a6212%27/%3E%3Ctext x=%2716%27 y=%2721%27 text-anchor=%27middle%27 font-family=%27system-ui,sans-serif%27 font-weight=%27800%27 font-size=%2711%27 fill=%27%23fbf9f4%27%3ERSD%3C/text%3E%3C/svg%3E">
+<style>body{margin:0;padding:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>RSD Show Shift Board</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  /* Almanac: warm stone ground, brass chrome. Brass is the only colour that means nothing —
+     every other strong hue on this board is a status or a tier. */
+  --navy:#8a6212; --slate:#6d4c0b; --steel:#b3a68f; --on-accent:#fbf9f4;
+  --ground:#e9e3d7; --surface:#fbf9f4; --surface-2:#f2ede2;
+  --ink:#241f19; --ink-2:#514738; --ink-3:#7d7263;
+  --line:#d2c8b4; --line-soft:#e3dbca;
+  --elite:#6e44a3; --key:#12766f; --trad:#3a3123; --untag:#a2967f;
+  --ok:#2f6b45; --ok-bg:#dfeadf; --on-ok:#fbf9f4;
+  --warn:#c2600c; --warn-bg:#f8e6d2;
+  --pend:#a8431f; --pend-bg:#f6dfd4;
+  --info:#2a5a8c; --info-bg:#e1e9f1;
+  --mute:#7a705f; --mute-bg:#e8e1d3;
+  --shadow:0 1px 0 rgba(90,70,30,.06),0 8px 20px -14px rgba(60,45,20,.28);
+  --r:8px;
+  --f-disp:"Bricolage Grotesque",system-ui,sans-serif;
+  --f-body:"Source Sans 3",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --ground:#171310; --surface:#211c17; --surface-2:#2a231c;
+  --ink:#efe8dc; --ink-2:#c6baa7; --ink-3:#978b79;
+  --line:#3b3229; --line-soft:#2f2821;
+  --navy:#d9a94a; --slate:#e6bb62; --steel:#6e6252; --on-accent:#1a1408;
+  --elite:#b895e3; --key:#52c6ba; --trad:#c6baa7; --untag:#6f6455;
+  --ok:#62d19b; --ok-bg:#17382a; --on-ok:#06170d;
+  --warn:#f0a44e; --warn-bg:#3d2912;
+  --pend:#f39066; --pend-bg:#3b1d12;
+  --info:#8dbaec; --info-bg:#1b2a3e;
+  --mute:#a59983; --mute-bg:#2d2620;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 10px 24px -14px rgba(0,0,0,.75);
+}}
+:root[data-theme="dark"]{
+  --ground:#171310; --surface:#211c17; --surface-2:#2a231c;
+  --ink:#efe8dc; --ink-2:#c6baa7; --ink-3:#978b79;
+  --line:#3b3229; --line-soft:#2f2821;
+  --navy:#d9a94a; --slate:#e6bb62; --steel:#6e6252; --on-accent:#1a1408;
+  --elite:#b895e3; --key:#52c6ba; --trad:#c6baa7; --untag:#6f6455;
+  --ok:#62d19b; --ok-bg:#17382a; --on-ok:#06170d;
+  --warn:#f0a44e; --warn-bg:#3d2912;
+  --pend:#f39066; --pend-bg:#3b1d12;
+  --info:#8dbaec; --info-bg:#1b2a3e;
+  --mute:#a59983; --mute-bg:#2d2620;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 10px 24px -14px rgba(0,0,0,.75);
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--f-body);
+  -webkit-font-smoothing:antialiased;line-height:1.45}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:0 56px}
+h1,h2,h3,.disp{font-family:var(--f-disp);text-wrap:balance;margin:0}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--navy);outline-offset:2px;border-radius:4px}
+
+/* ---- masthead ---- */
+.top{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40}
+.top-in{max-width:1080px;margin:0 auto;padding:14px 16px 0}
+.brandrow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h1{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
+.season{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-3);
+  border:1px solid var(--line);border-radius:99px;padding:2px 8px}
+.sheetlink{font-size:.76rem;font-weight:600;color:var(--navy);text-decoration:none;
+  border:1px solid var(--line);border-radius:99px;padding:4px 10px;white-space:nowrap;font-family:var(--f-disp)}
+.sheetlink:hover{border-color:var(--navy)}
+.switch{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-size:.74rem;
+  color:var(--ink-3);font-weight:500}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch .knob{width:30px;height:17px;border-radius:99px;background:var(--line);position:relative;
+  transition:background .15s;flex:none}
+.switch .knob::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:99px;
+  background:var(--surface);transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.switch input:checked+.knob{background:var(--navy)}
+.switch input:checked+.knob::after{transform:translateX(13px)}
+.switch input:focus-visible+.knob{outline:2px solid var(--navy);outline-offset:2px}
+body.plan .switch{color:var(--navy)}
+.stamp{font-family:var(--f-mono);font-size:.66rem;color:var(--ink-3);padding:7px 2px 9px;display:flex;gap:12px;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--surface-2)}
+.seg button{border:0;background:none;padding:5px 12px;font-family:var(--f-disp);font-size:.74rem;font-weight:600;
+  color:var(--ink-3);cursor:pointer;display:flex;align-items:center;gap:6px}
+.seg button[aria-selected="true"]{background:var(--navy);color:var(--on-accent)}
+.seg button small{font-family:var(--f-mono);font-weight:400;font-size:.62rem;opacity:.8}
+.seg button:disabled{opacity:.45;cursor:default}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;gap:10px}
+.panel-h{font-family:var(--f-disp);font-weight:600;font-size:.95rem}
+.panel p{margin:0;font-size:.84rem;color:var(--ink-2);max-width:62ch}
+.panel .hint{font-size:.76rem;color:var(--ink-3)}
+.panel-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ck{display:flex;align-items:center;gap:8px;font-size:.84rem;cursor:pointer}
+.ck input{width:16px;height:16px;accent-color:var(--navy)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
+.form label,.panel label.full{display:flex;flex-direction:column;gap:4px;font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--ink-3);font-family:var(--f-disp);font-weight:600}
+.form input,.form select,.panel textarea{font:inherit;font-family:var(--f-body);font-size:.88rem;text-transform:none;letter-spacing:0;
+  color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+.panel textarea{resize:vertical;font-family:var(--f-mono);font-size:.82rem}
+.progress{height:8px;border-radius:99px;background:var(--line-soft);position:relative;overflow:hidden}
+.progress i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ok);transition:width .2s;border-radius:99px}
+.progress span{position:absolute;right:0;top:12px;font-family:var(--f-mono);font-size:.66rem;color:var(--ink-3)}
+.progress:not([hidden]){margin-bottom:14px}
+.src{font-family:var(--f-mono);font-size:.6rem;color:var(--ink-3);border:1px solid var(--line);border-radius:3px;padding:0 4px;text-transform:uppercase;letter-spacing:.05em}
+.est{font-family:var(--f-mono);font-size:.62rem;color:var(--warn);border:1px dashed var(--warn);border-radius:3px;padding:0 4px}
+.editrow{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;margin-bottom:12px}
+.editrow .tagfield input[type=date],.editrow .tagfield input[type=text]{border:0;background:none;padding:0 9px;font-size:.82rem;font-weight:600;color:var(--ink);min-width:0;width:150px}
+.danger{color:var(--pend);background:none;border:1px dashed var(--line);border-radius:7px;padding:5px 10px;font-size:.74rem;cursor:pointer;margin-top:10px}
+.danger:hover{border-color:var(--pend)}
+.empty-season{text-align:center;padding:40px 16px;color:var(--ink-3);font-size:.9rem;display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty-season b{color:var(--ink);font-family:var(--f-disp)}
+.plan-only{display:none !important}
+body.plan .plan-only{display:flex !important}
+body.plan .plan-only[hidden]{display:none !important}
+body.plan .btn.plan-only{display:inline-block !important}
+.tally{display:flex;gap:0;margin-top:12px;border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden;background:var(--surface-2)}
+.tally div{flex:1;padding:8px 10px;border-right:1px solid var(--line-soft);min-width:0}
+.tally div:last-child{border-right:0}
+.tally b{display:block;font-family:var(--f-disp);font-size:1.25rem;font-weight:600;
+  font-variant-numeric:tabular-nums;line-height:1.1}
+.tally span{display:block;font-size:.66rem;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-open b{color:var(--ok)} .t-soon b{color:var(--ink-3)}
+
+/* ---- controls ---- */
+.controls{padding:12px 0 14px;display:flex;flex-direction:column;gap:9px}
+.ctl-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.field{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r);padding:0 10px;height:38px;flex:1 1 180px;min-width:0}
+.field input{border:0;background:none;width:100%;min-width:0;outline:none;font-size:.9rem}
+.field svg{flex:none;color:var(--ink-3)}
+.pick{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);height:38px;
+  padding:0 30px 0 10px;font-size:.88rem;flex:0 1 auto;appearance:none;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 17px,calc(100% - 10px) 17px;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;
+  padding:5px 11px;font-size:.76rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;
+  transition:border-color .12s,background .12s}
+.chip .dot{width:7px;height:7px;border-radius:99px;background:currentColor;flex:none}
+.chip .n{font-family:var(--f-mono);font-size:.7rem;color:var(--ink-3)}
+.chip[aria-pressed="true"]{border-color:currentColor;background:var(--surface-2)}
+.chip[aria-pressed="true"] .n{color:inherit}
+.chip:hover{border-color:var(--steel)}
+.c-Booked{color:var(--ok)} .c-Prospective{color:var(--mute)}
+.c-BRN{color:var(--warn)} .c-OTB{color:var(--info)} .c-PPA{color:var(--pend)} .c-PCO{color:var(--info)} .c-SF{color:var(--mute)} .c-CX{color:var(--ink-3)}
+.c-open{color:var(--ok)} .c-full{color:var(--mute)} .c-closed{color:var(--ink-3)}
+.c-Elite{color:var(--elite)} .c-Key{color:var(--key)} .c-Traditional{color:var(--trad)} .c-Untagged{color:var(--untag)}
+.note{font-size:.74rem;color:var(--ink-3);display:flex;gap:7px;align-items:flex-start;
+  background:var(--surface-2);border:1px dashed var(--line);border-radius:var(--r);padding:8px 11px}
+.note b{color:var(--ink-2);font-weight:600}
+
+/* ---- weekend band ---- */
+.band{margin-top:22px}
+.band-h{display:flex;align-items:baseline;gap:10px;padding:0 2px 8px;
+  border-bottom:2px solid var(--navy);margin-bottom:12px;flex-wrap:wrap}
+.band-h h2{font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--navy)}
+.band-h .sub{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-3)}
+.band-h .cov{margin-left:auto;font-family:var(--f-mono);font-size:.72rem;color:var(--ink-3)}
+.band-h .cov-open{color:var(--ok);font-weight:600}
+.rollup{display:flex;flex-wrap:wrap;gap:5px;margin:-4px 0 12px}
+.rchip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:3px 9px;font-size:.72rem;
+  font-weight:500;cursor:pointer;color:var(--ink-2);display:inline-flex;align-items:center;gap:4px}
+.rchip b{font-family:var(--f-mono);font-weight:500;font-size:.66rem;color:var(--ink-3)}
+.rchip:hover{border-color:var(--steel)}
+.rchip.on{border-color:var(--navy);background:var(--navy);color:var(--on-accent)} .rchip.on b{color:var(--on-accent);opacity:.8}
+.rchip.open{color:var(--ok);background:var(--ok-bg);border-color:transparent;font-family:var(--f-mono);cursor:default}
+.rchip.full{color:var(--mute);background:var(--mute-bg);border-color:transparent;font-family:var(--f-mono);cursor:default}
+/* weekend grid */
+.gridwrap-w{margin:0 0 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:0}
+table.wgrid{border-collapse:separate;border-spacing:0;min-width:100%}
+table.wgrid th,table.wgrid td{padding:0;text-align:left;vertical-align:top}
+/* The wrapper scrolls horizontally, which makes it a scroll container on BOTH axes, so a plain
+   position:sticky day row sticks to the wrapper and scrolls away with it. The header is pinned by
+   translating the real <thead> instead — same element, so the columns can never drift out of line. */
+table.wgrid thead{position:relative;z-index:14}
+table.wgrid thead th{font-family:var(--f-disp);font-size:.64rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--ink-3);padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2)}
+table.wgrid thead.pinned th{box-shadow:0 6px 12px -8px rgba(0,20,45,.35)}
+table.wgrid thead th.se-col{background:color-mix(in srgb,var(--info) 9%,var(--surface-2))}
+table.wgrid th.gname{position:sticky;left:0;z-index:3;background:var(--surface);min-width:136px;max-width:190px;padding:8px 10px;
+  border-right:1px solid var(--line);border-bottom:1px solid var(--line-soft);font-weight:500;text-transform:none;letter-spacing:0;font-size:.82rem;color:var(--ink)}
+.glink{max-width:100%;white-space:normal}
+/* event header: its own full-width row, with the name pinned while the days scroll under it */
+table.wgrid tr.gevent td.gev{padding:0;border-bottom:1px solid var(--line-soft);background:var(--surface);
+  border-top:1px solid var(--line)}
+table.wgrid tr:first-child td.gev{border-top:0}
+.gevin{position:sticky;left:0;width:max-content;max-width:min(96vw,780px);padding:9px 12px 8px 13px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+table.wgrid tr.gevent td.gev::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--tier,transparent)}
+table.wgrid tr.gevent{position:relative}
+table.wgrid tr.gevent.t-Elite{--tier:var(--elite)} table.wgrid tr.gevent.t-Key{--tier:var(--key)}
+table.wgrid tr.gevent.t-Traditional{--tier:var(--trad)} table.wgrid tr.gevent.t-Untagged{--tier:var(--untag)}
+table.wgrid tr.gevent.t-Elite td.gev{background:color-mix(in srgb,var(--elite) 6%,var(--surface))}
+table.wgrid tr.gevent.t-Key td.gev{background:color-mix(in srgb,var(--key) 6%,var(--surface))}
+table.wgrid tr.grow.t-Elite th.gname{--tier:var(--elite)} table.wgrid tr.grow.t-Key th.gname{--tier:var(--key)}
+table.wgrid tr.grow.t-Traditional th.gname{--tier:var(--trad)} table.wgrid tr.grow.t-Untagged th.gname{--tier:var(--untag)}
+table.wgrid tr.grow th.gname::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--tier,transparent);opacity:.32}
+table.wgrid tr.grow th.gname{position:sticky;left:0}
+.gevin .gsub{margin-top:0}
+table.wgrid tr.gbooth td.gbo{padding:0;border-bottom:1px solid var(--line-soft);background:var(--surface-2)}
+.gboin{position:sticky;left:0;width:max-content;max-width:min(94vw,720px);padding:5px 12px 5px 22px;
+  display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;font-size:.72rem;color:var(--ink-2)}
+.gboin b{font-family:var(--f-disp);font-weight:600;color:var(--ink);font-size:.74rem}
+.gboin .bdesc{color:var(--ink-3)}
+.bdesc{color:var(--ink-3);font-weight:500}
+.gboin .bstat{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--ok);background:var(--ok-bg);border-radius:3px;padding:1px 5px;margin-left:2px}
+table.wgrid tr.gbooth+tr.grow th.gname,table.wgrid tr.gbooth+tr.grow td.gcell{border-top:0}
+table.wgrid thead th.gname{background:var(--surface-2);z-index:13}
+/* tier + access, so a rep can tell at a glance what the show is and who it's reserved for */
+.tierbadge.mini{margin-left:2px}
+/* SE = sharpening event tacked on after the show; never a shift, so it reads as its own thing */
+.setag{font-size:.54rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--info);
+  background:var(--info-bg);border-radius:3px;padding:1px 4px;margin-left:5px;vertical-align:1px;white-space:nowrap}
+.namecell.is-se{color:var(--info);font-style:italic;font-size:.74rem;opacity:.85}
+.namecell.se-on{color:var(--ink-2)}
+.slotbox.se select{color:var(--info)}
+.slotbox.se.open-slot{border-style:dotted}
+th.se-col,td.se-col{background:color-mix(in srgb,var(--info) 5%,transparent)}
+table.wgrid thead th.se-col{background:color-mix(in srgb,var(--info) 9%,var(--surface-2))}
+.res.se{color:var(--info)}
+.tierbadge.mini,.acc.mini{font-size:.58rem;padding:1px 5px;letter-spacing:.08em;line-height:1.5}
+.acc.pillish{border-radius:99px;padding-left:6px;padding-right:7px}
+.acc.pillish i{font-style:normal;font-weight:600;text-transform:lowercase;letter-spacing:0;opacity:.72}
+.tierbadge.mini.t-Elite{color:var(--elite)} .tierbadge.mini.t-Key{color:var(--key)}
+.tierbadge.mini.t-Traditional{color:var(--trad)} .tierbadge.mini.t-Untagged{color:var(--untag)}
+table.wgrid th.gname.sub{font-size:.7rem;color:var(--ink-3);font-family:var(--f-disp);font-weight:600;padding-top:6px;padding-bottom:6px;padding-left:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table.wgrid th.gname.sub .bl{color:var(--ink-2)}
+.glink{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left}
+.glink .gn{font-family:var(--f-disp);font-weight:600;font-size:.82rem;line-height:1.25;display:block}
+.glink:hover .gn{color:var(--navy)}
+.gsub{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
+.st.mini{font-size:.58rem;padding:2px 6px;border-radius:4px}
+table.wgrid td.gcell{padding:3px 4px;border-bottom:1px solid var(--line-soft);min-width:96px}
+/* Day rules run the full height of the table, drawn behind the rows, so they stay continuous even
+   where a bar spans several days. Per-cell borders can't do this — a merged cell has no inner edge. */
+table.wgrid{background-repeat:no-repeat}
+table.wgrid thead th+th{border-left:1px solid var(--line-soft)}
+/* days the show does not run: a flat blocked-out band, unmistakably different from an empty
+   open slot. Inset by the cell padding so consecutive days read as one closed stretch. */
+table.wgrid td.gcell.na{background:color-mix(in srgb,var(--ink-3) 17%,transparent);background-clip:content-box;opacity:1}
+table.wgrid .namecell{min-width:0;padding:5px 7px;font-size:.78rem}
+table.wgrid .slotbox{min-width:0;max-width:none}
+table.wgrid .slotbox select,table.wgrid .slotbox .slotpick{font-size:.78rem;padding:5px 20px 5px 7px}
+table.wgrid .slotbox .slotpick{background-position:calc(100% - 12px) 12px,calc(100% - 8px) 12px}
+table.wgrid tr.gdetail td{padding:0;border-bottom:1px solid var(--line)}
+table.wgrid tr.gdetail .ev-b{border-top:0;padding-left:16px}
+@media (max-width:520px){ table.wgrid th.gname{min-width:112px;max-width:132px} table.wgrid td.gcell{min-width:86px}
+  .tierbadge.mini,.acc.mini{font-size:.55rem;letter-spacing:.06em} }
+.band.past .band-h{border-bottom-color:var(--line);cursor:pointer;opacity:.75}
+.band.past .band-h h2{color:var(--ink-3)}
+.band.past.collapsed{margin-top:10px}
+.band.past.collapsed .band-h{margin-bottom:0;padding-bottom:6px}
+.band.past .band-h:hover{opacity:1}
+.boothh{display:flex;align-items:center;gap:8px;margin:12px 0 6px;font-family:var(--f-disp);font-size:.78rem;font-weight:600;color:var(--ink)}
+.boothh::before{content:"";width:8px;height:8px;border:2px solid var(--tier,var(--steel));border-radius:2px;flex:none}
+.boothh .bstat{font-family:var(--f-mono);font-size:.66rem;font-weight:400;color:var(--ink-3);border:1px solid var(--line);border-radius:3px;padding:1px 5px}
+.gridwrap+.boothh{margin-top:14px}
+
+/* ---- event card ---- */
+.ev{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  margin-bottom:8px;box-shadow:var(--shadow);overflow:hidden;position:relative}
+.ev::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--tier,var(--untag))}
+.ev.t-Elite{--tier:var(--elite)} .ev.t-Key{--tier:var(--key)}
+.ev.t-Traditional{--tier:var(--trad)} .ev.t-Untagged{--tier:var(--untag)}
+.ev-h{display:flex;gap:10px;align-items:flex-start;padding:11px 12px 11px 15px;cursor:pointer;
+  width:100%;text-align:left;background:none;border:0}
+.ev-h:hover{background:var(--surface-2)}
+.ev-main{flex:1;min-width:0}
+.ev-name{font-family:var(--f-disp);font-weight:600;font-size:.95rem;line-height:1.3;
+  letter-spacing:-.005em;display:block}
+.ev-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:5px;
+  font-size:.76rem;color:var(--ink-3)}
+.ev-meta .mono{font-family:var(--f-mono);font-size:.73rem}
+.ev-meta .sep{color:var(--line)}
+.tierbadge{font-size:.64rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--tier);border:1px solid currentColor;border-radius:3px;padding:1px 5px}
+.pill{font-size:.68rem;font-weight:600;padding:3px 8px;border-radius:99px;white-space:nowrap;
+  letter-spacing:.01em}
+.p-Booked{color:var(--ok);background:var(--ok-bg)}
+.p-BRN{color:var(--warn);background:var(--warn-bg)}
+.p-OTB{color:var(--info);background:var(--info-bg)}
+.p-PPA{color:var(--pend);background:var(--pend-bg)}
+.p-Prospective,.p-SF{color:var(--mute);background:var(--mute-bg)}
+.ev-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+.st{font-family:var(--f-disp);font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:4px 9px;border-radius:6px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;border:1.5px solid transparent}
+.st b{font-family:var(--f-mono);font-weight:500;font-size:.72rem;opacity:.9}
+.st-open{background:var(--ok);color:var(--on-ok)}
+.st-full{background:var(--mute-bg);color:var(--mute)}
+.bk{font-size:.64rem;font-weight:600;letter-spacing:.02em;padding:2px 7px;border-radius:99px;white-space:nowrap}
+.t-booked b{color:var(--ok)}
+.st-closed{background:none;color:var(--ink-3);border-color:var(--line);text-decoration:line-through;opacity:.7}
+.ev.k-closed .ev-name,.ev.k-closed .ev-meta{opacity:.55}
+.ev.k-closed{box-shadow:none;background:var(--surface-2)}
+.ev.k-closed .ev-h{padding-top:8px;padding-bottom:8px;align-items:center}
+.ev.k-closed .ev-name{font-size:.86rem;font-weight:500}
+.ev.k-closed .ev-meta{margin-top:2px}
+.ev.k-closed .st{padding:3px 7px;font-size:.62rem}
+.ev.k-full{box-shadow:none}
+.resline{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;font-size:.76rem;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.res b{font-family:var(--f-disp);font-weight:600;font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin-right:4px}
+.res i{font-style:normal;color:var(--ink-3);font-family:var(--f-mono);font-size:.7rem}
+.res.new{color:var(--key);font-weight:600}
+.hist{margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft)}
+.hint-inline{font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-3);margin-left:6px;font-family:var(--f-body)}
+.hrow{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+.hrow .hy{font-family:var(--f-mono);font-size:.82rem;min-width:44px;color:var(--ink)}
+.hrow input{font:inherit;font-size:.82rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:5px 8px;width:110px}
+.hrow.add input{width:100px}
+.hrow.add .addshift{margin:0}
+.openchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.openchips span{font-size:.7rem;font-weight:600;color:var(--ok);background:var(--ok-bg);
+  border-radius:5px;padding:3px 7px;font-family:var(--f-mono);letter-spacing:0}
+.openchips span.more{background:none;color:var(--ink-3);font-family:var(--f-body)}
+.k-tent .openchips span{background:none;border:1px dashed var(--ok)}
+.namecell{border:1px solid var(--line);border-radius:7px;background:var(--surface);min-width:110px;
+  padding:7px 8px;font-size:.82rem;font-weight:500;min-height:34px}
+.namecell.is-open{border:1.5px dashed var(--ok);color:var(--ok);font-family:var(--f-disp);font-weight:700;
+  font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;background:var(--ok-bg)}
+.namecell.is-x{background:repeating-linear-gradient(135deg,transparent,transparent 4px,var(--line-soft) 4px,var(--line-soft) 8px);color:var(--ink-3);text-align:center}
+.namecell .ft{padding:4px 0 0}
+details.more{margin-top:14px;border-top:1px solid var(--line-soft);padding-top:10px}
+details.more summary{cursor:pointer;font-size:.72rem;font-weight:600;color:var(--ink-2);font-family:var(--f-disp);
+  list-style:none;display:flex;align-items:center;gap:6px}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::before{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .12s;margin-left:2px}
+details.more[open] summary::before{transform:rotate(45deg)}
+details.more .detail{margin-top:10px;padding-top:0;border-top:0}
+.caret{color:var(--ink-3);transition:transform .15s}
+.ev.open .caret{transform:rotate(180deg)}
+
+/* ---- expanded body ---- */
+.ev-b{display:none;border-top:1px solid var(--line-soft);padding:13px 12px 14px 15px;
+  background:var(--surface-2)}
+.ev.open .ev-b{display:block}
+.sec-l{font-size:.63rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--ink-3);margin-bottom:7px;font-family:var(--f-disp)}
+.gridwrap{overflow-x:auto;overflow-y:clip;margin:0 -12px 0 -15px;padding:0 12px 4px 15px}
+table.shift{border-collapse:separate;border-spacing:0;width:100%;min-width:min-content}
+table.shift th,table.shift td{padding:0;text-align:left}
+table.shift thead th{font-family:var(--f-disp);font-size:.64rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--ink-3);padding:0 0 6px;white-space:nowrap}
+table.shift thead th .d{display:block;font-family:var(--f-mono);font-size:.66rem;
+  color:var(--ink-3);font-weight:400;letter-spacing:0;text-transform:none;opacity:.75}
+th.rowlbl{width:1%;padding-right:10px !important}
+td.slot{padding:0 6px 6px 0;vertical-align:top}
+td.slot:last-child{padding-right:0}
+tbody th{font-family:var(--f-disp);font-size:.7rem;font-weight:600;color:var(--ink-2);
+  padding-right:10px !important;white-space:nowrap;vertical-align:top;padding-top:8px !important}
+.slotbox{border:1px solid var(--line);border-radius:7px;background:var(--surface);min-width:118px}
+.slotbox.filled{border-color:var(--steel)}
+.slotbox.xd{background:repeating-linear-gradient(135deg,transparent,transparent 4px,var(--line-soft) 4px,var(--line-soft) 8px)}
+.slotbox{max-width:190px}
+.slotbox select,.slotbox .slotpick{width:100%;border:0;background:none;padding:7px 22px 7px 8px;font-size:.82rem;
+  font-weight:500;cursor:pointer;appearance:none;border-radius:7px;text-align:left;color:var(--ink);
+  font-family:inherit;line-height:1.3;
+  background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
+  background-position:calc(100% - 12px) 14px,calc(100% - 8px) 14px;
+  background-size:4px 4px,4px 4px;background-repeat:no-repeat}
+.slotbox .slotpick{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slotbox:focus-within,.slotbox:has(.slotpick.picking){border-color:var(--navy);box-shadow:0 0 0 2px color-mix(in srgb,var(--navy) 18%,transparent)}
+.slotbox.open-slot select,.slotbox.open-slot .slotpick{background-image:linear-gradient(45deg,transparent 50%,var(--ok) 50%),linear-gradient(135deg,var(--ok) 50%,transparent 50%);color:var(--ok)}
+/* An empty slot should whisper and a staffed one should speak. Before this, every empty cell was a
+   full bordered control shouting "open" — on a board that is 70-75% unstaffed that is a wall of
+   boxes carrying no information the OPEN n badge hasn't already given. */
+table.wgrid .slotbox.open-slot{border-color:transparent;background:none}
+table.wgrid .slotbox.open-slot .slotpick{background-image:none;padding-right:7px;font-size:.74rem;
+  font-weight:600;color:var(--ok);opacity:.7;letter-spacing:.01em}
+table.wgrid .slotbox.open-slot:hover,table.wgrid .slotbox.open-slot:focus-within{border-color:var(--ok);
+  background:color-mix(in srgb,var(--ok) 8%,transparent)}
+table.wgrid .slotbox.open-slot:hover .slotpick,table.wgrid .slotbox.open-slot:focus-within .slotpick{opacity:1}
+table.wgrid .slotbox.xd{border-color:transparent;background:none}
+table.wgrid .slotbox.xd .slotpick{background-image:none;font-size:.7rem;opacity:.45;padding-right:7px}
+table.wgrid .namecell.is-open{border:0;background:none;color:var(--ok);opacity:.7;font-size:.74rem;
+  font-weight:600;font-family:var(--f-body);letter-spacing:.01em;text-transform:lowercase;justify-content:flex-start;min-height:0;padding:6px 7px}
+table.wgrid .namecell.is-x{background:none;color:var(--ink-3);opacity:.4;font-size:.7rem;border-color:transparent;text-align:left}
+/* one show, one name: consecutive days with the same person read as a single bar instead of
+   five identical boxes you have to read five times */
+table.wgrid td.gcell.run .namecell{border-radius:7px}
+/* nothing to label: the column becomes a thin tier-colored spine tying the rows to their show */
+table.wgrid.nolbl th.gname{min-width:10px;width:10px;max-width:10px;padding:0;font-size:0}
+table.wgrid.nolbl thead th.gname{border-right:1px solid var(--line)}
+table.wgrid .slotbox.filled{background:var(--surface);border-color:var(--steel)}
+.slotbox.xd select,.slotbox.xd .slotpick{color:var(--ink-3);font-style:italic}
+.slotbox.se .slotpick{color:var(--info)}
+/* the picker popup — fixed so the grid's own scroller can't clip it */
+#pickpop{position:fixed;z-index:80;background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 14px 38px rgba(0,18,40,.22);padding:7px;display:flex;flex-direction:column;gap:6px;max-height:min(64vh,420px)}
+#pickq{font:inherit;font-size:.9rem;font-weight:500;color:var(--ink);background:var(--surface-2);
+  border:1px solid var(--line);border-radius:7px;padding:9px 10px;outline:none;width:100%;box-sizing:border-box}
+#pickq:focus{border-color:var(--navy);background:var(--surface)}
+#picklist{overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:1px;min-height:0;-webkit-overflow-scrolling:touch}
+.pickrow{flex:none;font:inherit;font-size:.86rem;font-weight:500;color:var(--ink);text-align:left;background:none;border:0;
+  border-radius:6px;padding:9px 10px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pickrow b{color:var(--navy);background:color-mix(in srgb,var(--navy) 12%,transparent);border-radius:3px}
+.pickrow.on{background:var(--navy);color:var(--on-accent)}
+.pickrow.on b{color:var(--on-accent);background:rgba(255,255,255,.22)}
+.pickrow.cur::after{content:"✓";float:right;opacity:.6;font-weight:700}
+.pickrow.util{color:var(--ink-3);font-size:.8rem}
+.pickrow.use{color:var(--key);font-weight:600}
+.picksep{height:1px;background:var(--line);margin:4px 2px}
+.pickempty{font-size:.8rem;color:var(--ink-3);padding:10px}
+.inflbl{color:var(--warn);font-weight:700;margin-left:2px;cursor:help}
+.legend{margin:2px 0 0;font-size:.7rem;line-height:1.45;color:var(--ink-3);opacity:.8;max-width:72ch}
+.ft{display:flex;flex-wrap:wrap;gap:3px;padding:0 7px 6px}
+.ft span{font-size:.64rem;background:var(--info-bg);color:var(--info);border-radius:3px;padding:1px 5px;
+  font-weight:500}
+.addshift{margin-top:8px;border:1px dashed var(--line);background:none;color:var(--ink-3);
+  border-radius:7px;padding:5px 10px;font-size:.74rem;cursor:pointer}
+.addshift:hover{border-color:var(--steel);color:var(--ink-2)}
+
+.detail{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px 16px;
+  margin-top:16px;padding-top:13px;border-top:1px solid var(--line-soft)}
+.dl{min-width:0}
+.dl dt{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);
+  font-family:var(--f-disp);font-weight:600}
+.dl dd{margin:2px 0 0;font-size:.84rem;word-break:break-word}
+.dl dd.mono{font-family:var(--f-mono);font-size:.8rem;font-variant-numeric:tabular-nums}
+.dl dd a{color:var(--navy);text-decoration:none;border-bottom:1px solid var(--line)}
+.dl dd a:hover{border-bottom-color:var(--navy)}
+.dl dd input.fld{font:inherit;font-size:.84rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
+.dl dd select.fld{font:inherit;font-size:.84rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+.dl dd input.fld:focus{border-color:var(--navy);outline:none}
+.dl dd input.fld::placeholder{color:var(--ink-3);opacity:.7}
+.dl dd.empty{color:var(--ink-3);font-style:italic;font-size:.78rem}
+.cost{font-family:var(--f-mono);font-weight:500}
+.tagrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tagfield{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:8px;
+  background:var(--surface);overflow:hidden;height:34px}
+.tagfield>span{font-family:var(--f-disp);font-size:.6rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.09em;color:var(--ink-3);padding:0 9px;border-right:1px solid var(--line);
+  display:flex;align-items:center;background:var(--surface-2);white-space:nowrap;
+  min-width:62px;justify-content:center}
+.tagfield select{border:0;background:none;padding:0 26px 0 9px;font-size:.82rem;font-weight:600;
+  cursor:pointer;appearance:none;color:var(--ink);
+  background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
+  background-position:calc(100% - 14px) 15px,calc(100% - 10px) 15px;
+  background-size:4px 4px,4px 4px;background-repeat:no-repeat}
+.tagfield.v-Elite{border-color:var(--elite)} .tagfield.v-Elite select{color:var(--elite)}
+.tagfield.v-Key{border-color:var(--key)} .tagfield.v-Key select{color:var(--key)}
+.tagfield.v-Traditional select{color:var(--trad)}
+.tagfield.v-none select{color:var(--ink-3);font-weight:500}
+.acc{font-size:.63rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  border-radius:3px;padding:2px 6px;white-space:nowrap}
+.acc-TradeIndustry{color:var(--info);background:var(--info-bg)}
+.acc-Elite{color:var(--elite);background:color-mix(in srgb,var(--elite) 12%,transparent)}
+.acc-Varsity{color:var(--navy);background:color-mix(in srgb,var(--navy) 12%,transparent)}
+.acc-JV{color:var(--ink-3);background:var(--mute-bg)}
+.acc-series{color:var(--info);background:var(--info-bg);text-transform:none;letter-spacing:.02em}
+.series-note{margin-bottom:12px}
+.acc-Freshmen{color:var(--warn);background:var(--warn-bg)}
+.tagfield.v-Freshmen select{color:var(--warn)}
+.boothh.edit{gap:10px}
+.boothh.edit input{font:inherit;font-family:var(--f-disp);font-weight:600;font-size:.8rem;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:6px;padding:4px 8px;min-width:0;flex:1 1 180px;max-width:360px}
+.boothh.edit input:focus{border-color:var(--navy);outline:none}
+.linkbtn{background:none;border:0;color:var(--ink-3);font-size:.7rem;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0}
+.linkbtn:hover{color:var(--pend)}
+.addbooth{margin-left:8px}
+.acc-none{color:var(--ink-3);border:1px dashed var(--line);background:none;font-weight:600}
+.empty-state{text-align:center;padding:46px 16px;color:var(--ink-3);font-size:.9rem}
+.foot{margin-top:30px;padding-top:14px;border-top:1px solid var(--line);
+  font-size:.72rem;color:var(--ink-3);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{background:var(--navy);color:var(--on-accent);border:0;border-radius:var(--r);padding:8px 14px;
+  font-size:.8rem;font-weight:600;font-family:var(--f-disp);cursor:pointer}
+.btn.ghost{background:none;color:var(--ink-2);border:1px solid var(--line)}
+.btn.ghost:hover{border-color:var(--steel)}
+.btn:disabled{opacity:.5;cursor:default}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;background:var(--ink);
+  color:var(--ground);padding:9px 16px;border-radius:99px;font-size:.8rem;font-weight:500;
+  z-index:90;box-shadow:var(--shadow)}
+@media (max-width:520px){
+  .tally b{font-size:1.05rem} .tally div{padding:7px 8px}
+  .ev-h{flex-wrap:wrap;position:relative;padding-right:34px}
+  .ev-main{flex:1 1 100%}
+  .ev-right{flex:1 1 100%;flex-direction:row;align-items:center;gap:8px;margin-top:7px}
+  .ev.k-closed .ev-main{flex:1 1 0;min-width:0}
+  .ev.k-closed .ev-right{flex:none;margin-top:0}
+  .sheetlink{margin-left:0}
+  .brandrow{gap:8px}
+  .caret{position:absolute;right:13px;top:15px}
+  .tagrow{flex-direction:column;align-items:stretch}
+  .tagfield select{flex:1}
+}
+
+/* ===================== Almanac pass ===================== */
+body{font-size:15px}
+.wrap,.top-in{max-width:1120px}
+body.gridv .wrap,body.gridv .top-in{max-width:1320px}
+.top{transition:box-shadow .18s}
+.top.scrolled{box-shadow:0 8px 22px -16px rgba(50,35,10,.45)}
+.top-in{padding-top:12px}
+.brandrow{gap:12px}
+.mark{display:inline-flex;align-items:center;gap:9px}
+.glyph{width:28px;height:28px;border-radius:7px;background:var(--navy);color:var(--on-accent);display:grid;place-items:center;
+  font-family:var(--f-disp);font-size:.7rem;font-weight:800;letter-spacing:.03em;flex:none}
+h1{font-size:1.18rem;font-weight:700;letter-spacing:-.015em}
+.season{font-family:var(--f-body);font-size:.8rem;font-weight:500;color:var(--ink-3);border:0;padding:0;letter-spacing:0}
+.seg{background:var(--surface-2)}
+.seg button{padding:5px 13px;transition:background .12s,color .12s}
+.switch .knob::after{background:var(--surface)}
+/* tally: open shifts lead, everything else steps back */
+.tallyrow{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding:10px 2px 11px}
+.tally{display:flex;gap:20px;margin:0;border:0;border-radius:0;background:none;overflow:visible;align-items:baseline;flex-wrap:wrap}
+.tally div{flex:none;padding:0;border:0;display:flex;align-items:baseline;gap:6px;min-width:0}
+.tally b{display:inline;font-size:1.2rem;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
+.tally .t-open b{font-size:1.85rem;color:var(--ok);letter-spacing:-.03em}
+.tally span{display:inline;font-size:.68rem;letter-spacing:.09em;margin:0;white-space:nowrap;overflow:visible;color:var(--ink-3);font-family:var(--f-disp);font-weight:600}
+.tally .t-booked b{color:var(--ink)}
+.stamp{padding:0;margin-left:auto;font-size:.64rem;opacity:.85}
+/* controls */
+.controls{padding:12px 0 12px;gap:8px}
+.field,.pick{height:36px;border-radius:8px}
+.field:focus-within{border-color:var(--navy);box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 14%,transparent)}
+.pick:hover{border-color:var(--steel)}
+.ctl-toggle{display:none;align-items:center;gap:6px;height:36px;padding:0 12px;border:1px solid var(--line);border-radius:8px;
+  background:var(--surface);font-family:var(--f-disp);font-size:.8rem;font-weight:600;color:var(--ink-2);cursor:pointer;flex:none}
+.ctl-toggle b{font-family:var(--f-mono);font-size:.66rem;font-weight:500;color:var(--on-accent);background:var(--navy);border-radius:99px;padding:1px 6px}
+.ctl-more.sels{display:contents}
+.chip{padding:5px 11px;font-weight:600;font-size:.76rem;border-radius:99px;transition:border-color .12s,background .12s,transform .1s}
+.chip:active{transform:scale(.97)}
+.chip .n{font-family:var(--f-body);font-weight:500}
+.legend{font-size:.72rem;opacity:.85;margin-top:2px}
+/* weekend bands */
+.band{margin-top:24px}
+.band-h{border-bottom:2px solid var(--navy);padding-bottom:7px}
+.band-h h2{font-size:.84rem;letter-spacing:.1em;color:var(--slate);font-weight:700}
+.band-h .sub,.band-h .cov{font-size:.74rem}
+.rchip{transition:border-color .12s,background .12s,transform .1s}
+.rchip:active{transform:scale(.97)}
+.pastwrap{margin-top:16px}
+.pastsum{width:100%;display:flex;align-items:center;gap:10px;background:none;border:0;border-bottom:1px dashed var(--line);
+  padding:8px 2px 9px;cursor:pointer;color:var(--ink-3);text-align:left;font-family:var(--f-disp);transition:color .12s}
+.pastsum:hover{color:var(--ink-2)}
+.pastsum .ps-l{font-size:.8rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+.pastsum .ps-n{font-family:var(--f-mono);font-size:.7rem;margin-left:auto}
+.pastsum .caret{transition:transform .15s}
+.pastwrap.open .pastsum .caret{transform:rotate(180deg)}
+.pastbands .band.past .band-h{opacity:.85}
+/* cards */
+.ev{margin-bottom:9px;transition:box-shadow .18s,transform .18s}
+.ev::before{width:4px}
+.ev:not(.k-closed):hover{box-shadow:0 1px 0 rgba(90,70,30,.06),0 16px 30px -18px rgba(60,45,20,.4)}
+.ev-h{padding:12px 13px 12px 16px;transition:background .12s}
+.ev-name{font-size:1.02rem;font-weight:700;letter-spacing:-.012em}
+.ev-meta{margin-top:5px;font-size:.78rem}
+.ev-meta .mono{font-size:.74rem}
+.resline{font-size:.79rem;margin-top:7px}
+.res b{font-size:.6rem;letter-spacing:.1em}
+.openchips{gap:6px;margin-top:10px}
+.openchips span{font-family:var(--f-body);font-size:.79rem;font-weight:600;padding:5px 10px;border-radius:6px;letter-spacing:0;
+  border:1px solid color-mix(in srgb,var(--ok) 22%,transparent)}
+.openchips span.more{border:0;padding-left:2px}
+.st{border-radius:6px;padding:5px 10px}
+.st-open{box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.bk{font-size:.66rem}
+@keyframes reveal{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.ev.open.just .ev-b{animation:reveal .22s ease-out}
+.ev-b{padding-top:14px}
+.namecell{border-radius:6px}
+.namecell.is-open{letter-spacing:.06em}
+.claimless{display:none}
+/* buttons + toast */
+.btn{transition:background .12s,transform .1s,border-color .12s}
+.btn:not(:disabled):active{transform:scale(.97)}
+.btn.ghost:hover{border-color:var(--navy);color:var(--ink)}
+@keyframes toastin{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+.toast{animation:toastin .2s ease-out;background:var(--ink);color:var(--surface)}
+/* grid */
+table.wgrid thead th{font-size:.66rem;letter-spacing:.08em}
+.gevin{padding:10px 12px 9px 14px}
+.glink .gn{font-size:.86rem}
+table.wgrid td.gcell.na{background:color-mix(in srgb,var(--ink-3) 13%,transparent);background-clip:content-box}
+/* phone */
+@media (max-width:640px){
+  .ctl-toggle{display:inline-flex}
+  .ctl-more{display:none!important}
+  body.filters-open .ctl-more.sels{display:flex!important;flex-wrap:wrap;gap:8px;width:100%}
+  body.filters-open .ctl-more.sels .pick{flex:1 1 140px}
+  body.filters-open .chips.ctl-more{display:flex!important}
+  body.filters-open p.legend.ctl-more{display:block!important}
+  .tallyrow{gap:10px;padding-top:8px}
+  .tally{gap:14px}
+  .tally .t-open b{font-size:1.6rem}
+  .stamp{margin-left:0;width:100%}
+  .brandrow{gap:8px}
+  .season{display:none}
+}
+
+/* ---- pass 2 ---- */
+.resline{font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:.8rem}
+.res{display:inline-flex;align-items:baseline;gap:5px}
+.res b{margin-right:0}
+.res i{font-family:var(--f-body);font-size:.76rem;color:var(--ink-3)}
+.res em{font-style:normal;color:var(--ink-3);opacity:.55}
+.legend{max-width:none}
+/* Traditional is the default for 9 in 10 shows, so its rail whispers; Key and Elite speak */
+.ev.t-Traditional::before,.ev.t-Untagged::before{opacity:.28}
+table.wgrid tr.gevent.t-Traditional td.gev::before,table.wgrid tr.gevent.t-Untagged td.gev::before{opacity:.28}
+table.wgrid td.gcell.na{background:color-mix(in srgb,var(--ink-3) 9%,transparent);background-clip:content-box}
+@media (max-width:640px){
+  .stamp-db{display:none}
+  .stamp{font-size:.6rem;padding-top:2px}
+  .tally div:nth-child(4){display:none}
+}
+
+/* ---- add-event details fold ---- */
+.qa-more{border:1px dashed var(--line);border-radius:8px;padding:0 12px}
+.qa-more summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:10px 0;
+  font-family:var(--f-disp);font-weight:600;font-size:.86rem;color:var(--ink)}
+.qa-more summary::-webkit-details-marker{display:none}
+.qa-more summary::before{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;
+  transform:rotate(-45deg);transition:transform .12s;margin:0 4px 2px 2px;align-self:center}
+.qa-more[open] summary::before{transform:rotate(45deg)}
+.qa-more summary small{font-family:var(--f-body);font-weight:400;font-size:.76rem;color:var(--ink-3)}
+.qa-more[open]{padding-bottom:12px;background:var(--surface-2)}
+.qa-more .form{margin-bottom:12px}
+.qa-more .hint{margin-top:2px}
+.qa-sec{font-family:var(--f-disp);font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.11em;color:var(--slate);margin:4px 0 8px}
+.qa-more .form+.qa-sec{margin-top:2px}
+.qa-more label.full{margin-bottom:10px}
+.dl.wide{grid-column:1/-1}
+.dl dd textarea.fld{font:inherit;font-size:.84rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;resize:vertical;font-family:var(--f-body)}
+.dl dd textarea.fld:focus{border-color:var(--navy);outline:none}
+.qa-more textarea{font-family:var(--f-body);font-size:.88rem}
+.dl dd.notes{white-space:pre-wrap;font-size:.84rem;color:var(--ink-2);background:var(--surface-2);border-radius:6px;padding:8px 10px;border:1px solid var(--line-soft)}
+
+/* ---- platform: never list, lifecycle, auth ---- */
+.seg button.tab-never{color:var(--pend)} .seg button.tab-never[aria-selected="true"]{background:var(--pend);color:#fff}
+.never .band-h{border-bottom-color:var(--pend)} .never .band-h h2{color:var(--pend)}
+.nw-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);margin-top:12px}
+table.nwtbl{border-collapse:separate;border-spacing:0;width:100%;min-width:640px}
+table.nwtbl th{font-family:var(--f-disp);font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);
+  text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+table.nwtbl td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top;font-size:.86rem}
+table.nwtbl tr:last-child td{border-bottom:0}
+table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2)}
+.nw-sub{font-size:.74rem;color:var(--ink-3)} .nw-none{color:var(--ink-3);font-style:italic} .nw-when{white-space:nowrap}
+.lifecycle{margin-top:16px;padding-top:12px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:10px}
+.lifecycle .ck{font-size:.82rem;color:var(--ink-2)}
+.lifecycle-btns{display:flex;gap:8px;flex-wrap:wrap} .lifecycle .danger{margin-top:0}
+.neverform{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--pend-bg);border:1px solid color-mix(in srgb,var(--pend) 30%,transparent);border-radius:8px;padding:10px}
+.neverform input{flex:1 1 240px;font:inherit;font-size:.86rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+.neverform .btn{background:var(--pend);color:#fff}
+.authbox{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;color:var(--ink-3);margin-left:auto}
+.authbox .who b{color:var(--ink-2);font-weight:600}
+.stamp-mtg b{color:var(--slate);font-weight:600}
+@media (max-width:640px){ .authbox{margin-left:0;width:100%} }
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+</style>
+
+<header class="top">
+ <div class="top-in">
+  <div class="brandrow">
+   <span class="mark"><span class="glyph" id="glyph">RSD</span><h1 id="title">Show Shift Board</h1></span>
+   <span class="season" id="divchip">Rising Sun Division</span>
+   <div class="seg" id="seasonSeg" role="tablist"></div>
+   <div class="seg" id="viewSeg" role="tablist"><button role="tab" data-view="cards" aria-selected="true">Cards</button><button role="tab" data-view="grid" aria-selected="false">Grid</button></div>
+   <label class="switch" title="Coordinator tools: staffing, tier and access, roll forward, settings">
+    <input type="checkbox" id="planMode"><span class="knob"></span><span class="sw-l">Plan mode</span>
+   </label>
+  </div>
+  <div class="tallyrow"><div class="tally" id="tally"></div><div class="stamp" id="stamp"></div></div>
+ </div>
+</header>
+
+<div class="wrap">
+ <div class="controls">
+  <div class="ctl-row">
+   <label class="field">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+    <input id="q" type="search" placeholder="Event, city, promoter&hellip;" autocomplete="off">
+   </label>
+   <button class="ctl-toggle" id="ctlToggle" type="button" aria-expanded="false" aria-controls="ctlMore">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 4h12M4.5 8h7M7 12h2"/></svg>Filters<b id="ctlN" hidden></b>
+   </button>
+   <div class="ctl-more sels" id="ctlMore">
+    <select class="pick" id="rep"><option value="">All reps</option></select>
+    <select class="pick" id="lvl"><option value="">All access levels</option></select>
+    <select class="pick" id="bk"><option value="">Any booking status</option></select>
+   </div>
+  </div>
+  <div class="chips ctl-more" id="stateChips"></div>
+  <div class="chips ctl-more" id="tierChips"></div>
+  <p class="legend ctl-more" id="legend"></p>
+  <div class="ctl-row plan-only" id="planBar">
+   <a class="sheetlink" id="sheetTop" href="https://docs.google.com/spreadsheets/d/10p5Ro2WpeJ7mMOyS92OWIT3w3Nl-KGX4vBMkXJoOCTs/edit?gid=1119870878#gid=1119870878" target="_blank" rel="noopener">Open the Sheet &#8599;</a>
+   <button class="btn ghost" id="btnQuickAdd" hidden>+ Add event</button>
+   <button class="btn ghost" id="btnRoll" hidden>Roll forward</button>
+   <button class="btn ghost" id="btnImport" hidden>Import results</button>
+   <button class="btn ghost" id="btnSettings">Division settings</button>
+   <span id="authBox" class="authbox"></span>
+  </div>
+  <div class="panel" id="authPanel" hidden>
+   <div class="panel-h">Sign in to edit</div>
+   <p>Only people on the editor list can change the board. Enter your email and we'll send a one-tap sign-in link — no password.</p>
+   <div class="form"><label>Email<input id="siEmail" type="email" placeholder="you@example.com" autocomplete="email"></label></div>
+   <p class="hint" id="siOut"></p>
+   <div class="panel-actions"><button class="btn" id="siGo">Send sign-in link</button><button class="btn ghost" id="siCancel">Cancel</button></div>
+  </div>
+  <div class="panel" id="rollPanel" hidden>
+   <div class="panel-h">Roll <b id="rollFrom">2026</b> forward into <b id="rollTarget">2027</b></div>
+   <p>Every event moves ahead one year to the same weekend. Status resets to <b>Prospective</b>, shifts are cleared, VC numbers are blanked. Promoter info, tier, access, cost, best CPO and booth structure carry over. Dates are marked <b>est.</b> until you set them. Events already rolled are skipped, so this is safe to run again.</p>
+   <label class="ck"><input type="checkbox" id="rollDead"> Include cancelled and no-date shows (<span id="rollDeadN">0</span>)</label>
+   <p class="hint" id="rollSkip"></p><p class="hint" id="rollHeld"></p>
+   <div class="panel-actions">
+    <button class="btn" id="rollGo">Roll forward <span id="rollN">0</span> events</button>
+    <button class="btn ghost" id="rollCancel">Cancel</button>
+   </div>
+   <div class="progress" id="rollProg" hidden><i></i><span></span></div>
+  </div>
+  <div class="panel" id="addPanel" hidden>
+   <div class="panel-h">Add an event</div>
+   <div class="form">
+    <label>Event name<input id="qaName" type="text" placeholder="Prescott Fall Arts &amp; Crafts Show"></label>
+    <label>Start date<input id="qaStart" type="date"></label>
+    <label>End date<input id="qaEnd" type="date"></label>
+    <label>City, state<input id="qaCity" type="text" placeholder="Prescott, AZ"></label>
+    <label>Tier<select id="qaTier"><option>Traditional</option><option>Key</option><option>Elite</option></select></label>
+    <label>Access<select id="qaAcc"><option value="Unassigned">— default from tier —</option><option>Freshmen</option><option>JV</option><option>Varsity</option><option>Elite</option><option>Trade/Industry</option></select></label>
+   </div>
+   <details class="qa-more" id="qaMore">
+    <summary><span>Promoter &amp; venue details</span><small>what the VectorConnect booking request needs</small></summary>
+    <div class="qa-sec">Venue</div>
+    <div class="form">
+     <label>Venue name<input id="qaLoc" type="text" placeholder="Prescott Courthouse Plaza"></label>
+     <label>Street address<input id="qaAddr" type="text" placeholder="120 S Cortez St"></label>
+     <label>Indoor or outdoor<select id="qaSetting"><option value="">— not known yet —</option><option value="indoor">Indoor</option><option value="outdoor">Outdoor</option><option value="both">Indoor &amp; outdoor</option></select></label>
+    </div>
+    <div class="qa-sec">Promoter</div>
+    <div class="form">
+     <label>Promoter / organization<input id="qaPromoter" type="text" placeholder="Prescott Chamber of Commerce"></label>
+     <label>Contact name<input id="qaContact" type="text" placeholder="Jane Doe"></label>
+     <label>Phone<input id="qaPhone" type="text" inputmode="tel" placeholder="(928) 555-0100"></label>
+     <label>Email<input id="qaEmail" type="email" placeholder="events@…"></label>
+     <label>Website<input id="qaWeb" type="text" placeholder="https://…"></label>
+    </div>
+    <div class="qa-sec">Booking</div>
+    <div class="form">
+     <label>Booth cost<input id="qaCost" type="text" inputmode="decimal" placeholder="$850"></label>
+     <label>Vendor application link<input id="qaApply" type="text" placeholder="https://…/vendors"></label>
+     <label>Application deadline<input id="qaApplyBy" type="date"></label>
+    </div>
+    <label class="full">Notes for the booking request<textarea id="qaNotes" rows="3" placeholder="Anything Olean should know: cost is an estimate, promoter already contacted, booth number to ask for, returning vendor since 2022…"></textarea></label>
+    <p class="hint">The VC form requires a street address, a contact name and a 10-digit phone — and indoor/outdoor has to be known, not guessed. Whatever's here is what Claude won't have to research.</p>
+   </details>
+   <p class="hint">Everything can be filled in later on the event. Shifts start as one row of open slots.</p>
+   <div class="panel-actions">
+    <button class="btn" id="qaGo">Add event</button>
+    <button class="btn ghost" id="qaCancel">Cancel</button>
+   </div>
+  </div>
+  <div class="panel" id="impPanel" hidden>
+   <div class="panel-h">Import results from the VC export</div>
+   <p>One show per line: <b>event name, year, CPO, orders</b> (orders optional). Tabs or commas. CPO can be <b>17k</b> or <b>17000</b>. Names match the board exactly (ignoring case and punctuation); anything that doesn't match is listed so you can fix it.</p>
+   <textarea id="impText" rows="7" placeholder="Coconino County Fair, 2025, 28k, 41&#10;Prescott Labor Day Show, 2025, 19.5k, 30"></textarea>
+   <p class="hint" id="impOut"></p>
+   <div class="panel-actions">
+    <button class="btn" id="impGo">Load results</button>
+    <button class="btn ghost" id="impCancel">Cancel</button>
+   </div>
+  </div>
+  <div class="panel" id="setPanel" hidden>
+   <div class="panel-h">Division settings</div>
+   <div class="form">
+    <label>Division name<input id="stName" type="text"></label>
+    <label>Short name<input id="stShort" type="text" maxlength="12"></label>
+    <label>Division code<input id="stCode" type="text" inputmode="numeric"></label>
+   </div>
+   <label class="full">Roster (one name per line, the short name reps know)<textarea id="stRoster" rows="8"></textarea></label>
+   <label class="full">Shift-picking meetings (one date per line, YYYY-MM-DD — the routines key off these: research 7 days before, booking requests the day after)<textarea id="stMeetings" rows="3" placeholder="2027-01-15&#10;2027-05-01&#10;2027-08-14"></textarea></label>
+   <p class="hint">These drive the title, the rep dropdowns and the rep filter. Another division gets its own copy of this board with its own settings.</p>
+   <div class="panel-actions">
+    <button class="btn" id="stGo">Save settings</button>
+    <button class="btn ghost" id="stCancel">Cancel</button>
+   </div>
+  </div>
+  <div class="note plan-only" id="planNote"></div>
+ </div>
+ <div id="board"></div>
+ <div class="foot">
+  <button class="btn plan-only" id="copy">Copy staffing summary</button>
+  <button class="btn ghost plan-only" id="reset" hidden>Reset my scratchpad</button>
+  <span id="footNote"></span>
+ </div>
+</div>
+<div id="pickpop" role="dialog" aria-label="Assign this shift" hidden>
+ <input id="pickq" type="text" placeholder="Type a name…" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Type to filter names">
+ <div id="picklist" role="listbox"></div>
+</div>
+
+<script>window.__RSD__={"season": "Sept–Feb 2026", "tab": "2026", "roster": ["Adam C", "Adam J", "Alan", "Alec", "Cameron", "Carlton", "Charity", "Craig", "Eli", "Foss", "J. Parker", "Jason", "Jeremy", "Jerry", "Kendall", "Matt A.", "Nathaniel", "Rob", "Roman", "Sarah", "Sean", "Zach"], "events": [], "meta": {"sheetAsOf": "9/13", "vcAsOf": "9/9", "nextCheck": "Wed 9/16"}};</script>
+<script>
+(function(){
+const D = window.__RSD__;
+const SHEET='https://docs.google.com/spreadsheets/d/10p5Ro2WpeJ7mMOyS92OWIT3w3Nl-KGX4vBMkXJoOCTs/edit';
+const GID='1119870878';
+const SKEY={'Booked':'Booked','Prospective':'Prospective','Booking Request Needed':'BRN','OK to Book - Need Contract':'OTB',
+ 'Pending Promoter Acceptance':'PPA','Pending Coordinator':'PCO','Show Full':'SF','Cancelled':'CX'};
+const SORDER=['Booked','Pending Promoter Acceptance','OK to Book - Need Contract','Pending Coordinator','Booking Request Needed','Prospective','Show Full','Cancelled'];
+const KORDER=['open','full','closed'];
+const KLABEL={open:'Open',full:'Full',closed:'Closed'};
+const BKSHORT={'Booked':'booked','Prospective':'prospective','Booking Request Needed':'request needed','OK to Book - Need Contract':'need contract',
+ 'Pending Promoter Acceptance':'pending promoter','Pending Coordinator':'pending coord.','Show Full':'show full','Cancelled':'cancelled'};
+const TIERS=['Elite','Key','Traditional'];
+const TIERPICK=[['Elite','Elite'],['Key','Key'],['Traditional','Traditional']];
+const ACCESS=['Elite','Varsity','JV','Freshmen','Trade/Industry'];
+const ACCPICK=[['Elite','Elite'],['Varsity','Varsity'],['JV','JV'],['Freshmen','Freshmen'],['Trade/Industry','Trade/Industry'],['Unassigned','— default from tier —']];
+const LS='rsd-shift-board-v4';
+const TODAY=new Date(); TODAY.setHours(0,0,0,0);
+const DEFAULT_SETTINGS={name:'Rising Sun Division',short:'RSD',code:'75',roster:D.roster};
+const BASE_YEARS=[2026,2027,2028];
+
+let store={slots:{},tiers:{},access:{},extra:{},plan:false,year:2026,view:'cards'};
+try{const r=localStorage.getItem(LS); if(r) store=Object.assign(store,JSON.parse(r));}catch(e){}
+const save=()=>{try{localStorage.setItem(LS,JSON.stringify(store));}catch(e){}};
+
+let settings=Object.assign({},DEFAULT_SETTINGS);
+let db=null, dbState='loading', dbKind='none';   // dbState: loading | ready | static | none · dbKind: supabase | static | none
+let authUser=null, isEditor=false, isOwner=false;
+let neverList=[];                 // never_work docs
+const neverKeys=()=>new Set(neverList.map(n=>n.seriesKey).filter(Boolean));
+let boardEvents=[];               // every board-sourced event, all years
+let histMap={};                   // baseId -> {year: {cpo, orders}}
+let ovMap={};                     // sheet event id -> shared field overrides
+const F={q:'',rep:'',lvl:'',bk:'',state:new Set(),tier:new Set()};
+const open=new Set(), pastClosed=new Set(); let pastAllOpen=false;
+const plan=()=>!!store.plan && (dbKind!=='supabase' || isEditor);
+const viewNever=()=>store.year==='never';
+const gridView=()=>store.view==='grid';
+const year=()=>{ const y=+(store.year||2026); return isNaN(y)?2026:y; };
+const yearOf=e=>+(e.year||e.season||0);
+const years=()=>{const s=new Set(BASE_YEARS); D.events.forEach(e=>s.add(yearOf(e))); boardEvents.forEach(e=>{if(yearOf(e))s.add(yearOf(e));}); return [...s].sort();};
+const ROSTER=()=>settings.roster||D.roster;
+const baseId=id=>String(id).replace(/^\d{4}-/,'');
+
+/* ---- date helpers ---- */
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const fromISO=s=>{if(!s)return null;const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+const parseUS=s=>{if(!s)return null;const m=String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return new Date(+m[3],+m[1]-1,+m[2]);return /^\d{4}-\d{2}-\d{2}$/.test(s)?fromISO(s):null;};
+const addDays=(d,n)=>{const c=new Date(d);c.setDate(c.getDate()+n);return c;};
+const DAYN={monday:0,mon:0,tuesday:1,tue:1,tues:1,wednesday:2,wed:2,thursday:3,thu:3,thur:3,thurs:3,friday:4,fri:4,saturday:5,sat:5,sunday:6,sun:6};
+const isSE=d=>/\bSE\b/i.test(d||'');
+function dayDates(days,startISO){
+  const sd=fromISO(startISO); if(!sd) return days.map(()=>null);
+  return days.map(d=>{
+    const base=(d||'').replace(/\bSE\b/i,'').trim().toLowerCase().replace(/\.$/,'');
+    if(/^\d{1,2}\/\d{1,2}$/.test(base)){const [m,dd]=base.split('/').map(Number);return iso(new Date(sd.getFullYear(),m-1,dd));}
+    if(!(base in DAYN)) return null;
+    const want=(DAYN[base]+1)%7;
+    for(let k=0;k<14;k++){const c=addDays(sd,k); if(c.getDay()===want) return iso(c);}
+    return null;
+  });
+}
+/* Resolve day-name columns against a weekend's Friday, in the order listed: Tue/Wed/Thu before, Sat/Sun/Mon after,
+   a day that would go backwards jumps a week; Monday-first is ambiguous, keep the run nearest Friday. */
+function anchorDates(days,fri){
+  const seq=(days||[]).map(d=>{ const base=(d||'').replace(/\bSE\b/i,'').trim().toLowerCase().replace(/\.$/,'');
+    if(/^\d{1,2}\/\d{1,2}$/.test(base)){const [m,dd]=base.split('/').map(Number);return ['date',new Date(fri.getFullYear(),m-1,dd)];}
+    return (base in DAYN)?['wd',DAYN[base]]:['none',null]; });
+  const resolve=monBefore=>{ let prev=null; return seq.map(([k,v])=>{
+    if(k==='wd'){ let dt=addDays(fri,(v===0&&monBefore)?-4:(v===0?3:v-4)); while(prev&&dt<=prev) dt=addDays(dt,7); prev=dt; return dt; }
+    if(k==='date'){ prev=v; return v; } return null; }); };
+  const a=resolve(true), b=resolve(false), dist=r=>r.reduce((s,x)=>s+(x?Math.abs(x-fri):0),0);
+  return (dist(a)<=dist(b)?a:b).map(x=>x?iso(x):null);
+}
+/* the date a slot sits on: the stored date when it is near the weekend, otherwise re-anchored from its day name */
+function slotDates(b,w){
+  const fri=wkDate(w); const stored=b.dates||[];
+  if(!fri) return b.days.map((d,i)=>stored[i]||null);
+  const near=s=>{ const d=s&&fromISO(s); return !!d&&Math.abs(d-fri)<=10*864e5; };
+  let anch=null; return b.days.map((d,i)=>near(stored[i])?stored[i]:(anch||(anch=anchorDates(b.days,fri)))[i]);
+}
+function fridayKey(startISO){const d=fromISO(startISO); if(!d)return ''; const off=(d.getDay()+6)%7; return iso(addDays(d,4-off));}
+function wkDate(w){
+  if(!w)return null;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(w)) return fromISO(w);
+  const m=w.match(/(\d{1,2})[-\/](\d{1,2})/); if(!m)return null;
+  const mo=+m[1], d=+m[2], y=mo>=8?2026:2027;
+  return new Date(y,mo-1,d);
+}
+const wkPast=w=>{const d=wkDate(w); if(!d)return false; return addDays(d,3)<TODAY;};
+const wkLabel=w=>{const d=wkDate(w); return d?`Weekend of ${d.getMonth()+1}/${d.getDate()}`:`Weekend ${w}`;};
+function fdate(s){ if(!s)return ''; const d=fromISO(s); return d?(d.getMonth()+1)+'/'+d.getDate():''; }
+const dshort=d=>{d=(d||'').trim(); const se=isSE(d); d=d.replace(/\bSE\b/i,'').trim(); return d.slice(0,3)+(se?' SE':'');};
+
+/* ---- meetings ---- */
+function nextMeeting(){ const ms=(settings.meetings||[]).map(fromISO).filter(Boolean).filter(d=>d>=TODAY).sort((a,b)=>a-b); if(!ms.length)return null;
+  const d=ms[0]; return {date:d,label:d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}),days:Math.round((d-TODAY)/864e5)}; }
+/* ---- current season's events ---- */
+function sheetEvents(){ return D.events.map(e=>{const o=ovMap[e.id]; return o?Object.assign({},e,o,{source:'sheet',_ov:true}):(e.source?e:Object.assign(e,{source:'sheet'}));}); }
+function eventsIn(y){ return sheetEvents().filter(e=>yearOf(e)===y).concat(boardEvents.filter(e=>yearOf(e)===y)); }
+function cur(){ return eventsIn(year()); }
+const mixed=()=>{const l=cur(); return l.some(e=>e.source==='sheet')&&l.some(e=>e.source==='board');};
+function boothsOf(e){
+  return e.booths.map((b,bi)=>{
+    const shifts=b.shifts.map(s=>({label:s.label,labelInferred:!!s.labelInferred,slots:b.days.map((d,i)=>s.slots[i]||{rep:'',ft:[]})}));
+    if(e.source==='sheet'){ const ex=store.extra[e.id+'|'+bi]||0;
+      for(let k=0;k<ex;k++) shifts.push({label:'Shift '+(b.shifts.length+k+1),slots:b.days.map(()=>({rep:'',ft:[]}))}); }
+    return {label:b.label,status:b.status||'',days:b.days,dates:b.dates,shifts};
+  });
+}
+const val=(e,bi,si,di,dflt)=>{ if(e.source==='board') return dflt; const k=e.id+'|'+bi+'|'+si+'|'+di; return (k in store.slots)?store.slots[k]:dflt; };
+const tierOf=e=>e.tier||'Traditional';
+const ALIAS={'cam':'Cameron','cameron couts':'Cameron','matt foss':'Foss','foss':'Foss','matt a':'Matt A.','matt aragon':'Matt A.','matthew aragon':'Matt A.','aragon':'Matt A.',
+ 'jp':'J. Parker','j parker':'J. Parker','parker':'J. Parker','jonathan parker':'J. Parker','johnathan parker':'J. Parker','gerardo':'Jerry','gerardo ramirez':'Jerry','jerry ramirez':'Jerry',
+ 'adam jeffrey':'Adam J','adam conroy':'Adam C','alan hernandez':'Alan','nate':'Nathaniel','nathaniel chua':'Nathaniel','eli camacho':'Eli','sean potter':'Sean','jason jeffrey':'Jason','alec luyendyk':'Alec'};
+const TIER_ACCESS={Elite:'Elite',Key:'Varsity',Traditional:'JV'};
+const accOf=e=>{
+  let v=e.access;
+  if(!v&&e.source!=='board') v=e.level==='Varsity'?'Varsity':e.level==='JV'?'JV':e.level==='Trade/Industry'?'Trade/Industry':'';
+  if(v&&v!=='Unassigned') return v;
+  return TIER_ACCESS[tierOf(e)]||'Unassigned';   // Key → Varsity, Traditional → JV, Elite → Elite
+};
+
+/* ---- results: best ever + last year ---- */
+const fk=n=>{ if(n==null||isNaN(n))return ''; if(n<1000) return '$'+Math.round(n); const k=n/1000; return (k<10?k.toFixed(1).replace(/\.0$/,''):Math.round(k))+'k'; };
+function results(e){
+  const h=histMap[baseId(e.id)]||{}; let best=null;
+  Object.keys(h).forEach(y=>{const v=h[y]; if(v&&v.cpo!=null&&v.cpo!==''&&(!best||+v.cpo>best.cpo)) best={cpo:+v.cpo,year:+y};});
+  const sb=e.bestEver||{};
+  if(sb.cpo&&(!best||sb.cpo>best.cpo)) best={cpo:sb.cpo,year:sb.year||null,fromSheet:true};
+  const ly=h[String(yearOf(e)-1)];
+  return {best,last:(ly&&ly.cpo!=null&&ly.cpo!=='')?{cpo:+ly.cpo,year:yearOf(e)-1,orders:ly.orders}:null,isNew:!best&&!!sb.new,years:h};
+}
+const costNum=e=>{ const m=String(e.cost||'').replace(/[^0-9.]/g,''); return m?parseFloat(m):null; };
+const monthKey=e=>{const d=wkDate(e.weekend); return d?d.getFullYear()+'-'+d.getMonth():'';};
+function costForDate(e){
+  const c=costNum(e); const basis=e.costBasis||'date';
+  if(c==null) return {total:null,basis,n:1,filled:0,per:null};
+  if(basis==='date'){ const f=filledSlots(e); return {total:c,basis,n:1,filled:f,per:f?c/f:null}; }
+  const members=basis==='month'?seriesOf(e).filter(m=>monthKey(m)===monthKey(e)):seriesOf(e);
+  const filled=members.reduce((s,m)=>s+filledSlots(m),0);
+  return {total:c,basis,n:members.length||1,filled,per:filled?c/filled:null};
+}
+const monthName=e=>{const d=wkDate(e.weekend); return d?d.toLocaleString('en-US',{month:'short'}):'';};
+function sellableSlots(e){ let n=0; boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{ if(isSE(b.days[di]))return; if(val(e,bi,si,di,sl.rep)==='__X__')return; n++; }))); return n; }
+/* SE = sharpening event: a day tacked on after the show ends to sign customers up for a sharpening
+   appointment. It is not a shift, so it never counts as open, filled, or in the cost-per-shift math. */
+function filledSlots(e){ let n=0; boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{ if(isSE(b.days[di]))return; const v=val(e,bi,si,di,sl.rep); if(v&&v!=='__X__') n++; }))); return n; }
+function seSlots(e){ let n=0; boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{ if(!isSE(b.days[di]))return; const v=val(e,bi,si,di,sl.rep); if(v&&v!=='__X__') n++; }))); return n; }
+const SETIP='Sharpening event — signing customers up after the show ends. Not a shift.';
+const normName=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const SERIES_STRIP=/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|week\s*\d+|wk\s*\d+|w\s*\d+|weekend\s*\d+|\d{4})\b/g;
+const seriesKey=e=>normName(e.name).replace(SERIES_STRIP,' ').replace(/\s+/g,' ').trim();
+function seriesOf(e){ const k=seriesKey(e); if(!k)return [e]; return eventsIn(yearOf(e)).filter(x=>seriesKey(x)===k); }
+const SHARED=['name','promoter','contact','phone','email','website','cost','costBasis','location','cityState','tier','access','address','setting','applyUrl','applyBy','notes'];   // same-year series
+const FORWARD=['promoter','contact','phone','email','website','cityState','cost','costBasis','tier','access','address','setting','applyUrl','notes'];                    // also flows into later years (the deadline moves, so applyBy stays put)
+function forwardTargets(e){
+  const k=seriesKey(e), bid=baseId(e.id), y=yearOf(e), out=[];
+  years().filter(Y=>Y>y).forEach(Y=>eventsIn(Y).forEach(x=>{ if(seriesKey(x)===k||baseId(x.id)===bid) out.push(x); }));
+  return out;
+}
+
+function pickState(e){
+  if(e.status==='Cancelled'||e.status==='Show Full'||e.dead) return {key:'closed',open:[],n:0};
+  const opens=[]; const multi=e.booths.length>1;
+  boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{
+    const v=val(e,bi,si,di,sl.rep);
+    if(!v && !isSE(b.days[di])) opens.push({day:b.days[di],date:b.dates[di],shift:s.label,booth:multi?b.label:''});
+  })));
+  if(!opens.length) return {key:'full',open:[],n:0};
+  return {key:'open',open:opens,n:opens.length};
+}
+function matches(e){
+  const ps=pickState(e);
+  if(F.state.size&&!F.state.has(ps.key))return false;
+  if(F.bk&&e.status!==F.bk)return false;
+  if(F.tier.size&&!F.tier.has(tierOf(e)))return false;
+  if(F.lvl&&accOf(e)!==F.lvl)return false;
+  if(F.rep){
+    let hit=false;
+    boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{
+      const v=val(e,bi,si,di,sl.rep);
+      if(v&&v.split(' / ').includes(F.rep))hit=true;
+      if((sl.ft||[]).some(f=>f.toLowerCase()===F.rep.toLowerCase()))hit=true;
+    })));
+    if(!hit)return false;
+  }
+  if(F.q){
+    const h=[e.name,e.cityState,e.location,e.promoter,e.contact,e.vcNumber].join(' ').toLowerCase();
+    if(!h.includes(F.q.toLowerCase()))return false;
+  }
+  return true;
+}
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function splitRep(v){
+  v=(v||'').trim(); if(!v) return {rep:'',ft:[]};
+  if(/^(x|xx|-)$/i.test(v)) return {rep:'__X__',ft:[]};
+  let ft=[]; const m=v.match(/\(\s*(?:ft\.?|feat\.?)\s*([^)]*)\)?/i);
+  if(m){ ft=m[1].split(/[,&\/]| and /).map(x=>x.trim().replace(/[.,&)]+$/,'')).filter(Boolean); v=(v.slice(0,m.index)+v.slice(m.index+m[0].length)); }
+  v=v.replace(/[()]/g,'').trim().replace(/[,.]+$/,'');
+  const key=v.toLowerCase().replace(/\.$/,'').replace(/\s+/g,' ');
+  const alias=ALIAS[key];
+  const canon=alias||ROSTER().find(r=>r.toLowerCase().replace(/\.$/,'')===key);
+  return {rep:canon||v,ft};
+}
+function span(e){
+  const a=e.booths.flatMap(b=>b.dates||[]).filter(Boolean).sort();
+  if(!a.length){ if(e.startDate){const d=parseUS(e.startDate); return d?(d.getMonth()+1)+'/'+d.getDate():esc(e.startDate);} return 'dates TBD'; }
+  return a.length===1?fdate(a[0]):fdate(a[0])+'–'+fdate(a[a.length-1]);
+}
+
+/* the day row sticks under the app header, so its height has to be measured, not assumed */
+function syncTopH(){ const t=document.querySelector('.top'); if(t) document.documentElement.style.setProperty('--topH',t.offsetHeight+'px'); }
+addEventListener('resize',syncTopH); addEventListener('load',syncTopH);
+let headRAF=0;
+function pinHeads(){
+  headRAF=0;
+  const topH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topH'))||0;
+  document.querySelectorAll('.gridwrap-w').forEach(w=>{
+    const head=w.querySelector('thead'); if(!head) return;
+    const r=w.getBoundingClientRect();
+    if(r.bottom<topH||r.top>innerHeight){ if(head.style.transform){head.style.transform='';head.classList.remove('pinned');} return; }
+    const hh=head.offsetHeight, off=Math.max(0,Math.min(topH-r.top, r.height-hh-2));
+    head.style.transform=off?'translateY('+off+'px)':'';
+    head.classList.toggle('pinned',off>0);
+  });
+}
+function drawColRules(){
+  document.querySelectorAll('table.wgrid').forEach(t=>{
+    const ths=[...t.querySelectorAll('thead th')];
+    if(ths.length<2){ t.style.backgroundImage=''; return; }
+    const parts=[]; let prev=0;
+    ths.slice(1).forEach(th=>{ const x=Math.round(th.offsetLeft); if(x<=prev) return;
+      parts.push(`transparent ${prev}px ${x}px`,`var(--line-soft) ${x}px ${x+1}px`); prev=x+1; });
+    if(!parts.length){ t.style.backgroundImage=''; return; }
+    parts.push(`transparent ${prev}px 100%`);
+    t.style.backgroundImage='linear-gradient(90deg,'+parts.join(',')+')';
+  });
+}
+const onPinScroll=()=>{ if(!headRAF) headRAF=requestAnimationFrame(pinHeads); };
+addEventListener('scroll',onPinScroll,{passive:true}); addEventListener('resize',()=>{onPinScroll();drawColRules();});
+
+/* ---- header ---- */
+function renderTally(list){
+  setTimeout(()=>{syncTopH();pinHeads();drawColRules();},0);
+  let openN=0,full=0,booked=0,act=0;
+  list.forEach(e=>{ if(wkPast(e.weekend))return; const p=pickState(e);
+    if(p.key==='open')openN+=p.n; else if(p.key==='full')full++;
+    if(e.status==='Booked')booked++;
+    if(['Booking Request Needed','OK to Book - Need Contract','Pending Promoter Acceptance','Pending Coordinator'].includes(e.status))act++;});
+  const up=list.filter(e=>!wkPast(e.weekend)).length;
+  document.getElementById('tally').innerHTML=
+   `<div class="t-open"><b>${openN}</b><span>Open shifts</span></div>`+
+   `<div><b>${full}</b><span>Full</span></div>`+
+   `<div class="t-booked"><b>${booked}</b><span>Booked</span></div>`+
+   (plan()?`<div><b>${act}</b><span>Need action</span></div>`:`<div><b>${up}</b><span>Upcoming</span></div>`);
+}
+function renderHeader(){
+  document.querySelectorAll('#viewSeg [data-view]').forEach(b=>b.setAttribute('aria-selected',b.dataset.view===(gridView()?'grid':'cards')));
+  document.getElementById('title').textContent='Show Shift Board';
+  document.getElementById('glyph').textContent=(settings.short||'RSD').toUpperCase();
+  document.getElementById('divchip').textContent=settings.name||'';
+  const seg=document.getElementById('seasonSeg');
+  seg.innerHTML=years().map(y=>{const n=eventsIn(y).length;
+    return `<button role="tab" data-year="${y}" aria-selected="${!viewNever()&&y===year()}">${y}${n?` <small>${n}</small>`:''}</button>`;}).join('')
+    +`<button role="tab" data-year="never" class="tab-never" aria-selected="${viewNever()}" title="Events we never work again">Never${neverList.length?` <small>${neverList.length}</small>`:''}</button>`;
+  const nS=cur().filter(e=>e.source==='sheet').length, nB=cur().filter(e=>e.source==='board').length;
+  const st=document.getElementById('stamp');
+  const parts=[];
+  if(nS) parts.push(`<span>${nS} from the Sheet · snapshot ${esc(D.meta.sheetAsOf)} · VC status as of ${esc(D.meta.vcAsOf)}</span>`);
+  if(nB) parts.push(`<span>${nB} events · ${dbKind==='supabase'?'live':'read-only preview'}</span>`);
+  { const nm=nextMeeting(); if(nm) parts.push(`<span class="stamp-mtg">Next shift-picking meeting <b>${esc(nm.label)}</b> · ${nm.days===0?'today':nm.days===1?'tomorrow':'in '+nm.days+' days'}</span>`); }
+  if(dbState==='none') parts.push(`<span class="stamp-db">shared storage unavailable in this view</span>`);
+  if(!nS&&!nB) parts.push(`<span>nothing in ${year()} yet</span>`);
+  st.innerHTML=parts.join('');
+  document.getElementById('btnRoll').hidden=!(dbState==='ready'&&!viewNever()&&eventsIn(year()-1).length>0);
+  document.getElementById('btnQuickAdd').hidden=dbState!=='ready';
+  document.getElementById('btnImport').hidden=dbState!=='ready';
+  const lg=document.getElementById('legend');
+  if(lg) lg.textContent='No tag = Traditional. No access pill = that tier\'s usual level (Key → Varsity, Traditional → JV).';
+  document.getElementById('sheetTop').hidden=!nS;
+  { const ab=document.getElementById('authBox'); if(ab){
+    ab.innerHTML=dbKind!=='supabase'?'':(authUser
+      ?`<span class="who">${isEditor?'Editing as':'Signed in as'} <b>${esc(authUser.email)}</b>${isEditor?'':' — not on the editor list yet'}</span><button class="linkbtn" id="signOut">sign out</button>`
+      :`<span class="who">Sign in to edit</span>`); } }
+  document.getElementById('reset').hidden=!nS;
+  document.getElementById('planNote').innerHTML=nB&&!nS
+    ?`<span>&#9873;</span><span><b>${year()} lives on the board.</b> Every change here is saved and shared instantly. Rolled dates show <b>est.</b> until you set them.</span>`
+    :nS&&!nB?`<span>&#9873;</span><span><b>${year()} mirrors the Sheet.</b> Details, tier, access and booking edits save for everyone. Shift picks here are a scratchpad on your device this season; the Sheet still holds the record.</span>`
+    :`<span>&#9873;</span><span><b>${year()} is mixed.</b> Events tagged <b>sheet</b> mirror the Sheet: their details save for everyone, their shift picks are a device scratchpad. The rest live on the board entirely.</span>`;
+  document.getElementById('footNote').textContent=nS&&!nB
+    ?'Open means a shift with no name on it yet. Shifts are assigned by the coordinators at the shift-picking meeting — come knowing what you want to ask for.'
+    :'Open means a shift with no name on it yet. Shifts are assigned by the coordinators at the shift-picking meeting; board changes are shared live.';
+}
+function chipBar(id,items,set,cls,labels){
+  document.getElementById(id).innerHTML=items.map(([v,n])=>
+   `<button class="chip ${cls}${(SKEY[v]||v).replace(/[\s\/]/g,'')}" data-v="${esc(v)}" aria-pressed="${set.has(v)}">`+
+   `<i class="dot"></i>${esc(labels?labels[v]:v)}<span class="n">${n}</span></button>`).join('');
+}
+function refreshFilters(){
+  const EV=cur();
+  const rs=document.getElementById('rep'); const keep=rs.value; rs.innerHTML='<option value="">All reps</option>';
+  ROSTER().forEach(r=>{const o=document.createElement('option');o.value=o.textContent=r;rs.appendChild(o);}); rs.value=keep;
+  const sc={},tc={},ac={},kc={};
+  EV.forEach(e=>{ if(wkPast(e.weekend))return;
+    sc[e.status]=(sc[e.status]||0)+1;tc[tierOf(e)]=(tc[tierOf(e)]||0)+1;ac[accOf(e)]=(ac[accOf(e)]||0)+1;
+    const k=pickState(e).key;kc[k]=(kc[k]||0)+1;});
+  const ls=document.getElementById('lvl'); const kl=ls.value; ls.innerHTML='<option value="">All access levels</option>';
+  ACCESS.concat(ac['Unassigned']?['Unassigned']:[]).filter(x=>ac[x]).forEach(x=>{
+    const o=document.createElement('option');o.value=x;o.textContent=(x==='Unassigned'?'No access set':x)+' ('+ac[x]+')';ls.appendChild(o);}); ls.value=kl;
+  const bks=document.getElementById('bk'); const kb=bks.value; bks.innerHTML='<option value="">Any booking status</option>';
+  SORDER.filter(s=>sc[s]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s+' ('+sc[s]+')';bks.appendChild(o);}); bks.value=kb;
+  chipBar('stateChips',KORDER.filter(k=>kc[k]).map(k=>[k,kc[k]]),F.state,'c-',KLABEL);
+  chipBar('tierChips',TIERS.filter(t=>tc[t]).map(t=>[t,tc[t]]),F.tier,'c-');
+}
+
+/* ---- board ---- */
+function build(){
+  document.querySelector('.controls').hidden=false;
+  document.body.classList.toggle('plan',plan());
+  document.body.classList.toggle('gridv',gridView());
+  { const n=(F.rep?1:0)+(F.lvl?1:0)+(F.bk?1:0)+F.state.size+F.tier.size, b=document.getElementById('ctlN'); if(b){ b.hidden=!n; b.textContent=n; } }
+  renderHeader();
+  if(viewNever()){ renderNever(); return; }
+  refreshFilters();
+  const EV=cur(); const list=EV.filter(matches);
+  renderTally(list);
+  const board=document.getElementById('board');
+  if(!EV.length){
+    const y=year(), prev=eventsIn(y-1).length;
+    if(dbState==='loading'){board.innerHTML=`<div class="empty-season"><span>Loading ${y}…</span></div>`;return;}
+    if(dbState==='none'){board.innerHTML=`<div class="empty-season"><b>Nothing in ${y} here.</b><span>The board couldn't reach its database. Check config.js and the README.</span></div>`;return;}
+    board.innerHTML=`<div class="empty-season"><b>${y} is empty.</b><span>${plan()?(prev?`Roll ${y-1} forward to start from its ${prev} shows, or add events one at a time.`:'Add events one at a time, or roll forward once the year before has shows.'):'Turn on Plan mode to roll forward or add events.'}</span>${plan()&&prev&&dbState==='ready'?`<button class="btn" id="emptyRoll">Roll ${y-1} forward</button>`:''}</div>`;return;
+  }
+  if(!list.length){board.innerHTML='<p class="empty-state">Nothing matches those filters.</p>';return;}
+  const byW={};
+  list.forEach(e=>{const d=wkDate(e.weekend); const w=d?iso(d):'Unscheduled'; (byW[w]=byW[w]||[]).push(e);});
+  const order=Object.keys(byW).sort((a,b)=>{const da=wkDate(a),dbb=wkDate(b); if(!da&&!dbb)return 0; if(!da)return 1; if(!dbb)return -1; return da-dbb;});
+  const bandHtml=w=>{
+    const evs=byW[w].sort((a,b)=>KORDER.indexOf(pickState(a).key)-KORDER.indexOf(pickState(b).key));
+    const past=wkPast(w), collapsed=past&&pastClosed.has(w);
+    let openN=0,live=0; evs.forEach(e=>{const p=pickState(e);if(p.key==='open')openN+=p.n;if(p.key!=='closed')live++;});
+    const cov=past?`<span class="cov">past · ${evs.length} event${evs.length===1?'':'s'}</span>`
+      :openN?`<span class="cov cov-open">${openN} open shift${openN===1?'':'s'}</span>`
+      :(live?`<span class="cov">Full</span>`:`<span class="cov">Nothing on</span>`);
+    return `<section class="band${past?' past':''}${collapsed?' collapsed':''}" data-w="${esc(w)}">`+
+     `<div class="band-h" ${past?'role="button" tabindex="0"':''}><h2>${esc(wkLabel(w))}</h2>${cov}</div>`+
+     (collapsed?'':(rollup(evs)+(gridView()?gridTable(w,evs):evs.map(card).join(''))))+`</section>`;
+  };
+  /* history folds into one row above the live weekends, so the first thing a rep sees is this weekend */
+  const pastW=order.filter(w=>wkPast(w)), liveW=order.filter(w=>!wkPast(w));
+  let pastHtml='';
+  if(pastW.length){
+    const nEv=pastW.reduce((a,w)=>a+byW[w].length,0);
+    pastHtml=`<div class="pastwrap${pastAllOpen?' open':''}"><button class="pastsum" type="button" aria-expanded="${pastAllOpen}">`+
+      `<span class="ps-l">Earlier in ${year()}</span><span class="ps-n">${pastW.length} weekend${pastW.length===1?'':'s'} · ${nEv} event${nEv===1?'':'s'}</span>`+
+      `<svg class="caret" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6l4 4 4-4"/></svg></button>`+
+      (pastAllOpen?`<div class="pastbands">${pastW.map(bandHtml).join('')}</div>`:'')+`</div>`;
+  }
+  board.innerHTML=pastHtml+liveW.map(bandHtml).join('');
+}
+/* ---- the never-work list ---- */
+function renderNever(){
+  document.getElementById('tally').innerHTML=`<div class="t-open"><b>${neverList.length}</b><span>never again</span></div>`;
+  document.querySelector('.controls').hidden=true;
+  const P=plan();
+  const rows=neverList.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name))).map(n=>`<tr>
+    <td><b>${esc(n.name)}</b>${n.cityState?`<div class="nw-sub">${esc(n.cityState)}</div>`:''}</td>
+    <td class="mono">${n.lastYear||'—'}</td>
+    <td>${n.reason?esc(n.reason):'<span class="nw-none">no reason given</span>'}</td>
+    <td class="mono nw-when">${n.addedBy?esc(n.addedBy.split('@')[0]):''}${n.addedAt?' · '+fdate(n.addedAt.slice(0,10)):''}</td>
+    <td>${P?`<button class="linkbtn" data-restore="${esc(n.id)}">restore</button>`:''}</td></tr>`).join('');
+  document.getElementById('board').innerHTML=`<section class="never">
+   <div class="band-h"><h2>Never work again</h2><span class="cov">${neverList.length} event${neverList.length===1?'':'s'}</span></div>
+   <p class="legend">Roll forward skips everything here, every year, so a show only has to be a bad idea once. Restoring it lets it roll again — it doesn't put it back on this year's board.</p>
+   ${neverList.length?`<div class="nw-wrap"><table class="nwtbl"><thead><tr><th>Event</th><th>Last worked</th><th>Why</th><th>Added</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+     :`<div class="empty-season"><b>Nothing here yet.</b><span>Open any event in plan mode and choose <em>Never work this event again</em>.</span></div>`}
+  </section>`;
+}
+/* ---- who's on this weekend ---- */
+function rollup(evs){
+  const counts={}, ses={}; let openN=0;
+  evs.forEach(e=>boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{
+    const v=val(e,bi,si,di,sl.rep), se=isSE(b.days[di]);
+    if(!v){ if(!se&&pickState(e).key!=='closed') openN++; return; }
+    if(v==='__X__') return;
+    v.split(' / ').forEach(n=>{n=n.trim(); if(!n)return; if(se) ses[n]=(ses[n]||0)+1; else counts[n]=(counts[n]||0)+1;});
+  }))));
+  Object.keys(ses).forEach(n=>{ if(!(n in counts)) counts[n]=0; });
+  const names=Object.keys(counts).sort((x,y)=>counts[y]-counts[x]||x.localeCompare(y));
+  if(!names.length&&!openN) return '';
+  return `<div class="rollup">`+names.map(n=>`<button class="rchip${F.rep===n?' on':''}" data-rep="${esc(n)}">${esc(n)} ${counts[n]?`<b>×${counts[n]}</b>`:''}${ses[n]?`<span class="setag" title="${SETIP}">+SE</span>`:''}</button>`).join('')+
+    (openN?`<span class="rchip open">${openN} open</span>`:`<span class="rchip full">full</span>`)+`</div>`;
+}
+function weekendCols(w,evs){
+  const cols=new Map();
+  evs.forEach(e=>boothsOf(e).forEach(b=>{ const ds=slotDates(b,w); b.days.forEach((d,i)=>{
+    const k=ds[i]; if(!k) return;
+    const cur=cols.get(k); cols.set(k,{lbl:dshort(d).replace(/ SE$/,'')+' '+fdate(k), se:(cur?cur.se:true)&&isSE(d)});
+  }); }));
+  return [...cols.entries()].sort((x,y)=>x[0]<y[0]?-1:1).map(([k,v])=>[k,v.lbl,v.se]);
+}
+function boothTitle(b,bi){
+  const raw=(b.label||('Booth #'+(bi+1))).trim();
+  const m=raw.match(/^booth\s*#?\s*(\d+)\s*(.*)$/i);
+  if(!m) return `<b>${esc(raw)}</b>`;
+  const rest=(m[2]||'').trim(), inner=[]; let mm; const re=/\(([^)]*)\)/g;
+  while((mm=re.exec(rest))) inner.push(mm[1].trim());
+  const plain=inner.length?rest.replace(/\([^)]*\)/g,'').trim():rest;
+  const tail=[plain,...inner].filter(Boolean).join(' · ');
+  return `<b>Booth #${m[1]}</b>${tail?` <span class="bdesc">${esc(tail)}</span>`:''}`;
+}
+const shortBooth=(l,bi)=>{ l=(l||'').replace(/\s*\(.*$/,'').trim()||('Booth '+(bi+1)); return l.length>22?l.slice(0,21)+'…':l; };
+const ACCCLS=a=>a==='Unassigned'?'none':a.replace('/','');
+const ACCSHORT={'Trade/Industry':'Trade','Unassigned':'any level'};
+/* tier + who it's reserved for — the grid's version of the card's meta line */
+/* Only the exceptions get tagged. Traditional is 51 of 67 shows and the access level is the tier's
+   own default on most of them, so tagging every row said nothing and buried Elite/Key and the
+   overridden levels. No tier badge = Traditional; no access pill = the usual level for that tier. */
+const isDefaultAcc=e=>accOf(e)===TIER_ACCESS[tierOf(e)];
+function gtags(e){
+  const t=tierOf(e), ac=accOf(e); let h='';
+  if(t!=='Traditional') h+=`<span class="tierbadge mini t-${t}">${t==='Untagged'?'no tier':esc(t)}</span>`;
+  if(!isDefaultAcc(e)) h+=`<span class="acc mini pillish acc-${ACCCLS(ac)}"><i>for</i> ${esc(ACCSHORT[ac]||ac)}</span>`;
+  return h;
+}
+function cellFor(e,b,bi,s,si,di,ps,P,wide,runN){
+  const sl=s.slots[di]||{rep:'',ft:[]}; const v=val(e,bi,si,di,sl.rep), se=isSE(b.days[di]);
+  const cap=x=>String(x).replace(/\b\w/g,ch=>ch.toUpperCase());
+  const ft=(sl.ft||[]).length?`<div class="ft">${sl.ft.map(f=>`<span>ft. ${esc(cap(f))}</span>`).join('')}</div>`:'';
+  if(!P){
+    if(v==='__X__') return `<div class="namecell is-x">${wide?'no shift':'—'}</div>`;
+    if(!v&&se) return `<div class="namecell is-se" title="${SETIP}">sharpening</div>`;
+    if(!v) return `<div class="namecell is-open">${ps.key==='closed'?'—':(runN>1?`open · ${runN} days`:'open')}</div>`;
+    return `<div class="namecell${se?' se-on':''}"${se?` title="${SETIP}"`:''}>${esc(v)}${se?'<span class="setag">SE</span>':''}${ft}</div>`;
+  }
+  const cls=(v==='__X__'?'xd':(v?'filled':'open-slot'))+(se?' se':'');
+  const txt=v==='__X__'?'no shift':(v||(se?'nobody':'open'));
+  return `<div class="slotbox ${cls}"${se?` title="${SETIP}"`:''}><button class="slotpick" data-b="${bi}" data-s="${si}" data-d="${di}" aria-haspopup="listbox" aria-label="${esc(s.label)} ${esc(b.days[di])}${se?' (sharpening event)':''} — ${esc(txt)}">${esc(txt)}</button>${ft}</div>`;
+}
+
+/* Read-only: collapse a run of identical assignments into one cell that spans those days, so
+   "J. Parker" on five days reads as one bar instead of five boxes saying the same thing.
+   Plan mode keeps one cell per day — you have to be able to change a single day. */
+function gridCells(cols,byDate,e,b,bi,s,si,ps,P){
+  const stateOf=di=>{
+    if(di==null) return 'NA';
+    const sl=s.slots[di]||{rep:'',ft:[]}, v=val(e,bi,si,di,sl.rep), se=isSE(b.days[di])?'SE':'';
+    if(!v) return 'OPEN|'+se;
+    if(v==='__X__') return 'X|'+se;
+    return 'N|'+v+'|'+((sl.ft||[]).join('&'))+'|'+se;
+  };
+  let out='',i=0;
+  while(i<cols.length){
+    const [k,l,se]=cols[i], di=byDate[k], st=stateOf(di);
+    /* A run of days in the same state is one cell. Two boxes side by side in a one-shift row read
+       as two shifts, which is exactly the wrong thing. Plan mode keeps one cell per day so a single
+       day can still be changed — but the days a show does not run collapse in both modes. */
+    const mergeable=!P||st==='NA';
+    let n=1;
+    if(mergeable){ while(i+n<cols.length && stateOf(byDate[cols[i+n][0]])===st) n++; }
+    const span=n>1?` colspan="${n}"`:'';
+    const seCls=(se||(di!=null&&isSE(b.days[di])))?' se-col':'';
+    if(di==null) out+=`<td class="gcell na${seCls}"${span}></td>`;
+    else out+=`<td class="gcell${seCls}${n>1?' run':''}"${span}>${cellFor(e,b,bi,s,si,di,ps,P,false,n)}</td>`;
+    i+=n;
+  }
+  return out;
+}
+function gridTable(w,evs){
+  const cols=weekendCols(w,evs), P=plan();
+  const anyLbl=evs.some(e=>e.booths.length>1||boothsOf(e).some(b=>b.shifts.length>1));
+  const head=`<tr><th class="gname"></th>${cols.map(([k,l,se])=>`<th${se?` class="se-col" title="${SETIP}"`:''}>${esc(l)}${se?'<span class="setag">SE</span>':''}</th>`).join('')}</tr>`;
+  const rows=evs.map(e=>{
+    const ps=pickState(e), t=tierOf(e), sk=SKEY[e.status]||'X', isOpen=open.has(e.id), multi=e.booths.length>1;
+    /* the event header is its own full-width row. Sharing a row with the first shift made that one
+       cell tall enough to leave a dead gap beside Shift 1's slots. */
+    let out=`<tr class="gevent t-${t}${isOpen?' open':''}" data-id="${e.id}"><td class="gev" colspan="${cols.length+1}"><div class="gevin">`+
+      `<button class="glink" data-gopen="1"><span class="gn">${esc(e.name)}</span></button>`+
+      `<span class="gsub"><span class="st st-${ps.key} mini">${ps.key==='open'?'Open '+ps.n:KLABEL[ps.key]}</span>`+
+      `${ps.key!=='closed'?`<span class="bk p-${sk}">${esc(BKSHORT[e.status]||e.status)}</span>`:''}${gtags(e)}</span></div></td></tr>`;
+    boothsOf(e).forEach((b,bi)=>{
+      /* Booths get their own titled row, the way the Sheet lays them out — "Booth #2  Ag Building"
+         once, with its shifts beneath — instead of a truncated label repeated on every shift row. */
+      if(multi) out+=`<tr class="gbooth" data-id="${e.id}"><td class="gbo" colspan="${cols.length+1}"><div class="gboin">${boothTitle(b,bi)}${b.status?`<span class="bstat">${esc(b.status)}</span>`:''}</div></td></tr>`;
+      b.shifts.forEach((s,si)=>{
+      const ds=slotDates(b,w), byDate={}; b.days.forEach((d,i)=>{ if(ds[i]&&byDate[ds[i]]==null) byDate[ds[i]]=i; });
+      /* every booth gets named on every one of its rows, so a merged show's A Row is never implied */
+      const inf=s.labelInferred?'<span class="inflbl" title="This shift row has no label on the Sheet — the board numbered it. Worth adding &quot;Shift 2&quot; in column E.">*</span>':'';
+      const lone=!multi&&b.shifts.length===1;   // "Shift 1" on a one-shift show is pure noise
+      const rowlbl=(lone&&!s.labelInferred)?'':esc(s.label)+inf;
+      const cells=gridCells(cols,byDate,e,b,bi,s,si,ps,P);
+      out+=`<tr class="grow t-${t}" data-id="${e.id}"><th class="gname sub">${rowlbl}</th>${cells}</tr>`;
+      });
+    });
+    if(isOpen) out+=`<tr class="gdetail" data-id="${e.id}"><td colspan="${cols.length+1}"><div class="ev-b" style="display:block">${bodyHtml(e)}</div></td></tr>`;
+    return out;
+  }).join('');
+  return `<div class="gridwrap gridwrap-w"><table class="wgrid${anyLbl?'':' nolbl'}"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
+}
+function card(e){
+  const t=tierOf(e), ac=accOf(e), ps=pickState(e), isOpen=open.has(e.id);
+  const sk=SKEY[e.status]||'X';
+  const pill=`<span class="st st-${ps.key}">${ps.key==='open'?`Open <b>${ps.n}</b>`:KLABEL[ps.key]}</span>`+
+    (ps.key!=='closed'?`<span class="bk p-${sk}">${esc(BKSHORT[e.status]||e.status)}</span>`:'');
+  const chips=(ps.key==='open')?
+    `<span class="openchips">${ps.open.slice(0,4).map(o=>`<span>${esc(dshort(o.day))}${o.date?' '+fdate(o.date):''}${o.booth?' · '+esc(o.booth.split(' ').slice(0,2).join(' ')):''} · ${esc(o.shift)}</span>`).join('')}${ps.n>4?`<span class="more">+${ps.n-4} more</span>`:''}</span>`:'';
+  const vcflag=plan()&&e.source==='sheet'&&e.sheetOnly&&e.status==='Booked'?`<span class="acc acc-none" title="Marked Booked on the sheet but no VectorConnect record">no VC #</span>`:'';
+  return `<article class="ev t-${t} k-${ps.key}${isOpen?' open':''}" data-id="${e.id}">
+   <button class="ev-h" aria-expanded="${isOpen}">
+    <span class="ev-main">
+     <span class="ev-name">${esc(e.name)}</span>
+     <span class="ev-meta">
+      ${t==='Traditional'?'':`<span class="tierbadge">${t}</span>`}
+      ${isDefaultAcc(e)?'':`<span class="acc acc-${ac==='Unassigned'?'none':ac.replace('/','')}">${ac==='Unassigned'?'no access set':esc(ac)}</span>`}
+      ${e.booths.length>1?`<span class="acc acc-JV">${e.booths.length} booths</span>`:''}
+      ${(()=>{const n=seriesOf(e).length; return n>1?`<span class="acc acc-series" title="Repeats ${n} times this year — details are shared">&#8635; ${n} dates</span>`:'';})()}
+      ${mixed()&&e.source==='sheet'?'<span class="src">sheet</span>':''}
+      ${vcflag}
+      <span class="mono">${span(e)}</span>${e.datesEstimated?' <span class="est">est.</span>':''}${e.datesStale&&!e.datesEstimated?' <span class="est" title="The Sheet row still carries a previous year\'s date; days were placed from the weekend header">est.</span>':''}
+      ${e.cityState?`<span class="sep">&bull;</span><span>${esc(e.cityState)}</span>`:''}
+     </span>
+     ${resultsLine(e)}
+     ${chips}
+    </span>
+    <span class="ev-right">${pill}</span>
+    <svg class="caret" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6l4 4 4-4"/></svg>
+   </button>
+   <div class="ev-b">${isOpen?bodyHtml(e):''}</div>
+  </article>`;
+}
+function resultsEditor(e){
+  const h=histMap[baseId(e.id)]||{}; const ys=Object.keys(h).sort((a,b)=>b-a);
+  const rows=ys.map(y=>`<div class="hrow"><span class="hy">${y}</span><input type="text" inputmode="decimal" data-hist-cpo="${y}" value="${esc(h[y].cpo??'')}" placeholder="CPO"><input type="text" inputmode="numeric" data-hist-orders="${y}" value="${esc(h[y].orders??'')}" placeholder="orders"><button class="linkbtn" data-hist-del="${y}">remove</button></div>`).join('');
+  return `<div class="hist"><div class="sec-l">Results by year <span class="hint-inline">what this show actually produced — feeds Best ever and Last yr</span></div>${rows||'<p class="hint">No results recorded yet. Add a year, or use Import results to load them from the VC export.</p>'}
+    <div class="hrow add"><input type="text" inputmode="numeric" data-hist-newyear placeholder="year" maxlength="4"><input type="text" inputmode="decimal" data-hist-newcpo placeholder="CPO e.g. 17k or 17000"><input type="text" inputmode="numeric" data-hist-neworders placeholder="orders"><button class="addshift" data-hist-add="1">+ Add</button></div></div>`;
+}
+function resultsLine(e){
+  const r=results(e), c=costNum(e), n=filledSlots(e);
+  const parts=[];
+  if(r.isNew) parts.push(`<span class="res new">New show</span>`);
+  else parts.push(`<span class="res"><b>Best</b> ${r.best?fk(r.best.cpo)+(r.best.year?` <i>'${String(r.best.year).slice(2)}</i>`:''):'<em>—</em>'}</span>`);
+  parts.push(`<span class="res"><b>Last yr</b> ${r.last?fk(r.last.cpo):'<em>—</em>'}</span>`);
+  const cd=costForDate(e);
+  if(cd.total!=null){
+    const money=v=>'$'+Math.round(v).toLocaleString('en-US');
+    if(cd.basis==='date') parts.push(`<span class="res"><b>Cost</b> ${money(cd.total)} <i>${cd.per!=null?`${money(cd.per)}/shift · ${cd.filled} filled`:'no shifts filled yet'}</i></span>`);
+    else { const win=cd.basis==='month'?monthName(e):String(yearOf(e));
+      parts.push(`<span class="res"><b>Cost</b> ${money(cd.total)}/${cd.basis==='month'?'mo':'yr'} <i>${cd.per!=null?`${money(cd.per)}/shift · ${cd.filled} filled in ${win}`:`no shifts filled in ${win} yet`} · ${cd.n} date${cd.n===1?'':'s'}</i></span>`); }
+  }
+  const seN=seSlots(e);
+  if(seN) parts.push(`<span class="res se" title="${SETIP}"><b>SE</b> ${seN} sharpening</span>`);
+  return `<span class="resline">${parts.join('')}</span>`;
+}
+function grid(e,b,bi,ps,P){
+  const head=`<tr><th class="rowlbl"></th>${b.days.map((d,i)=>{ const se=isSE(d);
+    return `<th${se?` class="se-col" title="${SETIP}"`:''}>${esc(d.replace(/\s*\(?\bSE\b\)?/i,'').trim()||'SE')}${se?'<span class="setag">SE</span>':''}<span class="d">${fdate(b.dates[i])||'&nbsp;'}</span></th>`;}).join('')}</tr>`;
+  const rows=b.shifts.map((s,si)=>`<tr><th${s.labelInferred?' title="No label for this shift row on the Sheet — the board numbered it."':''}>${esc(s.label)}${s.labelInferred?'<span class="inflbl">*</span>':''}</th>`+s.slots.map((sl,di)=>
+    `<td class="slot${isSE(b.days[di])?' se-col':''}">${cellFor(e,b,bi,s,si,di,ps,P,true)}</td>`
+  ).join('')+`</tr>`).join('');
+  const B=e.source==='board', multi=e.booths.length>1;
+  let bh='';
+  if(P&&B&&(multi||b.label)){
+    bh=`<div class="boothh edit"><input type="text" data-booth-label="${bi}" value="${esc(b.label)}" placeholder="Booth #${bi+1}" aria-label="Booth name">`+
+       (multi?`<button class="linkbtn" data-del-booth="${bi}">remove booth</button>`:'')+`</div>`;
+  } else if(b.label){
+    bh=`<div class="boothh"><span>${boothTitle(b,bi)}</span>${b.status?`<span class="bstat">${esc(b.status)}</span>`:''}</div>`;
+  }
+  return `${bh}<div class="gridwrap"><table class="shift"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`+
+    (P?`<button class="addshift" data-add="${bi}">+ Add shift row${b.label?' to '+esc(b.label.split(' ').slice(0,2).join(' ')):''}</button>`:'');
+}
+function bodyHtml(e){
+  const t=tierOf(e), ac=accOf(e), ps=pickState(e), P=plan(), B=e.source==='board';
+  const d=(label,v,mono,href)=>`<div class="dl"><dt>${label}</dt><dd class="${mono?'mono':''}${v?'':' empty'}">`+
+    (v?(href?`<a href="${esc(href)}" target="_blank" rel="noopener">${esc(v)}</a>`:esc(v)):'not listed yet')+`</dd></div>`;
+  const sel=(kind,cur,opts,label)=>`<label class="tagfield v-${cur==='Unassigned'?'none':String(cur).replace(/[\s\/-]/g,'')}">`+
+    `<span>${label}</span><select data-${kind}-sel aria-label="${label}">`+
+    opts.map(([v,l])=>`<option value="${esc(v)}"${cur===v?' selected':''}>${l}</option>`).join('')+`</select></label>`;
+  const rowLink=B?'':`${SHEET}?gid=${GID}#gid=${GID}&range=E${e.row}`;
+  const ed=(label,k,ph,type)=>`<div class="dl"><dt>${label}</dt><dd><input class="fld" type="${type||'text'}" data-f="${k}" value="${esc(e[k]||'')}" placeholder="${esc(ph||'')}"${k==='phone'?' inputmode="tel"':k==='cost'?' inputmode="decimal"':''}></dd></div>`;
+  const ta=(label,k,ph)=>`<div class="dl wide"><dt>${label}</dt><dd><textarea class="fld" data-f="${k}" rows="3" placeholder="${esc(ph||'')}">${esc(e[k]||'')}</textarea></dd></div>`;
+  const SETTINGS=[['','not known yet'],['indoor','Indoor'],['outdoor','Outdoor'],['both','Indoor & outdoor']];
+  const setSel=`<div class="dl"><dt>Indoor or outdoor</dt><dd><select class="fld" data-f="setting">${SETTINGS.map(([v,l])=>`<option value="${v}"${(e.setting||'')===v?' selected':''}>${l}</option>`).join('')}</select></dd></div>`;
+  const settingLabel=(SETTINGS.find(x=>x[0]===(e.setting||''))||['',''])[1];
+  const applyByLabel=e.applyBy?(()=>{const dd=fromISO(e.applyBy); return dd?dd.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+(dd<TODAY?' — passed':''):e.applyBy;})():'';
+  const promoter=P
+    ? `${ed('Event name','name')}${ed('Venue','location')}${ed('Street address','address','120 S Cortez St')}${ed('City, state','cityState','Prescott, AZ')}${setSel}${ed('Promoter','promoter')}${ed('Contact','contact')}`+
+      `${ed('Phone','phone','(928) 555-0100')}${ed('Email','email','','email')}${ed('Website','website','https://…')}${ed('Vendor application link','applyUrl','https://…/vendors')}${ed('Application deadline','applyBy','','date')}${ed('VC event #','vcNumber','000…')}${ed('VC status','vcStatus','Booked')}${ed('Booth cost','cost','$850')}`+
+      `<div class="dl"><dt>Cost is for</dt><dd><select class="fld" data-f="costBasis"><option value="date"${(e.costBasis||'date')==='date'?' selected':''}>this date only</option><option value="month"${e.costBasis==='month'?' selected':''}>the whole month (split across dates)</option><option value="season"${e.costBasis==='season'?' selected':''}>the whole year (split across dates)</option></select></dd></div>`+
+      (B?'':`${d('Sheet row',String(e.row),true,rowLink)}`)+ta('Notes for the booking request','notes','Anything Olean should know when they contact the promoter')
+    : `${d('Promoter',e.promoter)}${d('Contact',e.contact)}`+
+    `${d('Phone',e.phone,true,e.phone?'tel:'+e.phone.replace(/[^0-9+]/g,''):null)}`+
+    `${d('Email',e.email,false,e.email?'mailto:'+e.email:null)}`+
+    `${d('Website',e.website?e.website.replace(/^https?:\/\//,'').slice(0,34):'',false,e.website?(e.website.startsWith('http')?e.website:'https://'+e.website):null)}`+
+    `${d('Street address',e.address)}${d('Indoor or outdoor',settingLabel)}`+
+    `${d('Vendor application',e.applyUrl?e.applyUrl.replace(/^https?:\/\//,'').slice(0,34):'',false,e.applyUrl?(e.applyUrl.startsWith('http')?e.applyUrl:'https://'+e.applyUrl):null)}${d('Apply by',applyByLabel)}`+
+    `${d('VC event #',e.vcNumber,true)}${d('VC status',e.vcStatus)}${d('Booth cost',(()=>{const cd=costForDate(e); if(cd.total==null)return e.cost; if(cd.basis==='date')return e.cost; return '$'+Math.round(cd.total).toLocaleString('en-US')+' for the whole '+(cd.basis==='month'?'month':'year')+' · '+cd.n+' dates · '+cd.filled+' filled shifts'+(cd.per!=null?' → $'+Math.round(cd.per)+'/shift':'');})(),true)}`+(B?'':`${d('Sheet row',String(e.row),true,rowLink)}`)+(e.notes?`<div class="dl wide"><dt>Notes for the booking request</dt><dd class="notes">${esc(e.notes)}</dd></div>`:'');
+  const grids=boothsOf(e).map((b,bi)=>grid(e,b,bi,ps,P)).join('')+
+    (P&&B?`<button class="addshift addbooth" data-add-booth="1">+ Add a booth${e.booths.length>1?'':' (splits this show into named booths, like Maricopa)'}</button>`:'');
+  let edit='';
+  const sn=seriesOf(e).length;
+  const fn=forwardTargets(e).length;
+  if(P&&(sn>1||fn)) edit+=`<div class="note series-note"><span>&#8635;</span><span>${sn>1?`<b>This show repeats ${sn} times in ${yearOf(e)}.</b> Name, promoter, contact, cost, venue, tier and access apply to every date. `:''}${fn?`<b>Promoter info, city, cost, tier and access also flow forward</b> to ${fn} later-year cop${fn===1?'y':'ies'} of this show. `:''}Shifts, booking status, dates and VC # stay put.</span></div>`;
+  if(P) edit+=`<div class="tagrow">${sel('tier',t,TIERPICK,'Tier')}${sel('acc',ac,ACCPICK,'Access')}${sel('status',e.status,SORDER.map(s=>[s,s]),'Booking')}</div>`+
+    (B?`<div class="editrow"><label class="tagfield"><span>Start</span><input type="date" data-start value="${esc(e.startDate||'')}"></label></div>`:'');
+  return `${edit}
+   <div class="sec-l">Shifts${B?(P?'':' — assigned at the picking meeting'):(P?' (scratchpad)':' — as they stand in the Sheet')}</div>
+   ${grids}
+   <div class="detail">
+    ${P?'':d('Booking status',e.status)}
+    ${P?'':d('Tier',t)}
+    ${P?'':d('Who can work it',ac==='Unassigned'?'no access set':ac)}
+    ${P?'':d('Venue',e.location)}
+    ${P?'':d('City, state',e.cityState)}
+    ${(()=>{const r=results(e); return d('Best ever',r.best?fk(r.best.cpo)+(r.best.year?' in '+r.best.year:'')+(r.best.fromSheet?' (from the sheet)':''):(r.isNew?'New show':''),true)+d('Last year ('+(yearOf(e)-1)+')',r.last?fk(r.last.cpo)+(r.last.orders?' · '+r.last.orders+' orders':''):'',true);})()}
+   </div>
+   ${P?resultsEditor(e):''}
+   ${P?`<div class="detail">${promoter}</div>`:`<details class="more"><summary>Promoter, cost &amp; VC details</summary><div class="detail">${promoter}</div></details>`}
+   ${P&&B?`<div class="lifecycle">
+     <label class="ck"><input type="checkbox" data-skipnext ${e.skipNext?'checked':''}> Skip next year — don't roll this into ${yearOf(e)+1}${e.skipNext?'':' (it can still roll the year after)'}</label>
+     <div class="lifecycle-btns">
+      <button class="danger" data-never="1">Never work this event again</button>
+      <button class="danger" data-del="1">Remove from ${yearOf(e)}</button>
+     </div>
+     <div class="neverform" hidden><input type="text" data-never-why placeholder="Why? (shows on the Never list — optional)"><button class="btn" data-never-go="1">Confirm — never again</button><button class="btn ghost" data-never-cancel="1">Cancel</button></div>
+    </div>`:''}`;
+}
+
+/* ---- db writes ---- */
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
+async function patchEvent(id,patch){
+  if(!db){toast('Shared storage not available');return false;}
+  try{ await db.doc('events/'+id).update(patch); return true; }
+  catch(err){ toast(err&&err.code==='read_only'?'Read-only preview — this copy isn\'t connected to the database yet':err&&err.code==='invalid_argument'?'You don\'t have edit access to this board':'Couldn\'t save — try again'); return false; }
+}
+async function setOne(e,k,v){
+  if(e.source==='board'){ try{ await db.doc('events/'+e.id).update({[k]:v}); return true; }catch(err){ return false; } }
+  const next=Object.assign({},ovMap[e.id]||{},{[k]:v,updatedAt:new Date().toISOString()});
+  try{ await db.doc('overrides/'+e.id).set(next); return true; }catch(err){ return false; }
+}
+async function setField(e,k,v){
+  if(!db){toast('Shared storage not available');return false;}
+  const same=SHARED.includes(k)?seriesOf(e):[e];
+  const fwd=FORWARD.includes(k)?forwardTargets(e):[];
+  const seen=new Set(); const members=same.concat(fwd).filter(m=>{const id=m.source+':'+m.id; if(seen.has(id))return false; seen.add(id); return true;});
+  const results=await Promise.all(members.map(m=>setOne(m,k,v)));
+  const ok=results.filter(Boolean).length;
+  if(!ok){ toast('Couldn\'t save — check your edit access'); return false; }
+  if(members.length>1){ const yrs=[...new Set(members.map(yearOf))].sort(); toast(`Updated ${ok} date${ok===1?'':'s'}${yrs.length>1?' across '+yrs[0]+'–'+yrs[yrs.length-1]:' of this show'}`); }
+  return true;
+}
+function withBooths(e,fn){ const booths=JSON.parse(JSON.stringify(e.booths)); fn(booths); return booths; }
+function recomputeDates(e,startISO){
+  const booths=withBooths(e,bs=>bs.forEach(b=>{b.dates=dayDates(b.days,startISO);}));
+  const all=booths.flatMap(b=>b.dates).filter(Boolean).sort();
+  return {startDate:startISO,endDate:all.length?all[all.length-1]:startISO,dates:dayDates(e.days||[],startISO),booths,weekend:fridayKey(startISO),datesEstimated:false};
+}
+
+/* ---- roll forward ---- */
+function rollDoc(e,Y){
+  const sd=parseUS(e.startDate);
+  const n=sd?Math.max(0,Y-sd.getFullYear()):1;          // stale dates from two years back still land in Y
+  const nsd=sd?addDays(sd,364*n):null, startISO=nsd?iso(nsd):null;
+  const booths=e.booths.map(b=>({label:b.label||'',status:'',days:b.days,dates:startISO?dayDates(b.days,startISO):b.days.map(()=>null),
+    shifts:b.shifts.map(s=>({label:s.label,slots:b.days.map(()=>({rep:'',ft:[]}))}))}));
+  let weekend=startISO?fridayKey(startISO):'';
+  if(!weekend&&e.weekend){const wd=wkDate(e.weekend); if(wd){const k=Math.max(1,Y-wd.getFullYear()); weekend=iso(addDays(wd,364*k));}}
+  return {year:Y,season:String(Y),source:'board',name:e.name,weekend,days:e.days,dates:startISO?dayDates(e.days,startISO):[],
+    startDate:startISO,endDate:startISO?(()=>{const a=booths.flatMap(b=>b.dates).filter(Boolean).sort();return a.length?a[a.length-1]:startISO;})():null,
+    datesEstimated:true,cityState:e.cityState||'',location:e.location||'',promoter:e.promoter||'',contact:e.contact||'',phone:e.phone||'',
+    email:e.email||'',website:e.website||'',address:e.address||'',setting:e.setting||'',applyUrl:e.applyUrl||'',applyBy:'',notes:e.notes||'',cost:e.cost||'',costBasis:e.costBasis||'date',costNum:costNum(e),bestCPO:e.bestCPO||'',bestEver:e.bestEver||null,tier:tierOf(e),access:accOf(e),level:e.level||'',flag:e.flag||'',
+    status:'Prospective',vcNumber:'',dead:false,skipNext:false,neverWork:false,booths,
+    lastYear:{status:e.status,vcNumber:e.vcNumber||'',cost:e.cost||'',row:e.row||null,sheetStatus:e.sheetStatus||'',year:yearOf(e)},
+    rolledFrom:String(yearOf(e)),rolledFromId:e.id,createdAt:new Date().toISOString()};
+}
+const rollId=(e,Y)=>Y+'-'+baseId(e.id).replace(/[^A-Za-z0-9_\-.~:@+]/g,'-');
+function rollPlan(includeDead){
+  const Y=year(), nk=neverKeys();
+  const all=eventsIn(Y-1);
+  const held=all.filter(e=>e.skipNext||e.neverWork||nk.has(seriesKey(e)));
+  const src=all.filter(e=>!held.includes(e)).filter(e=>includeDead||!e.dead);
+  const have=new Set(boardEvents.map(e=>e.id));
+  const todo=src.filter(e=>!have.has(rollId(e,Y)));
+  return {Y,src,todo,skipped:src.length-todo.length,held:held.length};
+}
+async function rollForward(includeDead){
+  const {Y,todo}=rollPlan(includeDead);
+  if(!todo.length){toast('Nothing new to roll — everything is already in '+Y);document.getElementById('rollPanel').hidden=true;return;}
+  const prog=document.getElementById('rollProg'); prog.hidden=false;
+  const bar=prog.querySelector('i'), lbl=prog.querySelector('span');
+  let done=0, failed=0;
+  const queue=todo.slice();
+  async function worker(){ while(queue.length){ const e=queue.shift();
+    try{ await db.doc('events/'+rollId(e,Y)).set(rollDoc(e,Y)); }catch(err){ failed++; if(err&&err.code==='quota_exceeded'){queue.length=0;} }
+    done++; bar.style.width=Math.round(done/todo.length*100)+'%'; lbl.textContent=done+' / '+todo.length; } }
+  await Promise.all([worker(),worker(),worker(),worker()]);
+  try{ await db.doc('seasons/'+Y).set({id:String(Y),label:String(Y),source:'board',rolledFrom:String(Y-1),rolledAt:new Date().toISOString(),count:done-failed}); }catch(e){}
+  prog.hidden=true; bar.style.width='0';
+  toast(failed?`Rolled ${done-failed} events into ${Y}, ${failed} failed`:`Rolled ${done} events into ${Y}`);
+  document.getElementById('rollPanel').hidden=true;
+}
+
+/* ---- events ---- */
+const board=document.getElementById('board');
+board.addEventListener('click',async ev=>{
+  if(ev.target.id==='emptyRoll'){openRoll();return;}
+  const rc=ev.target.closest('.rchip[data-rep]');
+  if(rc){ F.rep=(F.rep===rc.dataset.rep)?'':rc.dataset.rep; document.getElementById('rep').value=F.rep; build(); return; }
+  const sp=ev.target.closest('.slotpick');
+  if(sp){ ev.preventDefault(); openPick(sp); return; }
+  const go=ev.target.closest('[data-gopen]');
+  if(go){ const id=go.closest('[data-id]').dataset.id; open.has(id)?open.delete(id):open.add(id); build(); return; }
+  const bh=ev.target.closest('.band.past .band-h');
+  if(bh){const w=bh.closest('.band').dataset.w; pastClosed.has(w)?pastClosed.delete(w):pastClosed.add(w); build(); return;}
+  if(ev.target.closest('.pastsum')){ pastAllOpen=!pastAllOpen; build(); return; }
+  const art=ev.target.closest('[data-id]'); if(!art)return;
+  const id=art.dataset.id, e=cur().find(x=>x.id===id); if(!e)return;
+  if(ev.target.closest('.ev-h')){
+    open.has(id)?open.delete(id):open.add(id);
+    art.classList.toggle('open',open.has(id));
+    if(open.has(id)){ art.classList.add('just'); art.addEventListener('animationend',()=>art.classList.remove('just'),{once:true}); }
+    art.querySelector('.ev-h').setAttribute('aria-expanded',open.has(id));
+    if(art.classList.contains('ev')) art.querySelector('.ev-b').innerHTML=open.has(id)?bodyHtml(e):''; else build();
+    return;
+  }
+  const add=ev.target.closest('[data-add]');
+  if(add){ const bi=+add.dataset.add;
+    if(e.source==='board'){ const booths=withBooths(e,bs=>{const b=bs[bi]; b.shifts.push({label:'Shift '+(b.shifts.length+1),slots:b.days.map(()=>({rep:'',ft:[]}))});}); await patchEvent(id,{booths}); }
+    else { const k=id+'|'+bi; store.extra[k]=(store.extra[k]||0)+1; save(); build(); }
+    return; }
+  const ab=ev.target.closest('[data-add-booth]');
+  if(ab&&e.source==='board'){
+    const booths=withBooths(e,bs=>{
+      if(bs.length===1&&!bs[0].label) bs[0].label='Booth #1';
+      const days=bs[0].days||e.days||[], dates=bs[0].dates||e.dates||[];
+      bs.push({label:'Booth #'+(bs.length+1),status:'',days,dates,shifts:[{label:'Shift 1',slots:days.map(()=>({rep:'',ft:[]}))}]});
+    });
+    await patchEvent(id,{booths}); return;
+  }
+  const db_=ev.target.closest('[data-del-booth]');
+  if(db_&&e.source==='board'){
+    if(db_.dataset.confirm!=='1'){db_.dataset.confirm='1';db_.textContent='tap again to remove this booth';return;}
+    const bi=+db_.dataset.delBooth;
+    const booths=withBooths(e,bs=>{bs.splice(bi,1); if(bs.length===1&&/^Booth #\d+$/.test(bs[0].label||'')) bs[0].label='';});
+    await patchEvent(id,{booths}); return;
+  }
+  const ha=ev.target.closest('[data-hist-add]');
+  if(ha){ const w=ha.closest('.hist'); const y=w.querySelector('[data-hist-newyear]').value.trim(), c=w.querySelector('[data-hist-newcpo]').value, o=w.querySelector('[data-hist-neworders]').value;
+    if(!/^20\d\d$/.test(y)){toast('Enter a 4-digit year');return;}
+    await saveHist(e,y,c,o); return; }
+  const hd=ev.target.closest('[data-hist-del]');
+  if(hd){ await saveHist(e,hd.dataset.histDel,null,null,true); return; }
+  const del=ev.target.closest('[data-del]');
+  if(del){ if(del.dataset.del==='1'){del.dataset.del='2';del.textContent='Tap again to remove '+e.name;return;}
+    try{ await db.doc('events/'+id).delete(); open.delete(id); toast('Removed'); }catch(err){toast('Couldn\'t remove');} return; }
+  if(ev.target.closest('[data-never]')){ const f=art.querySelector('.neverform'); f.hidden=false; f.querySelector('input').focus(); return; }
+  if(ev.target.closest('[data-never-cancel]')){ art.querySelector('.neverform').hidden=true; return; }
+  if(ev.target.closest('[data-never-go]')){
+    const why=art.querySelector('[data-never-why]').value.trim();
+    const key=seriesKey(e)||e.id, nid=key.replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60);
+    const members=seriesOf(e);
+    try{
+      await db.doc('never_work/'+nid).set({name:e.name,seriesKey:key,cityState:e.cityState||'',reason:why,lastYear:yearOf(e),fromEventId:e.id,addedAt:new Date().toISOString(),addedBy:authUser?authUser.email:''});
+      await Promise.all(members.map(m=>db.doc('events/'+m.id).update({neverWork:true,dead:true,status:'Cancelled'})));
+      toast(members.length>1?`Never again — all ${members.length} dates of ${e.name}`:`Never again — ${e.name}`);
+    }catch(err){ toast('Couldn\'t save — check your edit access'); }
+    return; }
+});
+board.addEventListener('keydown',ev=>{ if((ev.key==='Enter'||ev.key===' ')&&ev.target.closest('.band.past .band-h')){ev.preventDefault();ev.target.click();} });
+board.addEventListener('click',async ev=>{
+  const r=ev.target.closest('[data-restore]'); if(!r||!plan())return;
+  const n=neverList.find(x=>x.id===r.dataset.restore); if(!n)return;
+  try{ await db.doc('never_work/'+n.id).delete(); if(n.fromEventId){ try{ await db.doc('events/'+n.fromEventId).update({neverWork:false}); }catch(e){} } toast('Restored — '+n.name+' can roll forward again'); }
+  catch(err){ toast('Couldn\'t restore'); }
+});
+board.addEventListener('change',async ev=>{
+  const art=ev.target.closest('[data-id]'); if(!art)return;
+  const id=art.dataset.id, e=cur().find(x=>x.id===id); if(!e)return;
+  const B=e.source==='board';
+  const tg=ev.target.closest('select[data-tier-sel],select[data-acc-sel],select[data-status-sel]');
+  if(tg){ const k=tg.hasAttribute('data-tier-sel')?'tier':tg.hasAttribute('data-acc-sel')?'access':'status'; await setField(e,k,tg.value); return; }
+  const sk=ev.target.closest('input[data-skipnext]');
+  if(sk){ const ok=await patchEvent(id,{skipNext:sk.checked}); if(ok) toast(sk.checked?'Won\'t roll into '+(yearOf(e)+1):'Will roll forward again'); return; }
+  const fi=ev.target.closest('.fld[data-f]');
+  if(fi){ let v=fi.value.trim(); if(fi.dataset.f==='cost'&&v&&/^\d+(\.\d+)?$/.test(v)) v='$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0}); await setField(e,fi.dataset.f,v); return; }
+  const bl=ev.target.closest('input[data-booth-label]');
+  if(bl&&B){ const bi=+bl.dataset.boothLabel; const booths=withBooths(e,bs=>{bs[bi].label=bl.value.trim();}); await patchEvent(id,{booths}); return; }
+  const ds=ev.target.closest('input[data-start]');
+  if(ds&&B){ if(!ds.value)return; await patchEvent(id,recomputeDates(e,ds.value)); return; }
+  const hc=ev.target.closest('input[data-hist-cpo],input[data-hist-orders]');
+  if(hc){ const y=hc.dataset.histCpo||hc.dataset.histOrders; const w=hc.closest('.hist');
+    await saveHist(e,y,w.querySelector(`[data-hist-cpo="${y}"]`).value,w.querySelector(`[data-hist-orders="${y}"]`).value); return; }
+});
+const parseCpo=s=>{ s=String(s||'').trim().toLowerCase().replace(/[$,]/g,''); if(!s)return null; const m=s.match(/^(\d+(?:\.\d+)?)\s*(k)?$/); if(!m)return null; let n=parseFloat(m[1]); if(m[2]) n*=1000; else if(n<100) n*=1000; return Math.round(n); };
+async function saveHist(e,y,cpo,orders,remove){
+  if(!db){toast('Shared storage not available');return;}
+  const key=baseId(e.id); const years=Object.assign({},histMap[key]||{});
+  if(remove) delete years[y]; else { const c=parseCpo(cpo); const o=String(orders||'').replace(/\D/g,''); years[y]={cpo:c,orders:o?+o:null}; }
+  try{ await db.doc('history/'+key).set({name:e.name,years,updatedAt:new Date().toISOString()}); }
+  catch(err){ toast('Couldn\'t save results — check your edit access'); }
+}
+async function setSlot(e,B,bi,si,di,val){
+  if(B){ const booths=withBooths(e,bs=>{const sl=bs[bi].shifts[si].slots[di]||(bs[bi].shifts[si].slots[di]={}); sl.rep=val.rep; sl.ft=val.ft||[];}); await patchEvent(e.id,{booths}); }
+  else { store.slots[e.id+'|'+bi+'|'+si+'|'+di]=val.rep+(val.ft&&val.ft.length?' (ft. '+val.ft.join(' & ')+')':''); save(); build(); }
+}
+/* ---- name picker: type to narrow the list, click (or Enter) to pick ----
+   A native <select> can't filter, and on a phone it opens a wheel you can't type into. This is a
+   combobox in a fixed-position popup so the grid's horizontal scroller can't clip it. */
+let pickCtx=null;
+const pop=document.getElementById('pickpop'), popQ=document.getElementById('pickq'), popList=document.getElementById('picklist');
+function pickIndex(){
+  const idx=ROSTER().map(n=>({name:n,keys:[n.toLowerCase().replace(/\.$/,'')]}));
+  Object.keys(ALIAS).forEach(k=>{ const t=idx.find(x=>x.name===ALIAS[k]); if(t&&t.keys.indexOf(k)<0) t.keys.push(k); });
+  return idx;
+}
+function pickMatches(q){
+  q=q.trim().toLowerCase().replace(/\s+/g,' '); const idx=pickIndex();
+  if(!q) return idx.map(x=>x.name);
+  const pre=[],sub=[];
+  idx.forEach(x=>{ let best=-1; x.keys.forEach(k=>{const i=k.indexOf(q); if(i>=0&&(best<0||i<best)) best=i;});
+    if(best===0) pre.push(x.name); else if(best>0) sub.push(x.name); });
+  return pre.concat(sub);
+}
+function renderPickList(){
+  const q=popQ.value, names=pickMatches(q), cv=pickCtx?pickCtx.v:'';
+  const mark=n=>{ const i=n.toLowerCase().indexOf(q.trim().toLowerCase()); if(!q.trim()||i<0) return esc(n);
+    return esc(n.slice(0,i))+'<b>'+esc(n.slice(i,i+q.trim().length))+'</b>'+esc(n.slice(i+q.trim().length)); };
+  let h=names.map(n=>`<button class="pickrow${n===cv?' cur':''}" data-v="${esc(n)}" role="option">${mark(n)}</button>`).join('');
+  const typed=q.trim();
+  if(typed&&!names.some(n=>n.toLowerCase().replace(/\.$/,'')===typed.toLowerCase())) h+=`<button class="pickrow use" data-v="__USE__" role="option">Use “${esc(typed)}”</button>`;
+  if(!names.length&&!typed) h='<div class="pickempty">No one on the roster yet — add reps in Division settings.</div>';
+  h+=`<div class="picksep"></div><button class="pickrow util" data-v="" role="option">${pickCtx&&pickCtx.se?'Nobody':'Clear — leave it open'}</button>`+
+     `<button class="pickrow util" data-v="__X__" role="option">No shift this day</button>`;
+  popList.innerHTML=h;
+  const first=popList.querySelector('.pickrow:not(.util)')||popList.querySelector('.pickrow');
+  if(first) first.classList.add('on');
+  placePop();
+}
+function placePop(){
+  if(!pickCtx) return; const r=pickCtx.btn.getBoundingClientRect();
+  const w=Math.min(Math.max(r.width,214), innerWidth-16);
+  pop.style.width=w+'px'; pop.style.left=Math.min(Math.max(8,r.left), innerWidth-w-8)+'px';
+  pop.style.top='0px'; const h=pop.offsetHeight;
+  let top=r.bottom+4; if(top+h>innerHeight-8) top=Math.max(8, r.top-h-4);
+  pop.style.top=top+'px';
+}
+function openPick(btn){
+  const art=btn.closest('[data-id]'); const e=cur().find(x=>x.id===art.dataset.id); if(!e)return;
+  const bi=+btn.dataset.b, si=+btn.dataset.s, di=+btn.dataset.d;
+  const b=boothsOf(e)[bi];
+  pickCtx={id:e.id,bi,si,di,btn,v:btn.textContent.trim(),se:isSE(b&&b.days[di])};
+  btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus();
+}
+function closePick(){ pop.hidden=true; const b=pickCtx&&pickCtx.btn; pickCtx=null; if(b){ b.classList.remove('picking'); if(document.contains(b)) b.focus(); } }
+async function applyPick(v){
+  if(!pickCtx) return; const {id,bi,si,di}=pickCtx, typed=popQ.value;
+  const e=cur().find(x=>x.id===id); closePick(); if(!e)return;
+  const B=e.source==='board';
+  let val;
+  if(v==='__USE__'){ const p=splitRep(typed); if(!p.rep) return; val=p; }
+  else if(v==='__X__') val={rep:'__X__',ft:[]};
+  else if(!v) val={rep:'',ft:[]};
+  else val={rep:v,ft:B?((e.booths[bi].shifts[si].slots[di]||{}).ft||[]):[]};
+  await setSlot(e,B,bi,si,di,val);
+}
+popQ.addEventListener('input',renderPickList);
+popList.addEventListener('click',ev=>{ const r=ev.target.closest('.pickrow'); if(r) applyPick(r.dataset.v); });
+pop.addEventListener('keydown',ev=>{
+  if(ev.key==='Escape'){ ev.preventDefault(); closePick(); return; }
+  const rows=[...popList.querySelectorAll('.pickrow')]; if(!rows.length) return;
+  let i=rows.findIndex(r=>r.classList.contains('on'));
+  if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){
+    ev.preventDefault(); if(i<0) i=0; else rows[i].classList.remove('on');
+    i=(i+(ev.key==='ArrowDown'?1:rows.length-1))%rows.length;
+    rows[i].classList.add('on'); rows[i].scrollIntoView({block:'nearest'});
+  } else if(ev.key==='Enter'){ ev.preventDefault(); applyPick((rows[i<0?0:i]).dataset.v); }
+});
+document.addEventListener('mousedown',ev=>{ if(pickCtx&&!pop.contains(ev.target)&&!ev.target.closest('.slotpick')) closePick(); });
+addEventListener('resize',()=>{ if(pickCtx) closePick(); });
+addEventListener('scroll',()=>{ if(pickCtx) placePop(); },true);
+document.getElementById('seasonSeg').addEventListener('click',e=>{const b=e.target.closest('[data-year]'); if(!b)return; store.year=b.dataset.year==='never'?'never':+b.dataset.year; save(); open.clear(); build();});
+document.getElementById('q').addEventListener('input',e=>{F.q=e.target.value;build();});
+document.getElementById('rep').addEventListener('change',e=>{F.rep=e.target.value;build();});
+document.getElementById('lvl').addEventListener('change',e=>{F.lvl=e.target.value;build();});
+document.getElementById('bk').addEventListener('change',e=>{F.bk=e.target.value;build();});
+document.getElementById('planMode').addEventListener('change',e=>{store.plan=e.target.checked;save();build();
+  if(store.plan&&dbKind==='supabase'&&!isEditor){ closePanels(); P('authPanel').hidden=false; P('siEmail').focus(); document.body.classList.add('plan'); P('planBar').style.display='flex'; }});
+document.getElementById('viewSeg').addEventListener('click',e=>{const b=e.target.closest('[data-view]'); if(!b)return; store.view=b.dataset.view; save(); build();});
+function bindChips(id,set){ document.getElementById(id).addEventListener('click',e=>{ const b=e.target.closest('.chip'); if(!b)return; const v=b.dataset.v; set.has(v)?set.delete(v):set.add(v); build(); }); }
+bindChips('stateChips',F.state); bindChips('tierChips',F.tier);
+
+/* panels */
+const P=id=>document.getElementById(id);
+function closePanels(){['rollPanel','addPanel','setPanel','impPanel','authPanel'].forEach(i=>P(i).hidden=true);}
+function refreshRoll(){ const inc=P('rollDead').checked, {Y,todo,skipped,held}=rollPlan(inc); P('rollHeld').textContent=held?`${held} held back (skip-next or never-work).`:'';
+  P('rollFrom').textContent=Y-1; P('rollTarget').textContent=Y; P('rollN').textContent=todo.length;
+  P('rollDeadN').textContent=eventsIn(Y-1).filter(e=>e.dead).length;
+  P('rollSkip').textContent=skipped?`${skipped} already in ${Y} — they'll be left as they are.`:''; P('rollGo').disabled=!todo.length; }
+function openRoll(){ closePanels(); P('rollDead').checked=false; refreshRoll(); P('rollPanel').hidden=false; P('rollPanel').scrollIntoView({behavior:'smooth',block:'nearest'}); }
+P('btnRoll').addEventListener('click',openRoll);
+P('rollDead').addEventListener('change',refreshRoll);
+P('rollCancel').addEventListener('click',closePanels);
+P('rollGo').addEventListener('click',async()=>{ if(!db)return; P('rollGo').disabled=true; await rollForward(P('rollDead').checked); P('rollGo').disabled=false; });
+P('btnQuickAdd').addEventListener('click',()=>{closePanels();P('addPanel').hidden=false;P('qaName').focus();});
+P('qaCancel').addEventListener('click',closePanels);
+P('qaStart').addEventListener('change',()=>{ if(!P('qaEnd').value) P('qaEnd').value=P('qaStart').value; });
+P('qaGo').addEventListener('click',async()=>{
+  const name=P('qaName').value.trim(), st=P('qaStart').value, en=P('qaEnd').value||st;
+  if(!name||!st){toast('Name and start date are required');return;}
+  const s=fromISO(st), e2=fromISO(en); const days=[]; const NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  for(let d=new Date(s);d<=e2&&days.length<7;d=addDays(d,1)) days.push(NAMES[d.getDay()]);
+  const dates=dayDates(days,st);
+  const Y=s.getFullYear();
+  const doc={year:Y,season:String(Y),source:'board',name,weekend:fridayKey(st),days,dates,startDate:st,endDate:en,datesEstimated:false,
+    cityState:P('qaCity').value.trim(),location:P('qaLoc').value.trim(),address:P('qaAddr').value.trim(),setting:P('qaSetting').value,
+    promoter:P('qaPromoter').value.trim(),contact:P('qaContact').value.trim(),phone:P('qaPhone').value.trim(),email:P('qaEmail').value.trim(),website:P('qaWeb').value.trim(),
+    cost:(()=>{let v=P('qaCost').value.trim(); if(v&&/^\d+(\.\d+)?$/.test(v)) v='$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0}); return v;})(),
+    applyUrl:P('qaApply').value.trim(),applyBy:P('qaApplyBy').value,notes:P('qaNotes').value.trim(),bestCPO:'',
+    tier:P('qaTier').value,access:P('qaAcc').value,level:'',flag:'',status:'Prospective',vcNumber:'',dead:false,
+    booths:[{label:'',status:'',days,dates,shifts:[{label:'Shift 1',slots:days.map(()=>({rep:'',ft:[]}))}]}],createdAt:new Date().toISOString()};
+  try{ const ref=await db.collection('events').add(doc); toast('Added '+name+' to '+Y); ['qaName','qaStart','qaEnd','qaCity','qaLoc','qaAddr','qaSetting','qaPromoter','qaContact','qaPhone','qaEmail','qaWeb','qaCost','qaApply','qaApplyBy','qaNotes'].forEach(i=>P(i).value=''); P('qaMore').open=false; closePanels(); open.add(ref.id); if(Y!==year()){store.year=Y;save();} }
+  catch(err){ toast(err&&err.code==='quota_exceeded'?'The board is full — remove some events first':'Couldn\'t add — check your edit access'); }
+});
+P('btnImport').addEventListener('click',()=>{ closePanels(); P('impPanel').hidden=false; P('impText').focus(); });
+P('impCancel').addEventListener('click',closePanels);
+P('impGo').addEventListener('click',async()=>{
+  if(!db){toast('Shared storage not available');return;}
+  const lines=P('impText').value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const all=sheetEvents().concat(boardEvents); const byName={};
+  all.forEach(e=>{const k=normName(e.name); (byName[k]=byName[k]||new Set()).add(baseId(e.id));});
+  const updates={}, unmatched=[]; let rows=0;
+  lines.forEach(l=>{
+    const parts=l.split(/\t|,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(x=>x.replace(/^"|"$/g,'').trim());
+    if(parts.length<3) return; const [name,yr,cpo,orders]=parts;
+    if(!/^20\d\d$/.test(yr)) return; if(/^event/i.test(name)&&/^year/i.test(yr)) return;
+    rows++; const keys=byName[normName(name)];
+    if(!keys){unmatched.push(name);return;}
+    keys.forEach(k=>{ (updates[k]=updates[k]||{name,years:{}}).years[yr]={cpo:parseCpo(cpo),orders:orders?+String(orders).replace(/\D/g,'')||null:null}; });
+  });
+  const ids=Object.keys(updates); if(!ids.length){toast(rows?'No names matched':'Paste rows like: Event name, 2025, 17k, 40');P('impOut').textContent=unmatched.length?'Unmatched: '+unmatched.join(' · '):'';return;}
+  let ok=0; for(const k of ids){ const years=Object.assign({},histMap[k]||{},updates[k].years);
+    try{ await db.doc('history/'+k).set({name:updates[k].name,years,updatedAt:new Date().toISOString()}); ok++; }catch(err){} }
+  toast(`Loaded results for ${ok} show${ok===1?'':'s'}`);
+  P('impOut').textContent=unmatched.length?`${unmatched.length} not matched (fix the name on the board or the row and paste again): ${unmatched.join(' · ')}`:'Every row matched.';
+});
+P('btnSettings').addEventListener('click',()=>{ closePanels(); P('stName').value=settings.name||''; P('stShort').value=settings.short||''; P('stCode').value=settings.code||''; P('stMeetings').value=(settings.meetings||[]).join('\n'); P('stRoster').value=(settings.roster||[]).join('\n'); P('setPanel').hidden=false; });
+P('stCancel').addEventListener('click',closePanels);
+P('stGo').addEventListener('click',async()=>{
+  const s={name:P('stName').value.trim()||DEFAULT_SETTINGS.name,short:P('stShort').value.trim()||DEFAULT_SETTINGS.short,code:P('stCode').value.trim(),
+    roster:P('stRoster').value.split('\n').map(x=>x.trim()).filter(Boolean),
+    meetings:P('stMeetings').value.split('\n').map(x=>x.trim()).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)).sort(),updatedAt:new Date().toISOString()};
+  if(!db){ settings=Object.assign({},DEFAULT_SETTINGS,s); build(); closePanels(); toast('Saved on this device only'); return; }
+  try{ await db.doc('settings/division').set(s); closePanels(); toast('Settings saved for everyone'); }catch(err){ toast('Couldn\'t save settings — check your edit access'); }
+});
+
+P('copy').addEventListener('click',()=>{
+  const out=[];
+  cur().filter(matches).filter(e=>!wkPast(e.weekend)).forEach(e=>{
+    const rows=[];
+    boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>{
+      const cells=s.slots.map((sl,di)=>{const v=val(e,bi,si,di,sl.rep);return dshort(b.days[di])+': '+(v==='__X__'?'—':(v||(isSE(b.days[di])?'SE':'OPEN')));});
+      rows.push('  '+(b.label?b.label+' · ':'')+s.label+' | '+cells.join(' | '));
+    }));
+    out.push(e.name+'  ['+e.status+' · '+tierOf(e)+' · '+accOf(e)+']\n'+rows.join('\n'));
+  });
+  navigator.clipboard.writeText((settings.short||'RSD')+' Show Shift Board — '+year()+' — '+new Date().toLocaleDateString()+'\n\n'+out.join('\n\n'))
+    .then(()=>toast('Staffing summary copied'),()=>toast('Copy blocked by browser'));
+});
+P('reset').addEventListener('click',()=>{store.slots={};store.extra={};save();build();toast('Shift scratchpad cleared');});
+
+/* ---- init ---- */
+P('siCancel').addEventListener('click',()=>{ closePanels(); if(!isEditor){ store.plan=false; P('planMode').checked=false; save(); build(); } });
+P('siGo').addEventListener('click',async()=>{
+  const email=P('siEmail').value.trim().toLowerCase(); if(!email||!db||!db.auth){ P('siOut').textContent='Enter your email.'; return; }
+  P('siGo').disabled=true;
+  const {error}=await db.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
+  P('siGo').disabled=false;
+  P('siOut').textContent=error?('Couldn\'t send: '+error.message):'Check your email — tap the link and you\'ll come back here signed in.';
+});
+document.addEventListener('click',async ev=>{ if(ev.target.closest('#signOut')&&db&&db.auth){ await db.auth.signOut(); } });
+P('ctlToggle').addEventListener('click',()=>{ const on=document.body.classList.toggle('filters-open'); P('ctlToggle').setAttribute('aria-expanded',on); });
+addEventListener('scroll',()=>{ document.querySelector('.top').classList.toggle('scrolled',scrollY>4); },{passive:true});
+P('planMode').checked=plan();
+build();
+/* ---- data layer ----
+   The page talks to one tiny interface: doc(path).update|set|delete|onSnapshot and
+   collection(name).onSnapshot|add. Supabase backs it in production; without config the page
+   reads the seed files so GitHub Pages shows something before the database is wired. */
+function makeSupabaseDb(cfg){
+  const sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+  const split=p=>{const [t,id]=p.split('/'); return {t,id};};
+  const mapErr=err=>{ const e=new Error(err&&err.message||String(err)); const m=String(err&&err.message||'').toLowerCase();
+    e.code=/not an editor|row-level|42501|permission|policy|jwt/.test(m)?'invalid_argument':(err&&err.code)||'unknown'; return e; };
+  let n=0; const chan=(t,cb)=>{ sb.channel('rt-'+t+'-'+(n++)).on('postgres_changes',{event:'*',schema:'public',table:t},cb).subscribe(); };
+  /* Promoter contact details live in `event_contacts`, which only editors can read (RLS). Every
+     events write is split here and every events read is merged here, so the rest of the page
+     still sees one event document. Anonymous visitors get zero contact rows, not an error. */
+  const PRIVATE=['contact','phone','email'], CT='event_contacts';
+  const splitPriv=o=>{ const pub={},priv={}; for(const k in (o||{})){ (PRIVATE.includes(k)?priv:pub)[k]=o[k]; } return {pub,priv}; };
+  const some=o=>Object.keys(o).length>0, filled=o=>Object.values(o).some(v=>v!=null&&String(v).trim()!=='');
+  async function contactMap(){ try{ const {data,error}=await sb.from(CT).select('id,data'); if(error||!data) return {}; const m={}; data.forEach(r=>{m[r.id]=r.data||{};}); return m; }catch(e){ return {}; } }
+  const pick=c=>{ const o={}; PRIVATE.forEach(k=>{ if(c&&c[k]!=null) o[k]=c[k]; }); return o; };
+  const reloaders=[];
+  async function fetchAll(t){ const {data,error}=await sb.from(t).select('id,data').order('id'); if(error) throw mapErr(error);
+    if(t!=='events') return data.map(r=>({id:r.id,data:()=>r.data}));
+    const cm=await contactMap(); return data.map(r=>({id:r.id,data:()=>Object.assign({},r.data,pick(cm[r.id]))})); }
+  return {
+    kind:'supabase', auth:sb.auth, client:sb,
+    refresh(){ reloaders.forEach(f=>f()); },   // after sign-in/out: contacts become readable (or stop being)
+    doc(path){ const {t,id}=split(path); return {
+      async update(patch){ let pub=patch, priv={}; if(t==='events') ({pub,priv}=splitPriv(patch));
+        if(some(priv)){ const {error}=await sb.rpc('merge_doc',{tbl:CT,doc_id:id,patch:priv}); if(error) throw mapErr(error); }
+        if(some(pub)||!some(priv)){ const {error}=await sb.rpc('merge_doc',{tbl:t,doc_id:id,patch:pub}); if(error) throw mapErr(error); }
+        if(some(priv)) reloaders.forEach(f=>f()); },
+      async set(data){ let pub=data, priv={}; if(t==='events') ({pub,priv}=splitPriv(data));
+        const {error}=await sb.from(t).upsert({id,data:pub},{onConflict:'id'}); if(error) throw mapErr(error);
+        if(filled(priv)){ const r=await sb.from(CT).upsert({id,data:priv},{onConflict:'id'}); if(r.error) throw mapErr(r.error); } },
+      async delete(){ const {error}=await sb.from(t).delete().eq('id',id); if(error) throw mapErr(error);
+        if(t==='events'){ try{ await sb.from(CT).delete().eq('id',id); }catch(e){} } },
+      onSnapshot(cb,err){ const load=async()=>{ try{ const {data,error}=await sb.from(t).select('data').eq('id',id).maybeSingle(); if(error) throw mapErr(error); cb({exists:!!data,data:()=>data?data.data:undefined}); }catch(e){ err&&err(e); } };
+        load(); chan(t,p=>{ const hit=(p.new&&p.new.id===id)||(p.old&&p.old.id===id); if(hit) load(); }); }
+    }; },
+    collection(t){ return {
+      onSnapshot(cb,err){ const load=async()=>{ try{ cb({docs:await fetchAll(t)}); }catch(e){ err&&err(e); } }; load(); chan(t,load); if(t==='events') reloaders.push(load); },
+      async add(doc){ let priv={}; if(t==='events'){ const sp=splitPriv(doc); doc=sp.pub; priv=sp.priv; }
+        const slug=String(doc.name||'event').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
+        const id=(doc.year||'x')+'-'+slug+'-'+Math.random().toString(36).slice(2,7);
+        const {error}=await sb.from(t).insert({id,data:doc}); if(error) throw mapErr(error);
+        if(filled(priv)){ const r=await sb.from(CT).upsert({id,data:priv},{onConflict:'id'}); if(r.error) throw mapErr(r.error); }
+        return {id}; }
+    }; }
+  };
+}
+function makeStaticDb(){
+  const cache={};
+  async function load(t){ if(cache[t])return cache[t]; try{ const r=await fetch('seed/'+t+'.json',{cache:'no-store'}); cache[t]=r.ok?await r.json():[]; }catch(e){ cache[t]=[]; } return cache[t]; }
+  const ro=()=>{ const e=new Error('read-only preview'); e.code='read_only'; return Promise.reject(e); };
+  return {
+    kind:'static',
+    doc(path){ const [t,id]=path.split('/'); return { update:ro, set:ro, delete:ro,
+      onSnapshot(cb){ load(t).then(rows=>{ const r=(Array.isArray(rows)?rows:[rows]).find(x=>x&&x.id===id); cb({exists:!!r,data:()=>{ if(!r)return undefined; const {id:_,...d}=r; return d; }}); }); } }; },
+    collection(t){ return { add:ro,
+      onSnapshot(cb){ load(t).then(rows=>cb({docs:(Array.isArray(rows)?rows:[]).map(r=>{ const {id,...d}=r; return {id,data:()=>d}; })})); } }; }
+  };
+}
+async function checkEditor(){
+  isEditor=false; isOwner=false;
+  if(!authUser||!db||db.kind!=='supabase') return;
+  try{ const {data}=await db.client.from('editors').select('role').eq('email',String(authUser.email).toLowerCase()).maybeSingle();
+    isEditor=!!data; isOwner=!!data&&data.role==='owner'; }catch(e){}
+}
+(async()=>{
+  const cfg=window.BOARD_CONFIG||{};
+  try{ db=(cfg.supabaseUrl&&cfg.supabaseAnonKey&&window.supabase)?makeSupabaseDb(cfg):makeStaticDb(); }catch(e){ console.error(e); db=null; }
+  if(!db){ dbState='none'; build(); return; }
+  dbKind=db.kind; dbState=dbKind==='supabase'?'ready':'static';
+  if(dbKind==='supabase'){
+    db.auth.onAuthStateChange(async(_ev,session)=>{ authUser=session?session.user:null; await checkEditor(); if(isEditor) closePanels(); db.refresh(); build(); });
+    try{ const {data}=await db.auth.getSession(); authUser=data&&data.session?data.session.user:null; await checkEditor(); }catch(e){}
+  }
+  db.collection('never_work').onSnapshot(snap=>{ neverList=snap.docs.map(d=>Object.assign({id:d.id},d.data()||{})); build(); },()=>{});
+  db.doc('settings/division').onSnapshot(s=>{ if(s.exists) settings=Object.assign({},DEFAULT_SETTINGS,s.data()); build(); },()=>{});
+  db.collection('overrides').onSnapshot(snap=>{ ovMap={}; snap.docs.forEach(d=>{ovMap[d.id]=d.data()||{};}); build(); },()=>{});
+  db.collection('history').onSnapshot(snap=>{ histMap={}; snap.docs.forEach(d=>{const x=d.data()||{}; histMap[d.id]=x.years||{};}); build(); },()=>{});
+  db.collection('events').onSnapshot(snap=>{
+    boardEvents=snap.docs.map(d=>Object.assign({id:d.id,source:'board'},d.data()));
+    boardEvents.forEach(e=>{ e.booths=e.booths||[]; e.days=e.days||[]; e.dates=e.dates||[]; e.year=+(e.year||e.season||0); });
+    build();
+  },err=>{ dbState='none'; build(); });
+  build();
+})();
+})();
+
+
+</script>
+
+</body>
+</html>
