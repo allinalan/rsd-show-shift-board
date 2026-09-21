@@ -143,6 +143,16 @@ list exists to keep on the mini.
    The optional `_dmarc` row and the receiving MX are not needed. The domain's nameservers are
    eNom's (`dns1–5.name-services.com`). Check with
    `dig +short CNAME send.board.allinknifeguy.com @dns1.name-services.com` before pressing Verify.
+   **Done 2026-09-20**: all three rows added and live on the authoritative server and on
+   8.8.8.8 / 1.1.1.1 / 9.9.9.9 within a minute; the DKIM value matches Resend's byte for byte; the
+   twelve existing host records and the five Google MX rows read back unchanged (pre-change copy in
+   `backups/dns-enom-host-records-before-resend-*.txt`).
+   Getting to the DNS console: the domain was bought through Google Workspace, so it is Google
+   Admin → Account → Domains → Manage domains → View Details → **Advanced DNS Settings**, which
+   shows a sign-in name and password for `access.enom.com` (Alan signs in; that panel displays the
+   password, so close it afterwards). In eNom: Host Records → Edit → **Add New** once per row →
+   fill → **Save**. Save re-posts every row, so read the whole table back before pressing it.
+   CNAME targets are stored with a trailing dot. MX rows live in a separate Email Settings block.
 3. Resend → API Keys → a key with **Sending access**, limited to that domain. It is a secret and
    lives in exactly one place: the Supabase SMTP password field. Never in chat, git or the mini.
 4. Supabase → Authentication → Emails → SMTP Settings → enable custom SMTP: host `smtp.resend.com`,
