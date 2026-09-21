@@ -76,6 +76,23 @@ const mergeDoc = (t, id, patch, actor) => rest('POST', 'rpc/merge_doc', { tbl: t
 const delDoc = (t, id) => rest('DELETE', `${t}?id=eq.${encodeURIComponent(id)}`, undefined, { Prefer: 'return=minimal' });
 const ACTOR = process.env.BOARD_ACTOR || 'service:board-cli';
 const contactMap = async () => { const m = {}; for (const r of await rest('GET', `${CONTACTS}?select=id,data`)) m[r.id] = r.data || {}; return m; };
+const liveDocs = async t => { const m = {}; for (const r of await rest('GET', `${t}?select=id,data`)) m[r.id] = r.data || {}; return m; };
+const emptyish = v => v == null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0) || (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0);
+/**
+ * A seed must never destroy state the seed file does not carry. `settings` holds `meetings`,
+ * which comes from seed/private/go-live.md and can never be committed to this public repo — a
+ * plain upsert replaced the whole row and silently emptied it, which would have stopped
+ * tick.py ever reporting preflight due (caught at cutover, 2026-09-20). So an empty value in
+ * the seed never overwrites a filled value in the database. To blank a field, use `set`.
+ */
+function keepFilled(data, liveDoc) {
+  if (!liveDoc) return 0;
+  let kept = 0;
+  for (const [k, v] of Object.entries(liveDoc)) {
+    if (!emptyish(v) && k in data && emptyish(data[k])) { data[k] = v; kept++; }
+  }
+  return kept;
+}
 
 // ---------- args ----------
 const argv = process.argv.slice(2);
@@ -243,11 +260,17 @@ const commands = {
       const f = path.join(REPO, 'seed', t + '.json'); if (!fs.existsSync(f)) continue;
       let docs = JSON.parse(fs.readFileSync(f, 'utf8')); if (!Array.isArray(docs)) docs = [docs];
       if (t === 'events') { const leak = docs.filter(d => hasValue(splitPriv(d).priv)); if (leak.length) die(`seed/events.json carries contact/phone/email on ${leak.length} event(s) (first: ${leak[0].id}). That table is public. Move them to seed/private/${CONTACTS}.json, then seed again. Nothing was written.`); }
+      const live = await liveDocs(t);
+      let kept = 0;
       for (let i = 0; i < docs.length; i += 100) {
-        const chunk = docs.slice(i, i + 100).map(d => { const { id, ...data } = d; return { id, data }; });
+        const chunk = docs.slice(i, i + 100).map(d => {
+          const { id, ...data } = d;
+          kept += keepFilled(data, live[id]);
+          return { id, data };
+        });
         await rest('POST', `${t}?on_conflict=id`, chunk, { Prefer: 'resolution=merge-duplicates,return=minimal' });
       }
-      console.error(`${t}: ${docs.length}`);
+      console.error(`${t}: ${docs.length}${kept ? ` (kept ${kept} field(s) the seed would have emptied)` : ''}`);
     }
     // promoter contacts: machine-local, gitignored. Missing file = loud, not fatal (a fresh clone won't have it).
     const cf = path.join(REPO, 'seed', 'private', CONTACTS + '.json');

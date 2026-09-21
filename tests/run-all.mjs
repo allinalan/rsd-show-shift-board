@@ -100,6 +100,17 @@ try {
   ok(leaked().filter(d => PRIV.some(k => d[k])).length === 0, 'seed: no contact values in events');
   if (fs.existsSync(path.join(REPO, 'seed/private/event_contacts.json'))) ok(T('event_contacts').size > 0, 'seed: private contacts loaded when the file exists');
 
+  // ---- seed never empties a field the database has filled. seed/settings.json ships
+  // meetings: [] because the dates live in seed/private/go-live.md and this repo is public;
+  // a plain upsert wiped them, and tick.py would then never report preflight due.
+  T('settings').set('division', { ...T('settings').get('division'), meetings: ['2027-01-15'], name: 'Hand-edited Division' });
+  r = await board(['seed', '--force']);
+  ok(r.code === 0, 'seed --force exits 0: ' + r.stderr.slice(-200));
+  ok(JSON.stringify(T('settings').get('division').meetings) === '["2027-01-15"]', 'seed: keeps meeting dates the seed file does not carry');
+  ok(T('settings').get('division').name === 'Rising Sun Division', 'seed: a filled field in the seed still overwrites the database');
+  ok(/kept \d+ field/.test(r.stderr), 'seed: says out loud which fields it kept');
+  ok((await due('2027-01-08')).join() === 'preflight', 'seed: tick still reports preflight due afterwards');
+
   // ---- deploy/tick.py --dry: decides and prints, never sends. HOME is the temp dir, so it reads a fake board.env.
   fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
   fs.writeFileSync(path.join(home, '.rsd', 'board.env'), `BOARD_SUPABASE_URL=${base}\nBOARD_SERVICE_KEY=test\nBOARD_ALAN_IMESSAGE=+15555550100\n`);

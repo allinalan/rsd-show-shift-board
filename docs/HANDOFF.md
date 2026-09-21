@@ -44,7 +44,7 @@ node scripts/board.mjs settings get        # → {} (nothing seeded yet)
 python3 deploy/tick.py --dry               # → nothing due, or a printed notice; sends nothing
 ```
 
-## 4. Cutover snapshot — do NOT skip  ← NEXT
+## 4. Cutover snapshot  (done 2026-09-20 — 232 events, 150 promoter contacts, live)
 **Start a fresh session on Opus for this step.** It parses the Sheet under rules that fail silently
 rather than loudly (`Cam` = `Cameron`, SE days that are never shifts, Mesa A/B rows, event rows whose
 day cells hold dates), and a misparse writes a wrong seed that everyone then trusts.
@@ -68,7 +68,31 @@ node scripts/board.mjs seed                # refuses if the public seed carries 
 Read back: `node scripts/board.mjs list --year 2026 | tail -1` shows the event count; open an event
 on the live page signed out and confirm the promoter's contact, phone and e-mail show.
 
-## 5. Editors and meeting dates  (done 2026-09-20)
+**What the run found and did**, in `out/reports/sheet-vs-seed-diff-2026-09-20.md` (gitignored):
+
+- The parser was rebuilt to the event-check rules and checked against the seed itself — on the 227
+  events that matched it reproduces the 9/13 parse exactly on every structural field, and the
+  status derivation replays the seed 227/227. The 9/19 quick diff's uncertain rows are all resolved.
+- Applied: 59 column-C edits (4 move the board's own status), 9 slot changes across 7 events, one
+  SE-day cell, four new rows, six cosmetic cleanups. All 228 existing ids unchanged.
+- Alan's calls: column C never overrides a status the 9/9 VC snapshot set — Wednesday's
+  board-event-check refreshes those from a live export; the November Queen Creek row follows Sarah
+  to sheet row 302 and keeps its id, and the 11-27 row is new.
+- Sheet row 118 (Maricopa, October) is written one column to the right of every other event row.
+  It was un-shifted against row 463 — the same show, same promoter — as the record was created.
+- Rep names follow `settings.roster` spelling, not the Sheet's. The Sheet writes both `Matt A` and
+  `Matt A.`; the board has always held `Matt A.`, and a new row seeded verbatim listed Matthew
+  Aragon twice on the live page until it was mapped through the roster.
+- Seven promoter contact records held a value in the wrong field — 9/13 parse damage from Sheet
+  rows whose contact columns are spilled across — so the page rendered an empty `tel:` and a
+  `mailto:` pointing at a URL. Each was corrected per record off the Sheet.
+- `board seed` replaced the whole `settings` row and silently emptied `meetings`, which would have
+  stopped `tick.py` ever reporting preflight due. `seed` now never overwrites a filled field with
+  an empty one from the seed file, says out loud when it keeps one, and `tests/run-all.mjs` covers it.
+  `seed/settings.json` still ships `meetings: []` on purpose: those dates come from
+  `seed/private/go-live.md` and this repo is public.
+
+## 5. Editors and meeting dates  (done 2026-09-20)  ← step 6 is NEXT
 Values from Alan are in `seed/private/go-live.md` (gitignored). Run the three commands in it.
 Matt and JP are loaded as `coordinator`, Alan as `owner`; `meetings` holds the three 2027 dates, and
 `tick.py --dry --date 2027-01-06` correctly reports preflight due. They have NOT been told yet — that is step 8.
