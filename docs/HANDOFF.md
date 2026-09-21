@@ -213,6 +213,12 @@ moved to production. Dry runs say nothing is due 9/21 or 9/22 and `event-check` 
   Two untracked items left by another agent tool (`AGENTS.md`, `.agents/`) would have blocked
   every pull from day one; they are gitignored now. After any work on the mini,
   `git status --porcelain` must still print nothing: the alert is the net, not the habit.
+- **A crash alerts too** (2026-09-20). An exception nobody planned for (an unreadable
+  `~/.rsd/board.env`, an unwritable `logs/`) used to leave a traceback in `logs/launchd.log` and
+  nothing else. `main()` now catches it and fails like any other failure: `FAILED: unexpected
+  <Error> in <function>(), tick.py line N` in the log, the same line to Slack with both log paths,
+  exit 1, full trace still in `logs/launchd.log`. If the log is what broke, the Slack post still
+  goes out. `--status` sits outside that net on purpose: it is not `--dry`, so it must never post.
 
 ## 8. Tell the coordinators, not the reps  (sent 2026-09-20 21:36; go-live steps complete)
 Matt and JP get the link and sign in. Reps keep using the Sheet until stage 3 of the roadmap.

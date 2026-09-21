@@ -184,6 +184,20 @@ sys.exit(tick.main())
   ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 1 && /could not update its code: PULL FAILED: .*gone\.git/.test(r.stdout) && r.stdout.includes(stage), 'tick.py: a failed pull posts one Slack alert with git\'s reason: ' + r.stdout + r.stderr);
   ok(/PULL FAILED/.test(r.log) && /nothing due/.test(r.log), 'tick.py: a failed pull is not fatal, the tick still decides');
 
+  // the net under main(): an exception nobody planned for is a loud failure, not a traceback only launchd.log sees
+  await git('remote', 'set-url', 'origin', path.join(home, 'origin.git'));   // a clean pull again, so one failure is one alert
+  fs.chmodSync(path.join(home, '.rsd', 'board.env'), 0o000);
+  r = await tickreal('--date', '2027-01-14');
+  ok(r.code === 1 && count(r.stdout, /^SLACK: /gm) === 1 && /AUTOMATION FAILURE.*unexpected PermissionError in read_env\(\), tick\.py line \d+/.test(r.stdout) && /launchd\.log/.test(r.stdout), 'tick.py: an unexpected exception posts one Slack alert naming the function and line, exit 1: ' + r.stdout);
+  ok(/FAILED: unexpected PermissionError/.test(r.log) && /Traceback/.test(r.stderr), 'tick.py: an unexpected exception is logged, and the full trace goes to stderr');
+  r = await tickpy('--date', '2027-01-14');
+  ok(r.code === 1 && count(r.stdout, /WOULD POST TO SLACK/g) === 1 && /unexpected PermissionError/.test(r.stdout), 'tick.py --dry: an unexpected exception is reported, still nothing sent');
+  fs.chmodSync(path.join(home, '.rsd', 'board.env'), 0o600);
+  fs.rmSync(tickLog, { force: true }); fs.chmodSync(path.dirname(tickLog), 0o500);
+  r = await tickreal('--date', '2027-01-14');
+  ok(r.code === 1 && count(r.stdout, /^SLACK: /gm) === 1 && /unexpected PermissionError in log\(\)/.test(r.stdout) && r.log === '', 'tick.py: when the log is what broke, the Slack alert still goes out: ' + r.stdout);
+  fs.chmodSync(path.dirname(tickLog), 0o700);
+
   fs.writeFileSync(path.join(home, '.rsd', 'board.env'), 'BOARD_SUPABASE_URL=\n');
   r = await tickpy(); ok(r.code === 1 && /AUTOMATION FAILURE/.test(r.stdout), 'tick.py --dry: missing env is a loud failure, exit 1');
   fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });

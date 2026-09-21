@@ -19,7 +19,8 @@ WHAT IT DOES (stage 1: decide and notify, nothing else)
      skills (event-check, vectorconnect-booking-request, vectorconnect-event-export, humanizer)
      that a headless `claude -p` on this mini cannot see (verified 2026-09-19). Unattended runs
      are stage 2 in docs/ROADMAP.md, after those skills are vendored into this repo.
-  6. Any failure -> Slack alert with the reason and the log path, exit 1. Never silent.
+  6. Any failure -> Slack alert with the reason and the log path, exit 1. Never silent. That includes
+     an exception nobody planned for: main() catches it, names the function and line, alerts the same.
 
 WHY PYTHON
 ----------
@@ -36,6 +37,7 @@ import socket
 import subprocess
 import sys
 import time
+import traceback
 import urllib.request
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -181,8 +183,26 @@ def status():
 
 
 def main():
-    if "--status" in sys.argv:
+    """Nothing leaves here silently: an exception nobody planned for is a failure like any other."""
+    if "--status" in sys.argv:  # outside the net on purpose: --status is not --dry, and it must never post
         return status()
+    try:
+        return run()
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()  # the whole trace, to stderr: logs/launchd.log under launchd
+        at = [f for f in traceback.extract_tb(e.__traceback__) if os.path.basename(f.filename) == "tick.py"][-1]
+        reason = "unexpected %s in %s(), tick.py line %d: %s" % (type(e).__name__, at.name, at.lineno, str(e)[:200])
+        alert = "MAC MINI AUTOMATION FAILURE — rsd-show-shift-board tick: %s\nLog: %s\nTrace: %s" % (
+            reason, LOG, os.path.join(os.path.dirname(LOG), "launchd.log"))
+        for tell, what in ((log, "FAILED: " + reason), (slack, alert)):
+            try:
+                tell(what)
+            except Exception:  # noqa: BLE001  (when the log is what broke, it must not cost the Slack post)
+                traceback.print_exc()
+        return 1
+
+
+def run():
     if os.path.exists(os.path.join(REPO, "PAUSED")):
         log("PAUSED file present: doing nothing")
         return 0
