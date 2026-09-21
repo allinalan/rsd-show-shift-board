@@ -45,6 +45,13 @@ fi
 TZNAME="$(readlink /etc/localtime | sed 's|.*/zoneinfo/||')"; [ "$TZNAME" = "America/Phoenix" ] && ok "clock is $TZNAME" || bad "clock is $TZNAME, expected America/Phoenix"
 (cd "$PROJECT" && /usr/local/bin/node scripts/check-public.mjs >/dev/null 2>&1) && ok "public-repo leak check is clean" || bad "leak check found something (node scripts/check-public.mjs)"
 (cd "$PROJECT" && /usr/local/bin/node tests/run-all.mjs >/dev/null 2>&1) && ok "unit tests pass" || bad "unit tests fail (node tests/run-all.mjs)"
+# Coordinator e-mails from a board session go through the shared mailroom (CLAUDE.md). Its check sends
+# nothing. A WARN, never a FAIL: the daily tick does not e-mail, so this must not block arming.
+MAILROOM="$HOME/ai-system/lib/mailroom/gmail_send.py"
+if [ -f "$MAILROOM" ]; then
+  MR="$(/usr/bin/python3 "$MAILROOM" check 2>&1 | tail -1)"
+  case "$MR" in "Gmail sender: ok"*) ok "mailroom ready for coordinator e-mails (its check sends nothing)";; *) warn "mailroom not ready, coordinator e-mails would fail: ${MR#Gmail sender: }";; esac
+else warn "mailroom not found at $MAILROOM (git -C ~/ai-system pull): coordinator e-mails have no sanctioned path until it is"; fi
 
 [ "${1:-}" = "--check" ] && exit $FAILED
 

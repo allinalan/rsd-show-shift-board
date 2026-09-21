@@ -236,6 +236,10 @@ of them in the Supabase auth log, and their address showing up in `board changel
   The link still reaches the board; after about a day Google puts a "Redirect Notice" page in
   front of it. It shows in the draft's snippet, so **read a draft's body back before sending
   anything that carries a link**, and have Alan paste links himself when they must be clean.
+- **Since 2026-09-20 coordinator e-mails have a path that delivers the link as typed**: the shared
+  mailroom, `~/ai-system/lib/mailroom/gmail_send.py` (preview, Alan's go, `send --confirm
+  <fingerprint>`, read-back of the stored text). The steps are in `CLAUDE.md` under "Rules that are
+  easy to get wrong". Use it for any follow-up to Matt and JP; the connector stays for reading mail.
 
 ## If something breaks later
 `touch PAUSED` stops the job. `node scripts/board.mjs export` before any big change (includes the

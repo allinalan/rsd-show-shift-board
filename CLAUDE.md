@@ -55,6 +55,18 @@ keyed by series key. `editors` — who may write. `changelog` — every write.
   pre-commit hook enforces it; do not bypass it with `--no-verify`.
 - **Routines never send messages.** Only `deploy/tick.py` (rooted in `/usr/bin/python3`) talks to
   Messages.app, and only to Alan. Rep texts are drafts in `out/reports/`. No Messages MCP tools.
+- **E-mail to coordinators goes through the mailroom, never the chat Gmail connector.** The
+  connector rewrote the board link into a Google redirect in the go-live e-mail (2026-09-20,
+  `docs/HANDOFF.md` section 8). The sanctioned path is hand-run from a session on the mini: write
+  the text to a file under `out/` (gitignored), then
+  `/usr/bin/python3 ~/ai-system/lib/mailroom/gmail_send.py preview --to '<Name> <address>' --subject '...' --body-file out/<file>`
+  (no network; prints recipients, the exact text, every link, a fingerprint). Show Alan every
+  recipient and the exact text, wait for his go in a later message, then run the same command with
+  `send` and `--confirm <fingerprint>`, and read the result: exit 0 means sent and the text stored
+  in Sent is identical. Addresses come from `node scripts/board.mjs editors` or
+  `seed/private/go-live.md` at run time; never write one into this repo. `./install.sh --check`
+  says whether the mailroom is ready. Routines and the tick still never e-mail. The rule in full:
+  `@~/ai-system/claude/shared/email-sending.md`.
 - **The Sheet is still the truth (stage 1).** rsd-shift-picking, rsd-event-analyzer, SUNNY's shift
   sync and three skills read it. Nothing here may retire, rename or restructure the Sheet. Read
   `docs/ROADMAP.md` before any change that touches another system.
