@@ -14,10 +14,14 @@ routines in `.claude/skills/` keep it true.
 - `supabase/schema.sql` — tables, row-level security, the `editors` list, `merge_doc`, changelog.
 - `scripts/board.mjs` — the CLI every routine uses. `node scripts/board.mjs` prints usage.
 - `scripts/check-public.mjs` — the pre-commit leak check (this repo is public).
+- `scripts/parse-sheet.mjs` — reads the Sheet into board shape while the Sheet is still the truth
+  (stage 1). `--verify` lines the parse up against `seed/events.json` field by field and exits
+  non-zero if a structural field has drifted; `--diff` is the change report. Needs SheetJS from a
+  sibling project, or `--grid` with a pre-dumped grid.
 - `deploy/tick.py` — the launchd entry point (`com.allinalan.rsd-board-tick`, 07:00 daily on the
   mini): decides what is due and notifies Alan. It does not run routines. `--dry`, `--status`.
 - `install.sh` — preflight + plist, disarmed by default; `--arm`, `--disarm`, `--check`.
-- `tests/run-all.mjs` — CLI + launcher tests against an in-memory fake database. Run before every commit.
+- `tests/run-all.mjs` — CLI, launcher and Sheet-parser tests against an in-memory fake database. Run before every commit.
 - `docs/ROADMAP.md` — the staged plan to replace the Sheet by Fall 2027. `docs/HANDOFF.md` — go-live steps.
 - `.claude/skills/` — the routines: `board-tick` (daily), `board-preflight`, `board-booking-sweep`,
   `board-event-check`, `board-rollforward`. They lean on the account skills
@@ -54,6 +58,10 @@ keyed by series key. `editors` — who may write. `changelog` — every write.
 - **The Sheet is still the truth (stage 1).** rsd-shift-picking, rsd-event-analyzer, SUNNY's shift
   sync and three skills read it. Nothing here may retire, rename or restructure the Sheet. Read
   `docs/ROADMAP.md` before any change that touches another system.
+- **Re-syncing from the Sheet goes through `parse-sheet.mjs --verify` first.** A misparse is the
+  silent failure here: it writes a wrong seed and everyone then trusts it. `--verify` differing on
+  one or two events is the team editing the Sheet; differing on most of them is the parser having
+  drifted. Rep names are stored as `settings.roster` spells them, not as the Sheet does.
 - Headless `claude -p` on the mini cannot see the account skills the routines need, so routines
   are hand-run from the desktop app until stage 2.
 

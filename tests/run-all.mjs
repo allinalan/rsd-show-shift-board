@@ -35,6 +35,9 @@ const board = (args, env = {}) => new Promise(r => execFile(process.execPath, [p
   { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', ...env } }, (err, stdout, stderr) => r({ code: err ? err.code : 0, stdout, stderr })));
 const PRIV = ['contact', 'phone', 'email'];
 const leaked = () => [...T('events').values()].filter(d => PRIV.some(k => k in d));
+const isSE = l => /set\s*up|tear\s*down|\bse\b/i.test(String(l || ''));
+const staffedOf = e => (e.booths || []).reduce((n, b) => n + (b.shifts || []).reduce((m, s) =>
+  m + (s.slots || []).filter((sl, i) => sl.rep && sl.rep !== '__X__' && !isSE(b.days[i])).length, 0), 0);
 
 await new Promise(r => server.listen(0, '127.0.0.1', r)); base = 'http://127.0.0.1:' + server.address().port;
 try {
@@ -123,6 +126,82 @@ try {
   fs.writeFileSync(path.join(home, '.rsd', 'board.env'), 'BOARD_SUPABASE_URL=\n');
   r = await tickpy(); ok(r.code === 1 && /AUTOMATION FAILURE/.test(r.stdout), 'tick.py --dry: missing env is a loud failure, exit 1');
   fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });
+
+  // ---- parse-sheet: the Sheet's shape, read the way the 2026-09-13 migration read it.
+  // A synthetic grid, because the real schedule is 800 rows of promoter contacts and cannot live
+  // in a public repo. The real check is `parse-sheet.mjs <xlsx> --verify` against seed/events.json.
+  {
+    const G = [];
+    const row = o => { const r = new Array(27).fill(null); for (const [i, v] of Object.entries(o)) r[+i] = v; G.push(r); };
+    const SER = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000);
+    row({ 2: 'Status', 4: 'HEADER ROW IS SKIPPED' });                       // row 1
+    row({ 1: 'Weekend 09-04' });                                            // row 2
+    row({ 1: 'JV', 2: 'Booked', 3: '17k', 4: 'Corn Fest', 5: 'Saturday', 6: 'Sunday', 7: 'Monday SE',
+          12: '166.66', 13: SER('2026-09-05'), 14: SER('2026-09-06'), 15: 'Phoenix, AZ', 16: 'The Park',
+          18: 'Corn Co', 19: 'Rich', 20: '(602) 555-0100', 21: 'rich@example.com', 22: 'corn.example.com',
+          25: 'Booked', 26: '00101800' });                                  // row 3
+    row({ 4: 'Shift 1', 5: 'Cam (Ft. Reed & Jo)', 6: '(ft. Chris)', 7: 'Eli' });   // row 4
+    row({ 4: 'Shift 2', 5: 'x', 6: 'Matt A' });                             // row 5
+    row({ 2: 'Prospective', 4: 'Stale Dates Fair', 5: 'Saturday', 6: 'Sunday (SE)', 7: '45318',
+          12: '100', 13: SER('2025-09-06'), 14: SER('2025-09-07') });       // row 6 — start a year out
+    row({ 4: 'Shift 1', 5: 'JP' });                                         // row 7
+    row({ 2: 'Booked', 4: 'Mesa Market Place Swapmeet A ROW', 5: 'Friday', 6: 'Saturday', 12: '2089' }); // row 8
+    row({ 4: 'Shift 1', 5: 'Kendall' });                                    // row 9
+    row({ 2: 'Booked', 4: 'Mesa Market Place Swapmeet B ROW', 5: 'Friday', 6: 'Saturday', 12: '2089' }); // row 10
+    row({ 4: 'Shift 1', 6: 'Sarah' });                                      // row 11
+    const gridFile = path.join(home, 'grid.json');
+    fs.writeFileSync(gridFile, JSON.stringify(G));
+
+    const ps = (...a) => new Promise(res => execFile(process.execPath, [path.join(REPO, 'scripts/parse-sheet.mjs'), '--grid', gridFile, '--tab', '2026', ...a],
+      { env: { PATH: process.env.PATH, HOME: home } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+
+    r = await ps('--json');
+    ok(r.code === 0, 'parse-sheet: exits 0: ' + r.stderr);
+    const ev = JSON.parse(r.stdout);
+    ok(ev.length === 3, `parse-sheet: header row is not an event, Mesa A/B merge into one (got ${ev.length})`);
+
+    const corn = ev[0];
+    ok(corn.name === 'Corn Fest' && corn.weekend === '2026-09-04', 'parse-sheet: event row and weekend banner');
+    ok(corn.days.join('|') === 'Saturday|Sunday|Monday SE', 'parse-sheet: day labels come off the event row');
+    ok(corn.dates.join('|') === '2026-09-05|2026-09-06|2026-09-07', 'parse-sheet: dates step from the banner, SE day included');
+    ok(corn.cost === '$167' && corn.costNum === 167, 'parse-sheet: cost rounds to whole dollars');
+    ok(corn.level === 'JV' && corn.vcNumber === '00101800', 'parse-sheet: level and VC number');
+    ok(corn.phone === '(602) 555-0100' && corn.email === 'rich@example.com', 'parse-sheet: contact block read straight when it is straight');
+    const s1 = corn.booths[0].shifts[0].slots, s2 = corn.booths[0].shifts[1].slots;
+    ok(s1[0].rep === 'Cam' && s1[0].ft.join(',') === 'Reed,Jo', 'parse-sheet: "(Ft. X & Y) Rep" keeps the rep and the trainees');
+    ok(s1[1].rep === '' && s1[1].ft.join(',') === 'Chris', 'parse-sheet: helper-only cell is not a staffed shift');
+    ok(s2[0].rep === '__X__', 'parse-sheet: an x is a closed slot, not a rep');
+    ok(s1[2].rep === 'Eli', 'parse-sheet: the SE-day cell is still read into the slot');
+    ok(staffedOf(corn) === 2, `parse-sheet: Cam and Matt A are the shifts — Eli's SE day is not one (got ${staffedOf(corn)})`);
+
+    const stale = ev[1];
+    ok(stale.dates[0] === '2026-09-05', 'parse-sheet: a Start Date a year out does not move the dates off the banner');
+    ok(stale.dates[1] === null, 'parse-sheet: a day label with a parenthetical gets no date');
+    ok(stale.days[2] === '1/27/2024' && stale.dates[2] === null, 'parse-sheet: a day cell holding a date stays a label, undated');
+
+    const mesa = ev[2];
+    ok(mesa.name === 'Mesa Market Place Swapmeet' && mesa.booths.length === 2, 'parse-sheet: Mesa A/B is one event with two booths');
+    ok(mesa.booths[0].label === 'A Row' && mesa.booths[1].label === 'B Row', 'parse-sheet: the two Mesa rows keep their row labels');
+    ok(mesa.costBasis === 'month' && String(mesa.mergedRows) === '8,10', 'parse-sheet: Mesa bills by the month, and says which rows it merged');
+
+    // the drift guard: a structural field that moves on most events is the parser, not the Sheet
+    const asSeed = evs => evs.map((e, i) => ({ ...e, id: `t-${i}` }));
+    const seedOk = path.join(home, 'seed-ok.json');
+    fs.writeFileSync(seedOk, JSON.stringify(asSeed(ev)));
+    r = await ps('--verify', '--seed', seedOk);
+    ok(r.code === 0 && /cityState   differs on    0/.test(r.stdout), 'parse-sheet --verify: a faithful parse differs on nothing: ' + r.stdout.slice(0, 200));
+
+    const seedDrift = path.join(home, 'seed-drift.json');
+    fs.writeFileSync(seedDrift, JSON.stringify(asSeed(ev).map(e => ({ ...e, cityState: 'MOVED' }))));
+    r = await ps('--verify', '--seed', seedDrift);
+    ok(r.code === 2 && /cityState/.test(r.stderr), 'parse-sheet --verify: exits 2 and names the field when a structural field drifts');
+
+    // a rep the roster cannot place must be named, never passed through quietly
+    const seedAlias = path.join(home, 'seed-alias.json');
+    fs.writeFileSync(seedAlias, JSON.stringify(asSeed(ev)));
+    r = await ps('--verify', '--seed', seedAlias);
+    ok(!/reps the roster cannot place/.test(r.stdout), 'parse-sheet --verify: Cam, JP and Matt A all resolve to the roster');
+  }
 
   // ---- missing env is a loud failure
   r = await board(['tick'], { BOARD_SUPABASE_URL: '', BOARD_SERVICE_KEY: '' }); ok(r.code !== 0 && /board\.env/.test(r.stderr), 'no env: exits non-zero and says where to put it');
