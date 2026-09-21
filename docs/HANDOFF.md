@@ -182,7 +182,7 @@ list exists to keep on the mini.
    breaks with `Couldn't send: …`, the key was revoked or the domain lost verification: make a new
    key, paste it into the same field.
 
-## 7. Arm the daily tick  (done 2026-09-20 21:14 — step 8 is NEXT)
+## 7. Arm the daily tick  (done 2026-09-20 21:14)
 ```
 ./install.sh --arm
 touch PAUSED && launchctl start com.allinalan.rsd-board-tick && sleep 3 && tail -2 logs/tick.log && rm PAUSED
@@ -214,8 +214,22 @@ moved to production. Dry runs say nothing is due 9/21 or 9/22 and `event-check` 
   every pull from day one; they are gitignored now. After any work on the mini,
   `git status --porcelain` must still print nothing: the alert is the net, not the habit.
 
-## 8. Tell the coordinators, not the reps
+## 8. Tell the coordinators, not the reps  (sent 2026-09-20 21:36; go-live steps complete)
 Matt and JP get the link and sign in. Reps keep using the Sheet until stage 3 of the roadmap.
+
+**Run of 2026-09-20.** One e-mail from Alan to both coordinators, at the exact addresses on the
+editors list, after he read the recipients and the text and said go: where the board is, the four
+sign-in steps (Plan mode, that same address, the link from `RSD Show Shift Board`, tap it on the
+device you edit from), that the Sheet stays the source of truth so real schedule changes still go
+there, and not to share it with reps. First proof it worked is a `/verify` + `Login` line for each
+of them in the Supabase auth log, and their address showing up in `board changelog`.
+
+- **The Gmail connector rewrites every URL when it writes a draft**, in the plain body and inside an
+  `href`, into `https://www.google.com/url?q=…&source=gmail&ust=…`, stamped at the millisecond the
+  MIME is built (the raw source of the sent message proves it is stored, not a display artifact).
+  The link still reaches the board; after about a day Google puts a "Redirect Notice" page in
+  front of it. It shows in the draft's snippet, so **read a draft's body back before sending
+  anything that carries a link**, and have Alan paste links himself when they must be clean.
 
 ## If something breaks later
 `touch PAUSED` stops the job. `node scripts/board.mjs export` before any big change (includes the
