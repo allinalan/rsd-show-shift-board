@@ -11,7 +11,8 @@ root. Public is required for free Pages. `node scripts/check-public.mjs` must be
 pre-commit hook runs it on every commit. https://allinalan.github.io/rsd-show-shift-board/ shows the
 read-only preview (seed data, no promoter contacts) until step 2.
 
-## 2. **ALAN** — create the Supabase project
+## 2. **ALAN** — create the Supabase project  (done 2026-09-20)
+Project `cfmkxoynjexesciriuzg`, org "Rising Sun Events Team", free tier.
 supabase.com → New project (free, US West). Then:
 1. SQL Editor → New query → paste all of `supabase/schema.sql` → Run. (Re-runnable.)
    Done when the result pane says `Success. No rows returned`.
@@ -35,7 +36,7 @@ supabase.com → New project (free, US West). Then:
    ```
 Claude then writes the URL + anon key into `config.js`, commits, pushes.
 
-## 3. Smoke test
+## 3. Smoke test  (passed 2026-09-20 — every preflight line OK, owner returned, tick sends nothing)
 ```
 ./install.sh --check                       # every line OK
 node scripts/board.mjs editors list        # → Alan as owner
@@ -43,7 +44,15 @@ node scripts/board.mjs settings get        # → {} (nothing seeded yet)
 python3 deploy/tick.py --dry               # → nothing due, or a printed notice; sends nothing
 ```
 
-## 4. Cutover snapshot — do NOT skip
+## 4. Cutover snapshot — do NOT skip  ← NEXT
+**Start a fresh session on Opus for this step.** It parses the Sheet under rules that fail silently
+rather than loudly (`Cam` = `Cameron`, SE days that are never shifts, Mesa A/B rows, event rows whose
+day cells hold dates), and a misparse writes a wrong seed that everyone then trusts.
+
+Before starting, know this: `config.js` already holds the project URL and anon key but is
+**committed locally and NOT pushed on purpose**. Pushing it before the seed makes the live page read
+an empty database instead of showing the seed preview. Push it together with the seeded data.
+
 `seed/events.json` is the Sheet as of 2026-09-13. A first diff against the live Sheet is in
 `out/reports/sheet-vs-seed-diff-2026-09-19.md` (56 status changes; read its notes on what it
 cannot see). Before seeding:
@@ -59,8 +68,10 @@ node scripts/board.mjs seed                # refuses if the public seed carries 
 Read back: `node scripts/board.mjs list --year 2026 | tail -1` shows the event count; open an event
 on the live page signed out and confirm the promoter's contact, phone and e-mail show.
 
-## 5. Editors and meeting dates
+## 5. Editors and meeting dates  (done 2026-09-20)
 Values from Alan are in `seed/private/go-live.md` (gitignored). Run the three commands in it.
+Matt and JP are loaded as `coordinator`, Alan as `owner`; `meetings` holds the three 2027 dates, and
+`tick.py --dry --date 2027-01-06` correctly reports preflight due. They have NOT been told yet — that is step 8.
 
 ## 6. Live verification, with Alan watching
 1. Plan mode → Alan's email → **ALAN** taps the magic link → lands back signed in as owner.
