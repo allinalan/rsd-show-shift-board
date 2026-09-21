@@ -14,10 +14,17 @@ read-only preview (seed data, no promoter contacts) until step 2.
 ## 2. **ALAN** — create the Supabase project
 supabase.com → New project (free, US West). Then:
 1. SQL Editor → New query → paste all of `supabase/schema.sql` → Run. (Re-runnable.)
-2. Authentication → Providers → Email: **Confirm email OFF**.
-3. Authentication → URL Configuration → Site URL `https://allinalan.github.io/rsd-show-shift-board/`,
-   and add it under Redirect URLs.
-4. Project Settings → API: give Claude the **Project URL** and the **anon public** key (both public).
+   Done when the result pane says `Success. No rows returned`.
+2. Authentication → **Sign In / Providers** → the **User Signups** card at the top of the page →
+   **Confirm email OFF** → Save changes. (Supabase renamed this; it is no longer inside the Email
+   provider, and the page is no longer called "Providers".)
+3. Authentication → URL Configuration → Site URL `https://allinalan.github.io/rsd-show-shift-board/`
+   (it ships as `http://localhost:3000`), then Redirect URLs → Add URL → the same URL → Save URLs.
+4. Project Settings → API Keys → the **"Legacy anon, service_role API keys"** tab. Supabase now
+   defaults to new-style `sb_publishable_…` / `sb_secret_…` keys on the first tab; this project uses
+   the **legacy** pair, because `check-public.mjs` can decode a legacy anon JWT and prove its role is
+   `anon` before letting it be committed — a prefix is all it can check on the new format.
+   Give Claude the **Project URL** and the legacy **anon public** key (both public).
    The **service_role** key is a secret. Alan types it into the file himself, never into chat:
    ```
    mkdir -p ~/.rsd && nano ~/.rsd/board.env      # three lines:

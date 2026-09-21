@@ -11,6 +11,9 @@ import { execFileSync } from 'child_process';
 const ALLOW_EMAIL = [/@example\.com$/i, /^noreply@anthropic\.com$/i, /^ahernandez@allinknifeguy\.com$/i];   // owner email is already public in schema.sql by design
 const PHONE = /\(?\b[2-9][0-9]{2}\)?[ .-][0-9]{3}[ .-][0-9]{4}\b/g, EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[a-z]{2,}/g;
 const JWT = /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g;
+// Supabase's newer key format is not a JWT, so the role check below cannot see it: match it by prefix.
+// sb_secret_ bypasses row-level security and must never be committed; sb_publishable_ is safe, but only in config.js.
+const SB_SECRET = /\bsb_secret_[A-Za-z0-9_-]{8,}/g, SB_PUBLISHABLE = /\bsb_publishable_[A-Za-z0-9_-]{8,}/g;
 const staged = process.argv.includes('--staged');
 const files = execFileSync('git', staged ? ['diff', '--cached', '--name-only', '--diff-filter=ACM'] : ['ls-files', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8' }).split('\n').filter(Boolean);
 const bad = [];
@@ -22,6 +25,9 @@ for (const f of files) {
   if (phones.length) bad.push(`${f}: ${phones.length} phone number(s)`);
   const emails = [...new Set(text.match(EMAIL) || [])].filter(e => !ALLOW_EMAIL.some(r => r.test(e)) && !/\.(png|jpg|svg|js|css)$/i.test(e));
   if (emails.length) bad.push(`${f}: ${emails.length} e-mail address(es) not on the allow-list`);
+  const secrets = text.match(SB_SECRET) || [];
+  if (secrets.length) bad.push(`${f}: ${secrets.length} Supabase secret key(s) (sb_secret_…) — that key bypasses row-level security and may never be committed`);
+  if (f !== 'config.js') { const pub = text.match(SB_PUBLISHABLE) || []; if (pub.length) bad.push(`${f}: ${pub.length} Supabase publishable key(s) (sb_publishable_…) outside config.js — keys belong in config.js only`); }
   for (const tok of text.match(JWT) || []) { try { const role = JSON.parse(Buffer.from(tok.split('.')[1], 'base64url').toString()).role; if (role !== 'anon') bad.push(`${f}: a JWT whose role is "${role}" — only the anon key may be committed`); } catch { bad.push(`${f}: an undecodable JWT`); } }
   if (f === 'seed/events.json') { const n = JSON.parse(text).filter(e => ['contact', 'phone', 'email'].some(k => e[k] && String(e[k]).trim())).length; if (n) bad.push(`${f}: ${n} event(s) carry contact/phone/email — those belong in seed/private/event_contacts.json`); }
 }
