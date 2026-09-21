@@ -129,6 +129,26 @@ If 4 fails, check that `schema.sql`'s realtime block ran (Database → Replicati
 - The first sign-in creates the login, so Alan requests his own link, on the device he will edit
   from. The test event is `2026-mohave-county-fair-r68`; its pre-edit copy is in `backups/`.
 
+### 6a. **ALAN** — custom SMTP through Resend  (decided 2026-09-20; not set up yet)
+Chosen over inviting Matt and JP to the Supabase org: the lowest org role on the free plan
+(Developer) can read the service key and the JWT secret, which is the one credential the editors
+list exists to keep on the mini.
+
+1. resend.com account → Domains → Add Domain → `board.allinknifeguy.com` (a subdomain, as Resend
+   recommends: the root domain's Google Workspace MX and SPF records are not touched).
+2. Add the records Resend lists (an MX and an SPF `TXT` on `send.board`, a DKIM `TXT` on
+   `resend._domainkey.board`) at the DNS host. The domain's nameservers are eNom's
+   (`dns1–5.name-services.com`). Check with `dig +short TXT resend._domainkey.board.allinknifeguy.com`
+   before pressing Verify.
+3. Resend → API Keys → a key with **Sending access**, limited to that domain. It is a secret and
+   lives in exactly one place: the Supabase SMTP password field. Never in chat, git or the mini.
+4. Supabase → Authentication → Emails → SMTP Settings → enable custom SMTP: host `smtp.resend.com`,
+   port `465`, username `resend`, password = the API key, sender `no-reply@` the sending domain,
+   sender name `RSD Show Shift Board`. Supabase then allows 30 auth emails an hour (Rate Limits).
+5. Proof is a delivered magic link plus a clean `/otp` line in the auth log. If sign-in later
+   breaks with `Couldn't send: …`, the key was revoked or the domain lost verification: make a new
+   key, paste it into the same field.
+
 ## 7. Arm the daily tick
 ```
 ./install.sh --arm
