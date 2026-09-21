@@ -136,10 +136,13 @@ list exists to keep on the mini.
 
 1. resend.com account → Domains → Add Domain → `board.allinknifeguy.com` (a subdomain, as Resend
    recommends: the root domain's Google Workspace MX and SPF records are not touched).
-2. Add the records Resend lists (an MX and an SPF `TXT` on `send.board`, a DKIM `TXT` on
-   `resend._domainkey.board`) at the DNS host. The domain's nameservers are eNom's
-   (`dns1–5.name-services.com`). Check with `dig +short TXT resend._domainkey.board.allinknifeguy.com`
-   before pressing Verify.
+2. Add the records Resend lists at the DNS host. As issued 2026-09-20 (region `us-east-1`, sending
+   on, receiving off, no tracking subdomain) they are three, and none of them is an MX:
+   `TXT resend._domainkey.board` = the DKIM public key shown on the domain's page in Resend;
+   `CNAME rsend.board` → `rsend.forge.rmta.net`; `CNAME send.board` → `send.forge.rmta.net`.
+   The optional `_dmarc` row and the receiving MX are not needed. The domain's nameservers are
+   eNom's (`dns1–5.name-services.com`). Check with
+   `dig +short CNAME send.board.allinknifeguy.com @dns1.name-services.com` before pressing Verify.
 3. Resend → API Keys → a key with **Sending access**, limited to that domain. It is a secret and
    lives in exactly one place: the Supabase SMTP password field. Never in chat, git or the mini.
 4. Supabase → Authentication → Emails → SMTP Settings → enable custom SMTP: host `smtp.resend.com`,
