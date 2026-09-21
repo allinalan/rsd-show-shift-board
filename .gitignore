@@ -7,3 +7,7 @@ seed/private/
 logs/
 out/
 PAUSED
+# another agent tool's local copies of CLAUDE.md and the skills. Untracked files make the tree
+# dirty, and deploy/tick.py never pulls over a dirty tree, so they must not count as changes.
+.agents/
+AGENTS.md
