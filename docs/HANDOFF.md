@@ -97,7 +97,7 @@ Values from Alan are in `seed/private/go-live.md` (gitignored). Run the three co
 Matt and JP are loaded as `coordinator`, Alan as `owner`; `meetings` holds the three 2027 dates, and
 `tick.py --dry --date 2027-01-06` correctly reports preflight due. They have NOT been told yet — that is step 8.
 
-## 6. Live verification, with Alan watching  (signed-out half passed 2026-09-20 — signed-in half is NEXT)
+## 6. Live verification, with Alan watching  (passed 2026-09-20, one sub-check open — step 7 is NEXT)
 1. Plan mode → Alan's email → **ALAN** taps the magic link → lands back signed in as owner.
 2. A second browser, signed out: promoter contact, phone (tap to call) and e-mail show on an open
    event, nothing is editable; plan mode asks for sign-in; an email not on the list gets "not on
@@ -129,7 +129,27 @@ If 4 fails, check that `schema.sql`'s realtime block ran (Database → Replicati
 - The first sign-in creates the login, so Alan requests his own link, on the device he will edit
   from. The test event is `2026-mohave-county-fair-r68`; its pre-edit copy is in `backups/`.
 
-### 6a. **ALAN** — custom SMTP through Resend  (decided 2026-09-20; not set up yet)
+**Signed-in half, run 2026-09-20 after 6a — passed.**
+
+- 1: Alan's link arrived through Resend in seconds (`Your sign-in link`, Delivered) and `/verify`
+  logged him in nine seconds after the request. The page let him edit, so `is_editor()` held.
+- 3 and 4: he changed the phone on `2026-mohave-county-fair-r68` and took the Thursday shift on
+  `2026-rv-show-usa-tucson-r70`. Both are in the database, and both reached a signed-out window
+  that had been loaded seven minutes earlier and never reloaded (new phone by hash; `OPEN 4` →
+  `OPEN 3`). Only `phone`, and only `booths` + `_updated`, differed from the pre-edit snapshot.
+- 5: `board changelog` shows both writes with Alan's e-mail as actor.
+- Both test edits were put back from the snapshot under `BOARD_ACTOR=service:step6-restore`; all
+  127 upcoming events equal the snapshot again, and the signed-out window flipped back on its own.
+- **Still open from 2:** "an email not on the list gets *not on the editor list yet*". It needs a
+  second mailbox to sign in, which creates a login, so it is Alan's: sign in once from any address
+  that is not an editor and read the header line.
+- Two things that bit, both silent until the log was read. The Supabase port field mangles
+  automated typing (`465465`, then `461`, then `65`): with a port nothing listens on, every `/otp`
+  hangs ten seconds and returns **HTTP 504 `context deadline exceeded`**, while a bad key fails
+  fast with an auth error. And one `/otp` returned `200` while the port was still wrong and
+  Resend never saw a message: a `200` is not proof of delivery, Resend → Emails is.
+
+### 6a. **ALAN** — custom SMTP through Resend  (done 2026-09-20)
 Chosen over inviting Matt and JP to the Supabase org: the lowest org role on the free plan
 (Developer) can read the service key and the JWT secret, which is the one credential the editors
 list exists to keep on the mini.
