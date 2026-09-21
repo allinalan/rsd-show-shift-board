@@ -115,14 +115,75 @@ try {
   ok((await due('2027-01-08')).join() === 'preflight', 'seed: tick still reports preflight due afterwards');
 
   // ---- deploy/tick.py --dry: decides and prints, never sends. HOME is the temp dir, so it reads a fake board.env.
+  // The launcher runs from a staged copy: tick.py takes its root from where it sits, so the stage has its own
+  // PAUSED, logs/ and .git, and the real repo's kill switch or a dirty tree cannot reach these tests.
   fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
   fs.writeFileSync(path.join(home, '.rsd', 'board.env'), `BOARD_SUPABASE_URL=${base}\nBOARD_SERVICE_KEY=test\nBOARD_ALAN_IMESSAGE=+15555550100\n`);
   T('settings').set('division', { meetings: ['2027-01-15'] });
-  const tickpy = (...a) => new Promise(r => execFile('/usr/bin/python3', ['-B', path.join(REPO, 'deploy/tick.py'), '--dry', ...a], { env: { PATH: process.env.PATH, HOME: home } }, (err, stdout, stderr) => r({ code: err ? err.code : 0, stdout, stderr })));
+  const stage = path.join(home, 'stage'), tickLog = path.join(stage, 'logs', 'tick.log');
+  for (const f of ['deploy/tick.py', 'scripts/board.mjs', '.gitignore']) { fs.mkdirSync(path.dirname(path.join(stage, f)), { recursive: true }); fs.copyFileSync(path.join(REPO, f), path.join(stage, f)); }
+  const run = (bin, args) => new Promise(r => execFile(bin, args, { env: { PATH: process.env.PATH, HOME: home } }, (err, stdout, stderr) => r({ code: err ? err.code : 0, stdout, stderr })));
+  const tickpy = (...a) => run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', ...a]);
   r = await tickpy('--date', '2027-01-08');
   ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /WOULD iMESSAGE ALAN/.test(r.stdout) && /say "run the board preflight"/.test(r.stdout), 'tick.py --dry: a due routine produces one Slack + one iMessage notice: ' + r.stderr);
   r = await tickpy('--date', '2027-01-14');
   ok(r.code === 0 && /nothing due/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: nothing due means no notices');
+
+  // ---- a real (not --dry) run, with slack() and imessage_alan() swapped for printers before main() starts, so the
+  // pull and the log are exercised and nothing is sent. The guard on subprocess.run is the backstop: whatever tick.py
+  // grows into, a process rooted in node never reaches Messages.app or the Keychain (messages-tcc.md).
+  const REAL = `import subprocess, sys
+sys.path.insert(0, ${JSON.stringify(path.join(stage, 'deploy'))})
+real_run = subprocess.run
+def guarded(cmd, *a, **k):
+    assert cmd[0] not in ('/usr/bin/osascript', '/usr/bin/security'), 'a test reached for Messages or the Keychain'
+    return real_run(cmd, *a, **k)
+subprocess.run = guarded
+import tick
+assert callable(tick.slack) and callable(tick.imessage_alan)
+tick.slack = lambda text: print('SLACK: ' + text) or True
+tick.imessage_alan = lambda text, env: print('IMESSAGE: ' + text) or (True, 'fake')
+sys.exit(tick.main())
+`;
+  const tickreal = async (...a) => { fs.rmSync(tickLog, { force: true }); const o = await run('/usr/bin/python3', ['-B', '-c', REAL, ...a]); return { ...o, log: fs.existsSync(tickLog) ? fs.readFileSync(tickLog, 'utf8') : '' }; };
+  const git = (...a) => run('/usr/bin/git', ['-C', stage, '-c', 'user.name=test', '-c', 'user.email=test@example.com', ...a]);
+  const count = (s, re) => (s.match(re) || []).length;
+
+  // the kill switch, on a day a routine IS due: one log line, exit 0, nothing decided, nothing sent
+  fs.writeFileSync(path.join(stage, 'PAUSED'), '');
+  r = await tickreal('--date', '2027-01-08');
+  ok(r.code === 0 && /PAUSED file present: doing nothing/.test(r.log) && count(r.log, /\n/g) === 1 && r.stdout === '', 'tick.py: PAUSED present logs one line, exits 0, sends no notices: ' + r.stderr + r.stdout);
+  r = await tickpy('--date', '2027-01-08');
+  ok(r.code === 0 && /PAUSED file present: doing nothing/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: PAUSED present means no notices either');
+  fs.rmSync(path.join(stage, 'PAUSED'));
+
+  // the pull: a skipped or failed one means stale code on the mini, so it alerts; the two harmless skips do not
+  r = await tickreal('--date', '2027-01-14');
+  ok(r.code === 0 && /not a git checkout/.test(r.log) && /nothing due/.test(r.log) && r.stdout === '', 'tick.py: not a git checkout is no alert: ' + r.stderr + r.stdout);
+  await git('init', '-q');
+  r = await tickreal('--date', '2027-01-14');
+  ok(r.code === 0 && /no remote yet/.test(r.log) && r.stdout === '', 'tick.py: no remote yet is no alert: ' + r.stderr + r.stdout);
+  await git('init', '-q', '--bare', path.join(home, 'origin.git')); await git('remote', 'add', 'origin', path.join(home, 'origin.git'));
+  await git('add', '-A'); await git('commit', '-q', '-m', 'stage'); r = await git('push', '-q', '-u', 'origin', 'HEAD');
+  ok(r.code === 0, 'stage: a clean checkout with a remote to pull from: ' + r.stderr);
+  r = await tickreal('--date', '2027-01-14');
+  ok(r.code === 0 && /— pulled: /.test(r.log) && r.stdout === '', 'tick.py: a clean pull is no alert (and logs/ does not dirty the tree): ' + r.log + r.stdout);
+
+  fs.writeFileSync(path.join(stage, 'stray.txt'), 'left behind by some other tool');
+  r = await tickreal('--date', '2027-01-14');
+  ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 1 && /AUTOMATION FAILURE/.test(r.stdout) && /tree is dirty, pull skipped: \?\? stray\.txt/.test(r.stdout) && r.stdout.includes(stage), 'tick.py: a dirty tree posts one Slack alert naming the repo and the path: ' + r.stdout + r.stderr);
+  ok(/tree is dirty/.test(r.log) && /nothing due/.test(r.log), 'tick.py: a dirty tree is not fatal, the tick still decides');
+  r = await tickreal('--date', '2027-01-08');
+  ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 2 && count(r.stdout, /^IMESSAGE: /gm) === 1 && /say "run the board preflight"/.test(r.stdout), 'tick.py: a dirty tree on a due day sends the alert and still the due notice: ' + r.stdout + r.stderr);
+  r = await tickpy('--date', '2027-01-14');
+  ok(r.code === 0 && /nothing due/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: a dirty tree sends nothing, --dry pulls nothing');
+  fs.rmSync(path.join(stage, 'stray.txt'));
+
+  await git('remote', 'set-url', 'origin', path.join(home, 'gone.git'));
+  r = await tickreal('--date', '2027-01-14');
+  ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 1 && /could not update its code: PULL FAILED: .*gone\.git/.test(r.stdout) && r.stdout.includes(stage), 'tick.py: a failed pull posts one Slack alert with git\'s reason: ' + r.stdout + r.stderr);
+  ok(/PULL FAILED/.test(r.log) && /nothing due/.test(r.log), 'tick.py: a failed pull is not fatal, the tick still decides');
+
   fs.writeFileSync(path.join(home, '.rsd', 'board.env'), 'BOARD_SUPABASE_URL=\n');
   r = await tickpy(); ok(r.code === 1 && /AUTOMATION FAILURE/.test(r.stdout), 'tick.py --dry: missing env is a loud failure, exit 1');
   fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });

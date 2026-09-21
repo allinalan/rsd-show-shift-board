@@ -196,13 +196,23 @@ Update the registry entry's status from PREPARED to production in the same sitti
 moved to production. Dry runs say nothing is due 9/21 or 9/22 and `event-check` is due **Wed
 9/23**: that 07:00 run is the first proof of the iMessage (TCC) path. Read `logs/tick.log` after it.
 
-- **Arm first, then `touch PAUSED`**, in the order written above. Three `tick.py --dry` tests run
-  against the real repo root, so with `PAUSED` present they fail and `install.sh` refuses to arm.
-  It failed closed, which is right, but it reads as broken tests.
-- **The tree has to be clean or the mini stops updating.** `tick.py` pulls only over a clean tree
-  and says `tree is dirty, pull skipped` nowhere but the log's start line. Two untracked items
-  left by another agent tool (`AGENTS.md`, `.agents/`) would have blocked every pull from day one;
-  they are gitignored now. After any work on the mini, `git status --porcelain` must print nothing.
+- **Arm and `touch PAUSED` in either order** (fixed 2026-09-20, later the same night). Three
+  `tick.py --dry` tests used to run against the real repo root, so with `PAUSED` present they
+  failed and `install.sh` refused to arm: failed closed, but it read as broken tests. The tests
+  now run the launcher from a staged copy in a temp dir (`tick.py` takes its root from where it
+  sits), with its own `PAUSED`, `logs/` and `.git`, so the real kill switch or a dirty tree cannot
+  reach them. A new test covers the kill switch itself: `PAUSED` on a day a routine is due logs
+  one line, exits 0, sends nothing.
+- **The tree has to be clean or the mini stops updating, and now it says so.** `tick.py` pulls
+  only over a clean tree, and used to say `tree is dirty, pull skipped` nowhere but the log's
+  start line. Since 2026-09-20 a dirty tree or a failed pull (a hung one included: it used to
+  crash the run) posts `MAC MINI AUTOMATION FAILURE — rsd-show-shift-board tick could not update
+  its code: <reason>` to the Slack alert channel, naming the repo, the dirty paths or git's error,
+  and the log. Once per run, not fatal: the tick still decides and notifies on the code it has.
+  `not a git checkout` and `no remote yet` stay quiet; `--dry` and `--status` still send nothing.
+  Two untracked items left by another agent tool (`AGENTS.md`, `.agents/`) would have blocked
+  every pull from day one; they are gitignored now. After any work on the mini,
+  `git status --porcelain` must still print nothing: the alert is the net, not the habit.
 
 ## 8. Tell the coordinators, not the reps
 Matt and JP get the link and sign in. Reps keep using the Sheet until stage 3 of the roadmap.

@@ -10,7 +10,8 @@ launchd entry point for the RSD Show Shift Board's daily tick on the Mac mini.
 WHAT IT DOES (stage 1: decide and notify, nothing else)
 -------------------------------------------------------
   1. PAUSED file in the repo root -> log one line, exit 0. That file is the kill switch.
-  2. git pull --ff-only when the tree is clean (the mini holds no unique code).
+  2. git pull --ff-only when the tree is clean (the mini holds no unique code). A dirty tree or a
+     failed pull -> Slack alert naming the repo and the reason, then carry on: stale, not fatal.
   3. node scripts/board.mjs tick --json   -> which routines are due today. Deterministic.
   4. Nothing due -> one log line, exit 0. No Claude, no messages.
   5. Something due -> one Slack post and one iMessage to Alan naming the routine and the sentence
@@ -135,12 +136,26 @@ def git_pull():
     if not os.path.isdir(os.path.join(REPO, ".git")):
         return "not a git checkout, pull skipped"
     g = lambda *a: subprocess.run(["/usr/bin/git", "-C", REPO] + list(a), capture_output=True, text=True, timeout=90)  # noqa: E731
-    if g("remote").stdout.strip() == "":
-        return "no remote yet, pull skipped"
-    if g("status", "--porcelain").stdout.strip():
-        return "tree is dirty, pull skipped"
-    r = g("pull", "--ff-only")
+    try:
+        if g("remote").stdout.strip() == "":
+            return "no remote yet, pull skipped"
+        dirty = g("status", "--porcelain").stdout.strip().splitlines()
+        if dirty:
+            return "tree is dirty, pull skipped: " + ", ".join(d.strip() for d in dirty[:5]) + (" and %d more" % (len(dirty) - 5) if len(dirty) > 5 else "")
+        r = g("pull", "--ff-only")
+    except Exception as e:  # noqa: BLE001  (a hung pull times out here; it must not take the tick down with it)
+        return "PULL FAILED: %s: %s" % (type(e).__name__, str(e)[:200])
     return "pulled: " + (r.stdout.strip().splitlines() or ["ok"])[-1] if r.returncode == 0 else "PULL FAILED: " + r.stderr.strip()[:200]
+
+
+def stale_alert(pulled):
+    """The mini holds no unique code, so a skipped or failed pull means stale code until someone looks.
+    Loud, not fatal: the tick still decides and notifies on the code it has. Once a run, so once a day."""
+    if not pulled.startswith(("tree is dirty", "PULL FAILED")):
+        return
+    slack("MAC MINI AUTOMATION FAILURE — rsd-show-shift-board tick could not update its code: %s\n"
+          "%s keeps running the copy it has, which goes stale until this is fixed. Today's tick still ran.\n"
+          "Look: cd %s && git status && git pull --ff-only\nLog: %s" % (pulled, REPO, REPO, LOG))
 
 
 def status():
@@ -172,7 +187,9 @@ def main():
         log("PAUSED file present: doing nothing")
         return 0
     if not DRY:
-        log("tick start (pid %d) — %s" % (os.getpid(), git_pull()))
+        pulled = git_pull()
+        log("tick start (pid %d) — %s" % (os.getpid(), pulled))
+        stale_alert(pulled)
     env = read_env()
     if not env.get("BOARD_SUPABASE_URL") or not env.get("BOARD_SERVICE_KEY"):
         return fail("~/.rsd/board.env is missing BOARD_SUPABASE_URL or BOARD_SERVICE_KEY")
