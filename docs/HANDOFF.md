@@ -92,12 +92,12 @@ on the live page signed out and confirm the promoter's contact, phone and e-mail
   `seed/settings.json` still ships `meetings: []` on purpose: those dates come from
   `seed/private/go-live.md` and this repo is public.
 
-## 5. Editors and meeting dates  (done 2026-09-20)  ← step 6 is NEXT
+## 5. Editors and meeting dates  (done 2026-09-20)
 Values from Alan are in `seed/private/go-live.md` (gitignored). Run the three commands in it.
 Matt and JP are loaded as `coordinator`, Alan as `owner`; `meetings` holds the three 2027 dates, and
 `tick.py --dry --date 2027-01-06` correctly reports preflight due. They have NOT been told yet — that is step 8.
 
-## 6. Live verification, with Alan watching
+## 6. Live verification, with Alan watching  (signed-out half passed 2026-09-20 — signed-in half is NEXT)
 1. Plan mode → Alan's email → **ALAN** taps the magic link → lands back signed in as owner.
 2. A second browser, signed out: promoter contact, phone (tap to call) and e-mail show on an open
    event, nothing is editable; plan mode asks for sign-in; an email not on the list gets "not on
@@ -106,6 +106,28 @@ Matt and JP are loaded as `coordinator`, Alan as `owner`; `meetings` holds the t
 4. Two windows side by side: assign a shift in one; it appears in the other without refresh.
 5. `node scripts/board.mjs changelog --limit 3` shows those writes with Alan's email as actor.
 If 4 fails, check that `schema.sql`'s realtime block ran (Database → Replication).
+
+**Run of 2026-09-20 — the signed-out half passed; the signed-in half waits on Alan's first sign-in.**
+
+- Passed, signed out, against the live page: it reads Supabase (six REST reads, no `seed/` fetch,
+  header says `live`); an event with a promoter on file shows contact, phone as a `tel:` link and
+  e-mail as a `mailto:` link, all three equal to the database by hash; an event with none says
+  `not listed yet`; an open card holds no input and a slot click does nothing; Plan mode opens the
+  sign-in panel, and Cancel switches Plan mode back off and hides the edit toolbar.
+- Passed, server side: row-level security is on for all nine tables, every write policy is
+  `is_editor()` (`editors` is `is_owner()`), and `supabase_realtime` publishes `events`,
+  `event_contacts`, `history`, `never_work`, `overrides`, `settings` — the realtime block ran.
+- Not yet run: 1, 3, 4, 5. `auth.users` was empty and the auth log held no OTP request: nobody has
+  ever signed in, so magic-link delivery is unproven.
+- **Supabase's built-in mailer only delivers to addresses on the organization's Team list**, and
+  only a couple of messages an hour. Any other address gets `Email address not authorized` in the
+  sign-in panel — it never reaches "not on the editor list yet", and **Matt and JP cannot sign in
+  at step 8** until either they are invited to the Supabase org (Organization → Team) or a custom
+  SMTP sender is set (Authentication → Emails → SMTP Settings). If Alan's own link fails the same
+  way, his Supabase login is a different address from his editor address. The "email not on the
+  list" check in 2 needs a mailbox the mailer will deliver to, so it waits on the same decision.
+- The first sign-in creates the login, so Alan requests his own link, on the device he will edit
+  from. The test event is `2026-mohave-county-fair-r68`; its pre-edit copy is in `backups/`.
 
 ## 7. Arm the daily tick
 ```
