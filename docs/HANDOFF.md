@@ -97,7 +97,7 @@ Values from Alan are in `seed/private/go-live.md` (gitignored). Run the three co
 Matt and JP are loaded as `coordinator`, Alan as `owner`; `meetings` holds the three 2027 dates, and
 `tick.py --dry --date 2027-01-06` correctly reports preflight due. They have NOT been told yet — that is step 8.
 
-## 6. Live verification, with Alan watching  (passed 2026-09-20, one sub-check open — step 7 is NEXT)
+## 6. Live verification, with Alan watching  (passed 2026-09-20, one sub-check open)
 1. Plan mode → Alan's email → **ALAN** taps the magic link → lands back signed in as owner.
 2. A second browser, signed out: promoter contact, phone (tap to call) and e-mail show on an open
    event, nothing is editable; plan mode asks for sign-in; an email not on the list gets "not on
@@ -182,7 +182,7 @@ list exists to keep on the mini.
    breaks with `Couldn't send: …`, the key was revoked or the domain lost verification: make a new
    key, paste it into the same field.
 
-## 7. Arm the daily tick
+## 7. Arm the daily tick  (done 2026-09-20 21:14 — step 8 is NEXT)
 ```
 ./install.sh --arm
 touch PAUSED && launchctl start com.allinalan.rsd-board-tick && sleep 3 && tail -2 logs/tick.log && rm PAUSED
@@ -190,6 +190,19 @@ touch PAUSED && launchctl start com.allinalan.rsd-board-tick && sleep 3 && tail 
 The log must say `PAUSED file present`. TCC for the iMessage can only be proven by a real launchd
 run on a day something is due (first one: Wednesday). Read `logs/tick.log` after it.
 Update the registry entry's status from PREPARED to production in the same sitting.
+
+**Run of 2026-09-20.** Preflight all OK; armed; `launchctl start` with `PAUSED` on logged
+`PAUSED file present: doing nothing`, exit code 0, nothing on stderr; `PAUSED` removed; registry
+moved to production. Dry runs say nothing is due 9/21 or 9/22 and `event-check` is due **Wed
+9/23**: that 07:00 run is the first proof of the iMessage (TCC) path. Read `logs/tick.log` after it.
+
+- **Arm first, then `touch PAUSED`**, in the order written above. Three `tick.py --dry` tests run
+  against the real repo root, so with `PAUSED` present they fail and `install.sh` refuses to arm.
+  It failed closed, which is right, but it reads as broken tests.
+- **The tree has to be clean or the mini stops updating.** `tick.py` pulls only over a clean tree
+  and says `tree is dirty, pull skipped` nowhere but the log's start line. Two untracked items
+  left by another agent tool (`AGENTS.md`, `.agents/`) would have blocked every pull from day one;
+  they are gitignored now. After any work on the mini, `git status --porcelain` must print nothing.
 
 ## 8. Tell the coordinators, not the reps
 Matt and JP get the link and sign in. Reps keep using the Sheet until stage 3 of the roadmap.
