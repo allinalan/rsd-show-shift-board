@@ -1338,7 +1338,7 @@ function card(e){
       ${(()=>{const n=seriesOf(e).length; return n>1?`<span class="acc acc-series" title="Repeats ${n} times this year — details are shared">&#8635; ${n} dates</span>`:'';})()}
       ${mixed()&&e.source==='sheet'?'<span class="src">sheet</span>':''}
       ${vcflag}
-      <span class="mono">${span(e)}</span>${e.datesEstimated?' <span class="est">est.</span>':''}${e.datesStale&&!e.datesEstimated?' <span class="est" title="The Sheet row still carries a previous year\'s date; days were placed from the weekend header">est.</span>':''}
+      <span class="mono">${span(e)}</span>${e.datesEstimated?' <span class="est">est.</span>':''}${e.datesStale&&!e.datesEstimated?' <span class="est" title="The Sheet row still carries a previous year\'s date; days were placed from the weekend header">est.</span>':''}${e.datesNote&&!e.datesEstimated?` <span class="est" title="${esc(e.datesNote)}">${e.datesSource&&e.datesSource.basis==='vc'?'VC dates':'checked'}</span>`:''}
       ${e.cityState?`<span class="sep">&bull;</span><span>${esc(e.cityState)}</span>`:''}
      </span>
      ${resultsLine(e)}
@@ -1431,6 +1431,7 @@ function bodyHtml(e){
     ${P?'':d('Booking status',e.status)}
     ${P?'':d('Tier',t)}
     ${P?'':d('Who can work it',ac==='Unassigned'?'no access set':ac)}
+    ${e.datesNote?d('Dates',e.datesNote):''}
     ${P?'':d('Venue',e.location)}
     ${P?'':d('City, state',e.cityState)}
     ${(()=>{const r=results(e); return d('Best ever',r.best?fk(r.best.cpo)+(r.best.year?' in '+r.best.year:'')+(r.best.fromSheet?' (from the sheet)':''):(r.isNew?'New show':''),true)+d('Last year ('+(yearOf(e)-1)+')',r.last?fk(r.last.cpo)+(r.last.orders?' · '+r.last.orders+' orders':''):'',true);})()}
@@ -1474,7 +1475,8 @@ function withBooths(e,fn){ const booths=JSON.parse(JSON.stringify(e.booths)); fn
 function recomputeDates(e,startISO){
   const booths=withBooths(e,bs=>bs.forEach(b=>{b.dates=dayDates(b.days,startISO);}));
   const all=booths.flatMap(b=>b.dates).filter(Boolean).sort();
-  return {startDate:startISO,endDate:all.length?all[all.length-1]:startISO,dates:dayDates(e.days||[],startISO),booths,weekend:fridayKey(startISO),datesEstimated:false};
+  // a date set by hand replaces whatever the date research noted about the old dates
+  return {startDate:startISO,endDate:all.length?all[all.length-1]:startISO,dates:dayDates(e.days||[],startISO),booths,weekend:fridayKey(startISO),datesEstimated:false,datesNote:'',datesSource:null};
 }
 
 /* ---- roll forward ---- */

@@ -1,6 +1,6 @@
 ---
 name: board-tick
-description: "The daily entry point for the RSD Show Shift Board routines. Run it once a day (launchd on the Mac mini, or by hand): it asks the board which routines are due today — pre-meeting research 7 days before a shift-picking meeting (hand-run) — and runs what is not already unattended. The booking sweep (days 2-8 after a meeting) and the Wednesday Event Check run themselves from rsd-shift-picking. Use it whenever Alan says 'run the tick', 'what's due today on the board', 'run today's board routines', or when a scheduled job invokes it."
+description: "The daily entry point for the RSD Show Shift Board routines. Run it once a day (launchd on the Mac mini, or by hand): it asks the board which routines are due today and runs what is not already unattended. The date research (7 days before a shift-picking meeting), the preflight (2 days before), the booking sweep (days 2-8 after) and the Wednesday Event Check run themselves from rsd-shift-picking. Use it whenever Alan says 'run the tick', 'what's due today on the board', 'run today's board routines', or when a scheduled job invokes it."
 ---
 
 # board-tick
@@ -16,7 +16,8 @@ returns `{ date, due: [{ routine, meeting?, note }] }`. Then, in this order:
 
 | routine | run |
 |---|---|
-| `preflight` | the **board-preflight** skill (7 days before a meeting) |
+| `date-research` | runs itself (`"auto": true`, 7 days before a meeting: rsd-shift-picking com.rsd.preflight researches every upcoming show's dates) |
+| `preflight` | runs itself (`"auto": true`, 2 days before a meeting: rsd-shift-picking com.rsd.preflight). Do not run the **board-preflight** skill unless Alan asks for the hand-run fallback |
 | `booking-sweep` | runs itself (`"auto": true`, days 2-8 after a meeting: rsd-shift-picking com.rsd.bookingsweep). Do not run the **board-booking-sweep** skill unless Alan asks for the hand-run fallback |
 | `event-check` | runs itself (rsd-shift-picking's Wednesday 08:00 job); **board-event-check** is the hand-run fallback |
 

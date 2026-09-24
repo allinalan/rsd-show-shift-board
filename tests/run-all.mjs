@@ -90,7 +90,10 @@ try {
   // ---- tick
   T('settings').set('division', { meetings: ['2027-01-15'] });
   const due = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due.map(x => x.routine);
-  ok((await due('2027-01-08')).join() === 'preflight', 'tick: preflight 7 days before a meeting');
+  const dueFullEarly = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due;
+  ok((await due('2027-01-08')).join() === 'date-research', 'tick: the date research 7 days before a meeting');
+  ok((await due('2027-01-13')).join() === 'preflight', 'tick: the preflight 2 days before a meeting');
+  ok((await dueFullEarly('2027-01-08'))[0].auto === true && (await dueFullEarly('2027-01-13'))[0].auto === true, 'tick: both run themselves (auto)');
   ok((await due('2027-01-16')).length === 0, 'tick: nothing the day after a meeting (the sweep waits a day for the picks to reach the board)');
   const dueFull = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due;
   let bs = (await dueFull('2027-01-17')).find(x => x.routine === 'booking-sweep');
@@ -98,7 +101,7 @@ try {
   bs = (await dueFull('2027-01-23')).find(x => x.routine === 'booking-sweep');
   ok(bs && bs.followUp === true && bs.day === 8, 'tick: the booking sweep follows up through day 8');
   ok((await due('2027-01-24')).length === 0, 'tick: and not on day 9');
-  ok((await due('2027-01-13')).length === 0, 'tick: Wednesday is no longer "due" (the event check runs unattended at 08:00)');
+  ok((await due('2027-01-06')).length === 0, 'tick: Wednesday is no longer "due" (the event check runs unattended at 08:00)');
   ok((await due('2027-01-14')).length === 0, 'tick: nothing on an ordinary Thursday');
   ok((await due('2027-01-17')).join() === 'booking-sweep,freshmen-roster', 'tick: freshmen roster two days after a January meeting (the sweep\'s first day too)');
   T('settings').set('division', { meetings: ['2027-04-28'] });
@@ -125,7 +128,7 @@ try {
   ok(JSON.stringify(T('settings').get('division').meetings) === '["2027-01-15"]', 'seed: keeps meeting dates the seed file does not carry');
   ok(T('settings').get('division').name === 'Rising Sun Division', 'seed: a filled field in the seed still overwrites the database');
   ok(/kept \d+ field/.test(r.stderr), 'seed: says out loud which fields it kept');
-  ok((await due('2027-01-08')).join() === 'preflight', 'seed: tick still reports preflight due afterwards');
+  ok((await due('2027-01-08')).join() === 'date-research', 'seed: tick still reports the date research due afterwards');
 
   // ---- deploy/tick.py --dry: decides and prints, never sends. HOME is the temp dir, so it reads a fake board.env.
   // The launcher runs from a staged copy: tick.py takes its root from where it sits, so the stage has its own
@@ -137,8 +140,10 @@ try {
   for (const f of ['deploy/tick.py', 'scripts/board.mjs', '.gitignore']) { fs.mkdirSync(path.dirname(path.join(stage, f)), { recursive: true }); fs.copyFileSync(path.join(REPO, f), path.join(stage, f)); }
   const run = (bin, args) => new Promise(r => execFile(bin, args, { env: { PATH: process.env.PATH, HOME: home } }, (err, stdout, stderr) => r({ code: err ? err.code : 0, stdout, stderr })));
   const tickpy = (...a) => run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', ...a]);
+  r = await tickpy('--date', '2026-12-28');
+  ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /WOULD iMESSAGE ALAN/.test(r.stdout) && /say "set up the Jan-May changeover for the board"/.test(r.stdout), 'tick.py --dry: a due routine produces one Slack + one iMessage notice: ' + r.stderr);
   r = await tickpy('--date', '2027-01-08');
-  ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /WOULD iMESSAGE ALAN/.test(r.stdout) && /say "run the board preflight"/.test(r.stdout), 'tick.py --dry: a due routine produces one Slack + one iMessage notice: ' + r.stderr);
+  ok(r.code === 0 && /due, runs itself: date-research/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: the date research runs itself, no notice: ' + r.stdout);
   r = await tickpy('--date', '2027-01-14');
   ok(r.code === 0 && /nothing due/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: nothing due means no notices');
   r = await tickpy('--date', '2027-01-20');
@@ -190,8 +195,8 @@ sys.exit(tick.main())
   r = await tickreal('--date', '2027-01-14');
   ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 1 && /AUTOMATION FAILURE/.test(r.stdout) && /tree is dirty, pull skipped: \?\? stray\.txt/.test(r.stdout) && r.stdout.includes(stage), 'tick.py: a dirty tree posts one Slack alert naming the repo and the path: ' + r.stdout + r.stderr);
   ok(/tree is dirty/.test(r.log) && /nothing due/.test(r.log), 'tick.py: a dirty tree is not fatal, the tick still decides');
-  r = await tickreal('--date', '2027-01-08');
-  ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 2 && count(r.stdout, /^IMESSAGE: /gm) === 1 && /say "run the board preflight"/.test(r.stdout), 'tick.py: a dirty tree on a due day sends the alert and still the due notice: ' + r.stdout + r.stderr);
+  r = await tickreal('--date', '2026-12-28');
+  ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 2 && count(r.stdout, /^IMESSAGE: /gm) === 1 && /say "set up the Jan-May changeover for the board"/.test(r.stdout), 'tick.py: a dirty tree on a due day sends the alert and still the due notice: ' + r.stdout + r.stderr);
   r = await tickpy('--date', '2027-01-14');
   ok(r.code === 0 && /nothing due/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: a dirty tree sends nothing, --dry pulls nothing');
   fs.rmSync(path.join(stage, 'stray.txt'));
@@ -535,7 +540,7 @@ sys.exit(tick.main())
     const before = JSON.stringify(T('events').get('2026-f1'));
     r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--exclude-file', exFile, '--meeting', '2026-09-29', '--date', '2026-10-01');
     const dry = JSON.parse(fs.readFileSync(path.join(outd, 'booking-sweep', 'latest.json'), 'utf8'));
-    ok(r.code === 0 && dry.mode === 'dry' && dry.fixes.length === 1 && !dry.fixes[0].applied && JSON.stringify(T('events').get('2026-f1')) === before, 'booking-sweep dry: lists the date fix and writes nothing: ' + r.stderr.slice(0, 200));
+    ok(r.code === 0 && dry.mode === 'dry' && JSON.stringify(T('events').get('2026-f1')) === before, 'booking-sweep dry: writes nothing: ' + r.stderr.slice(0, 200));
     r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--exclude-file', exFile, '--meeting', '2026-09-29', '--date', '2026-10-01', '--apply');
     const out = JSON.parse(fs.readFileSync(path.join(outd, 'booking-sweep', 'latest.json'), 'utf8'));
     const ids = k => out[k].map(x => x.id).sort().join();
@@ -546,28 +551,145 @@ sys.exit(tick.main())
     ok(ids('holds') === '2026-d1,2026-r2,2026-r3', 'booking-sweep: estimated dates, a show days away and a same-name VC record at other dates are held: ' + ids('holds'));
     ok(out.holds.find(x => x.id === '2026-d1').why.join().includes('00400005'), 'booking-sweep: the duplicate hold names the VC record');
     ok(ids('email') === '2026-p1' && out.email[0].vcNumber === '00400001' && out.email[0].datesDiffer === false, 'booking-sweep: a Prospective VC record goes on the Olean email');
-    ok(out.fixes.length === 1 && out.fixes[0].id === '2026-f1' && out.fixes[0].applied && out.fixes[0].shift === 7, 'booking-sweep: a booked show a week off on the board is fixed');
-    const F = T('events').get('2026-f1');
-    ok(F.weekend === '2026-10-23' && F.startDate === '2026-10-23' && F.endDate === '2026-10-25' && F.booths[0].dates.join() === '2026-10-23,2026-10-24,2026-10-25' && F.dates.join() === '2026-10-23,2026-10-24,2026-10-25', 'booking-sweep: every date on the fixed show moved to VC\'s run');
-    ok(F.booths[0].shifts[0].slots.map(x => x.rep).join() === 'Cameron,Eli,Sarah' && F.booths[0].days.join() === 'Friday,Saturday,Sunday' && F.datesMoved.from.start === '2026-10-16' && F.datesEstimated === false, 'booking-sweep: the shifts and day names are untouched, and the move is recorded');
-    ok(ids('questions') === '2026-q1,2026-q2', 'booking-sweep: a partial-weekend difference and a VC date on a show VC has not booked are questions: ' + ids('questions'));
-    ok(!out.fixes.some(x => x.id === '2026-c1') && !out.questions.some(x => x.id === '2026-c1'), 'booking-sweep: board selling days inside VC\'s run (a set-up day in VC) are not a date problem');
+    ok(JSON.stringify(T('events').get('2026-f1')) === before && out.written === false, 'booking-sweep: never writes dates any more (the date research does, before it runs)');
+    ok(ids('questions') === '2026-f1,2026-q1,2026-q2' && /could not settle/.test(out.questions.find(x => x.id === '2026-f1').why), 'booking-sweep: a date disagreement still standing is a question for Alan: ' + ids('questions'));
+    ok(!out.questions.some(x => x.id === '2026-c1'), 'booking-sweep: board selling days inside VC\'s run (a set-up day in VC) are not a date problem');
     ok(out.claimedVc.includes('00400006') && !out.claimedVc.includes('00092192'), 'booking-sweep: the VC numbers the board already claims travel with the result');
     ok(ids('pending') === '2026-s1' && ids('excluded') === '2026-x1', 'booking-sweep: a request already with Olean waits; Alan\'s direct shows are left out');
     ok((fs.statSync(path.join(outd, 'booking-sweep', 'latest.json')).mode & 0o777) === 0o600, 'booking-sweep: the output (it carries promoter contacts) is mode 600');
     const md = fs.readFileSync(path.join(outd, 'reports', 'booking-sweep-2026-10-01.md'), 'utf8');
     ok(!md.includes('555-') && !md.includes('jane@') && md.includes('Pinecone Craft Fair'), 'booking-sweep: the report carries no contacts');
-    r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--exclude-file', exFile, '--date', '2026-10-01', '--apply');
-    ok(r.code === 0 && JSON.parse(fs.readFileSync(path.join(outd, 'booking-sweep', 'latest.json'), 'utf8')).fixes.length === 0, 'booking-sweep: a second run finds nothing left to move');
-    T('events').set('2026-f1', JSON.parse(before));
-    r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--date', '2026-10-01', '--apply', '--max-fixes', '0');
-    ok(r.code === 5 && T('events').get('2026-f1').weekend === '2026-10-16', 'booking-sweep: more date fixes than the cap refuses them all (exit 5) and moves nothing');
+    const resFile = path.join(home, 'bs-research.json');
+    fs.writeFileSync(resFile, JSON.stringify({ date: '2026-10-01', label: 'booking-sweep', vcDisagrees: [{ id: '2026-f1', name: 'Shifted Show', web: { start: '2026-10-16', end: '2026-10-18' }, source: 'https://www.shiftedshow.org/dates' }],
+      failed: [{ id: '2026-q1', name: 'Off By One Fest', why: 'the lookup failed (API 529)' }] }));
+    r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--exclude-file', exFile, '--research', resFile, '--meeting', '2026-09-29', '--date', '2026-10-01', '--apply');
+    const withR = JSON.parse(fs.readFileSync(path.join(outd, 'booking-sweep', 'latest.json'), 'utf8'));
+    const qf = withR.questions.find(x => x.id === '2026-f1'), qq = withR.questions.find(x => x.id === '2026-q1');
+    ok(r.code === 0 && qf.kind === 'vc-wrong' && /shiftedshow\.org says Oct 16-18, which is what the board has: VC is the one to fix/.test(qf.why), 'booking-sweep --research: when the show\'s own page backs the board, the question says VC is wrong: ' + (qf && qf.why));
+    ok(/lookup failed \(the lookup failed \(API 529\)\), so nothing was changed/.test(qq.why), 'booking-sweep --research: a failed lookup is named as such: ' + (qq && qq.why));
+    fs.writeFileSync(resFile, JSON.stringify({ date: '2026-09-30', label: 'booking-sweep', vcDisagrees: [{ id: '2026-f1', web: { start: '2026-10-16', end: '2026-10-18' }, source: 'https://x.org' }] }));
+    r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--exclude-file', exFile, '--research', resFile, '--meeting', '2026-09-29', '--date', '2026-10-01', '--apply');
+    ok(/could not settle/.test(JSON.parse(fs.readFileSync(path.join(outd, 'booking-sweep', 'latest.json'), 'utf8')).questions.find(x => x.id === '2026-f1').why), 'booking-sweep --research: a research result from another day is ignored');
     r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--date', '2026-10-02', '--apply');
     ok(r.code === 4 && T('events').get('2026-f1').weekend === '2026-10-16', 'booking-sweep: an event check from another day is not swept on (exit 4)');
-    const { sellingRun, weekShift } = await import(path.join(REPO, 'scripts/booking-sweep.mjs'));
+    const { sellingRun } = await import(path.join(REPO, 'scripts/booking-sweep.mjs'));
     ok(sellingRun({ weekend: '2026-10-16', booths: [{ days: ['Thursday SE', 'Friday', 'Saturday'], dates: ['2026-10-15', '2026-10-16', '2026-10-17'] }] }).start === '2026-10-16', 'sellingRun: a set-up day is not a selling day');
     ok(sellingRun({ weekend: '2027-01-29', booths: [{ days: ['Friday'], dates: ['2024-01-26'] }] }) === null, 'sellingRun: stale day cells a year off are not trusted');
-    ok(weekShift({ start: '2026-10-16', end: '2026-10-18' }, { start: '2026-10-30', end: '2026-11-01' }) === 14 && weekShift({ start: '2026-10-16', end: '2026-10-18' }, { start: '2026-10-17', end: '2026-10-18' }) === null, 'weekShift: whole weeks of the same length only');
+  }
+
+  // ---- lib/dates.mjs planMove: moving a show to its true dates, shifts and all
+  {
+    const { planMove, fridayKey, weekday } = await import(path.join(REPO, 'scripts/lib/dates.mjs'));
+    const show = (days, dates, reps, extra = {}) => ({ weekend: fridayKey(dates.find(d => d) || '2026-10-09'), days, dates, booths: [{ label: '', days, dates, shifts: [{ label: 'Shift 1', slots: reps.map(r => ({ rep: r, ft: [] })) }] }], ...extra });
+    let p = planMove(show(['Saturday', 'Sunday'], ['2026-10-10', '2026-10-11'], ['Eli', 'Sarah']), { start: '2026-10-09', end: '2026-10-10' });
+    ok(p.patch.booths[0].days.join() === 'Friday,Saturday' && p.patch.booths[0].dates.join() === '2026-10-09,2026-10-10' && p.patch.booths[0].shifts[0].slots.map(x => x.rep).join() === ',Eli', 'planMove: Sat-Sun to Fri-Sat keeps Saturday\'s rep, adds an empty Friday');
+    ok(p.affected.length === 1 && p.affected[0].rep === 'Sarah' && p.affected[0].to === null && p.removed.join() === '2026-10-11' && p.added.join() === '2026-10-09', 'planMove: the Sunday rep is reported, her day is gone');
+    ok(p.patch.startDate === '2026-10-09' && p.patch.endDate === '2026-10-10' && p.patch.weekend === '2026-10-09' && p.patch.datesEstimated === false, 'planMove: start, end, weekend and the estimate flag follow');
+    p = planMove(show(['Friday', 'Saturday', 'Sunday', 'Monday SE'], ['2026-10-16', '2026-10-17', '2026-10-18', '2026-10-19'], ['Cameron', 'Eli', 'Sarah', 'Reed']), { start: '2026-10-23', end: '2026-10-25' });
+    ok(p.patch.booths[0].dates.join() === '2026-10-23,2026-10-24,2026-10-25,2026-10-26' && p.patch.booths[0].days.join() === 'Friday,Saturday,Sunday,Monday SE' && p.patch.booths[0].shifts[0].slots.map(x => x.rep).join() === 'Cameron,Eli,Sarah,Reed', 'planMove: a whole week later carries every rep and the tear-down day');
+    ok(p.affected.map(a => `${a.rep}:${a.to}`).join() === 'Cameron:2026-10-23,Eli:2026-10-24,Sarah:2026-10-25', 'planMove: every selling-day rep is told the new date (the SE rep is not)');
+    p = planMove(show(['Saturday', 'Sunday'], ['2027-02-27', '2027-02-28'], ['Eli', 'Sarah']), { start: '2027-03-05', end: '2027-03-07' });
+    ok(p.patch.booths[0].days.join() === 'Friday,Saturday,Sunday' && p.patch.booths[0].shifts[0].slots.map(x => x.rep).join() === ',Eli,Sarah' && p.added.join() === '2027-03-05', 'planMove: to a longer run the next week, reps keep their weekday and the new day is empty');
+    ok(planMove(show(['Saturday'], [null], ['Eli']), { start: '2026-10-10', end: '2026-10-10' }).error, 'planMove: a show with no usable days is not moved');
+    ok(weekday('2026-10-09') === 'Friday' && fridayKey('2026-10-11') === '2026-10-09' && fridayKey('2026-10-12') === '2026-10-16', 'dates: weekday names and the board\'s Friday key');
+  }
+
+  // ---- board-research end to end: targets, the date rule, the preflight's fields, the cap
+  {
+    for (const t of Object.keys(db)) db[t].clear();
+    const addD = (iso, n) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+    const ev = (id, name, first, n, reps, extra = {}) => { const dates = Array.from({ length: n }, (_, i) => addD(first, i)); const W = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const days = dates.map(d => W[new Date(d + 'T12:00:00Z').getUTCDay()]);
+      const wk = (() => { const off = (new Date(first + 'T12:00:00Z').getUTCDay() + 6) % 7; return addD(first, 4 - off); })();
+      T('events').set(id, { year: 2026, name, weekend: wk, startDate: dates[0], endDate: dates[n - 1], days, dates, booths: [{ label: '', days, dates, shifts: [{ label: 'Shift 1', slots: days.map((_, i) => ({ rep: reps[i] || '', ft: [] })) }] }], status: 'Booked', ...extra }); };
+    ev('2026-m1', 'Heber Test Oktoberfest', '2026-10-10', 2, ['Eli', 'Sarah'], { vcNumber: '00500001' });
+    ev('2026-m2', 'Havasu Test Craft Show', '2026-11-13', 2, ['Reed', 'Kendall'], { vcNumber: '00500002' });
+    ev('2026-m3', 'Page Test Balloon Fest', '2026-11-07', 2, ['Eli'], { vcNumber: '00500003' });
+    ev('2026-c1', 'Estimated Test Fair', '2026-12-05', 2, [], { datesEstimated: true, status: 'Prospective' });
+    ev('2026-x1', 'Cancelled Test Fest', '2026-12-12', 2, ['Reed'], { status: 'Prospective' });
+    ev('2026-p1', 'Promoter Test Market', '2026-12-19', 1, [], { status: 'Prospective' });
+    T('event_contacts').set('2026-p1', { contact: 'Existing Person' });
+    const vcRows = [
+      { eventNumber: '00500001', name: 'Heber Test Oktoberfest', status: 'Booked', startDate: '2026-10-09', endDate: '2026-10-10' },
+      { eventNumber: '00500002', name: 'Havasu Test Craft Show', status: 'Booked', startDate: '2026-11-14', endDate: '2026-11-15' },
+      { eventNumber: '00500003', name: 'Page Test Balloon Fest', status: 'Booked', startDate: '2026-11-06', endDate: '2026-11-07' },
+      ...Array.from({ length: 22 }, (_, i) => ({ eventNumber: String(510000 + i), name: `Filler Show ${String.fromCharCode(65 + i)}`, status: 'Booked', startDate: '2027-01-0' + (1 + (i % 9)), endDate: '2027-01-0' + (1 + (i % 9)) }))];
+    const vcFile = path.join(home, 'br-vc.json'); fs.writeFileSync(vcFile, JSON.stringify({ coordinator: 'Matt Foss', rows: vcRows }));
+    const outd = path.join(home, 'br-out');
+    const envB = { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_OUT_DIR: outd };
+    const node = (script, ...a) => new Promise(res => execFile(process.execPath, [path.join(REPO, script), ...a], { env: envB }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    r = await node('scripts/event-check.mjs', '--vc', vcFile, '--apply', '--date', '2026-10-01');
+    ok(r.code === 0, 'board-research fixture: the event check ran: ' + r.stderr.slice(0, 200));
+    const check = path.join(outd, 'event-check', 'latest.json'), tfile = path.join(home, 'br-targets.json'), mfile = path.join(home, 'br-mismatch.json');
+    r = await node('scripts/board-research.mjs', 'targets', '--mode', 'mismatches', '--check', check, '--out', mfile, '--date', '2026-10-01');
+    const mm = JSON.parse(fs.readFileSync(mfile, 'utf8'));
+    ok(r.code === 0 && mm.targets.map(x => x.id).sort().join() === '2026-m1,2026-m2,2026-m3', 'board-research targets: the shows whose dates disagree with VC: ' + mm.targets.map(x => x.id).join());
+    r = await node('scripts/board-research.mjs', 'targets', '--mode', 'full', '--check', check, '--out', tfile, '--date', '2026-10-01');
+    const tg = JSON.parse(fs.readFileSync(tfile, 'utf8'));
+    ok(r.code === 0 && tg.count === 6 && tg.targets[0].mismatch && tg.targets.find(x => x.id === '2026-p1').contact === 'Existing Person' && (fs.statSync(tfile).mode & 0o777) === 0o600, 'board-research targets (full): every upcoming show, disagreements first, contacts included, mode 600');
+    const found = (s, e2, url, extra = {}) => ({ ok: true, result: { dates: { found: true, start: s, end: e2, confidence: 'official', sourceUrl: url, evidence: `the show runs ${s} to ${e2}`, cancelled: false, notYetAnnounced: false, note: '' }, summary: '', ...extra } });
+    const none = { ok: true, result: { dates: { found: false, start: '', end: '', confidence: 'none', sourceUrl: '', evidence: '', cancelled: false, notYetAnnounced: false, note: '' }, summary: '' } };
+    const research = { results: {
+      '2026-m1': found('2026-10-09', '2026-10-10', 'https://www.hebertest.org/oktoberfest'),
+      '2026-m2': none,
+      '2026-m3': { ok: false, error: 'the lookup failed (API 529)' },
+      '2026-c1': found('2026-12-05', '2026-12-06', 'https://estimatedtestfair.com/'),
+      '2026-x1': { ok: true, result: { dates: { found: false, start: '', end: '', confidence: 'official', sourceUrl: 'https://cancelledtest.org/news', evidence: 'The 2026 festival is cancelled', cancelled: true, notYetAnnounced: false, note: '' }, summary: '' } },
+      '2026-p1': found('2026-12-19', '2026-12-19', 'https://promotertest.com/market', {
+        venue: { value: 'Test Park Pavilion', confidence: 'official', sourceUrl: 'https://promotertest.com/market' },
+        address: { street: '12 Park Rd', city: 'Mesa Verde', state: 'AZ', zip: '85001', confidence: 'official', sourceUrl: 'https://promotertest.com/market' },
+        promoter: { name: 'Promoter Test LLC', contactName: 'New Person', phone: '(480) 555-0199', email: 'promoter@example.com', website: 'https://promotertest.com', confidence: 'official', sourceUrl: 'https://promotertest.com/vendors' },
+        indoorOutdoor: { value: 'outdoor', evidence: 'all booths are outdoors on the lawn', sourceUrl: 'https://promoterest.com/vendors' },
+        boothCost: { amount: '150', note: '10x10', sourceUrl: 'https://promotertest.com/vendors' },
+        application: { url: 'https://promotertest.com/apply', deadline: '2026-11-15', confidence: 'official', sourceUrl: 'https://promotertest.com/apply' } }),
+    } };
+    const rfile = path.join(home, 'br-research.json'); fs.writeFileSync(rfile, JSON.stringify(research));
+    const before = JSON.stringify(T('events').get('2026-m1'));
+    r = await node('scripts/board-research.mjs', 'apply', '--targets', tfile, '--research', rfile, '--mode', 'full', '--label', 'preflight', '--date', '2026-10-01');
+    let out = JSON.parse(fs.readFileSync(path.join(outd, 'research', 'latest.json'), 'utf8'));
+    ok(r.code === 0 && !out.written && JSON.stringify(T('events').get('2026-m1')) === before && out.changes.length === 2, 'board-research apply (dry): lists the moves, writes nothing: ' + r.stderr.slice(0, 200));
+    r = await node('scripts/board-research.mjs', 'apply', '--targets', tfile, '--research', rfile, '--mode', 'full', '--label', 'preflight', '--date', '2026-10-01', '--apply');
+    out = JSON.parse(fs.readFileSync(path.join(outd, 'research', 'latest.json'), 'utf8'));
+    const M1 = T('events').get('2026-m1'), M2 = T('events').get('2026-m2');
+    ok(r.code === 0 && out.written, 'board-research apply: exits 0 and writes: ' + r.stderr.slice(0, 300));
+    ok(M1.booths[0].days.join() === 'Friday,Saturday' && M1.booths[0].shifts[0].slots.map(x => x.rep).join() === ',Eli' && /per hebertest\.org/.test(M1.datesNote) && M1.datesSource.basis === 'researched', 'board-research: found online -> the web\'s dates win, noted on the board');
+    const c1 = out.changes.find(x => x.id === '2026-m1');
+    ok(c1.affected.length === 1 && c1.affected[0].rep === 'Sarah' && c1.affected[0].to === null && c1.applied, 'board-research: the rep whose day is gone is reported for the text');
+    ok(c1.after && c1.after.first === '2026-10-09' && c1.after.startDate === '2026-10-09' && c1.after.endDate === '2026-10-10' && c1.vcRun && c1.vcRun.start === '2026-10-09', 'board-research: a move records the show as it now stands (what reps are told is compared against it)');
+    ok(M2.booths[0].dates.join() === '2026-11-14,2026-11-15' && /Dates per VectorConnect 00500002; not confirmed online/.test(M2.datesNote) && M2.datesSource.basis === 'vc', 'board-research: not found online -> VC\'s dates, with a note on the board (Alan\'s rule)');
+    ok(T('events').get('2026-m3').booths[0].dates.join() === '2026-11-07,2026-11-08' && out.failed.some(x => x.id === '2026-m3'), 'board-research: a failed lookup changes nothing (it is not "not found")');
+    const C1 = T('events').get('2026-c1');
+    ok(C1.datesEstimated === false && /confirmed on estimatedtestfair\.com/.test(C1.datesNote) && out.confirmed >= 2, 'board-research: confirmed dates clear the +364 guess');
+    ok(out.cancelled.some(x => x.id === '2026-x1') && !T('events').get('2026-x1').dead, 'board-research: a cancellation found online is reported, never written');
+    const P1 = T('events').get('2026-p1'), PC = T('event_contacts').get('2026-p1');
+    ok(P1.location === 'Test Park Pavilion' && P1.address === '12 Park Rd, Mesa Verde, AZ 85001' && P1.promoter === 'Promoter Test LLC' && P1.applyUrl === 'https://promotertest.com/apply' && P1.applyBy === '2026-11-15' && P1.cost === '$150' && P1.setting === 'outdoor', 'board-research (full): blanks filled from the official pages');
+    ok(PC.contact === 'Existing Person' && PC.phone === '(480) 555-0199' && PC.email === 'promoter@example.com' && !('phone' in P1), 'board-research (full): an existing contact is never overwritten; new contact details go to event_contacts');
+    ok(out.fieldNotes.some(x => x.id === '2026-p1' && x.field === 'contact'), 'board-research (full): the different contact online is reported instead');
+    const md = fs.readFileSync(path.join(outd, 'reports', 'preflight-2026-10-01.md'), 'utf8');
+    ok(!md.includes('555-0199') && !md.includes('promoter@example') && !md.includes('New Person') && md.includes('Heber Test Oktoberfest'), 'board-research: the report carries no contact details');
+    for (const id of ['2026-m1', '2026-m2']) T('events').set(id, JSON.parse(id === '2026-m1' ? before : JSON.stringify({ ...M2, booths: [{ ...M2.booths[0], days: ['Friday', 'Saturday'], dates: ['2026-11-13', '2026-11-14'] }], dates: ['2026-11-13', '2026-11-14'], days: ['Friday', 'Saturday'] })));
+    r = await node('scripts/board-research.mjs', 'apply', '--targets', tfile, '--research', rfile, '--mode', 'dates', '--date', '2026-10-01', '--apply', '--max-date-changes', '1');
+    ok(r.code === 5 && JSON.stringify(T('events').get('2026-m1')) === before, 'board-research: more date changes than the cap moves none (exit 5)');
+    r = await node('scripts/board-research.mjs', 'targets', '--mode', 'dates', '--check', check, '--date', '2026-10-02');
+    ok(r.code === 4, 'board-research targets: an event check from another day is refused (exit 4)');
+    const { decideDates, decideFields, sameUrl } = await import(path.join(REPO, 'scripts/board-research.mjs'));
+    ok(sameUrl('http://www.heberovergaard.org', 'https://heberovergaard.org/') && sameUrl('heberovergaard.org', 'https://heberovergaard.org/event/oktoberfest/', false) && !sameUrl('https://a.org/apply', 'https://a.org/apply-2027'), 'board-research: the same site is the same URL (http/https, www, trailing slash)');
+    const sf = decideFields({ website: 'http://www.heberovergaard.org', applyUrl: 'https://heberovergaard.org/apply/' }, { promoter: { name: '', contactName: '', phone: '', email: '', website: 'https://heberovergaard.org/event/oktoberfest/', confidence: 'official', sourceUrl: 'https://heberovergaard.org/' },
+      application: { url: 'https://www.heberovergaard.org/apply', deadline: '', confidence: 'official', sourceUrl: 'https://heberovergaard.org/apply' } });
+    ok(!sf.changes.length, 'board-research (full): a website on the same site, or the same application page, is not a correction: ' + JSON.stringify(sf.changes));
+    ok(decideDates({ vc: null }, { ok: false, notResearched: true, error: 'not researched: the run reached its $40 spend cap' }, { start: '2026-10-10', end: '2026-10-11' }).kind === 'not-researched', 'board-research: a show past the spend cap is "not researched", not a failed lookup');
+
+    // multi-week: one VC record over two board weeks is never moved, so the sweep's research leaves it out
+    for (const t of Object.keys(db)) db[t].clear();
+    ev('2026-w1', 'Quartz Test Show', '2027-01-15', 2, ['Eli'], { vcNumber: '00500009' });
+    ev('2026-w2', 'Quartz Test Show', '2027-01-22', 2, ['Reed'], { vcNumber: '00500009' });
+    fs.writeFileSync(vcFile, JSON.stringify({ coordinator: 'Matt Foss', rows: [{ eventNumber: '00500009', name: 'Quartz Test Show', status: 'Booked', startDate: '2027-01-16', endDate: '2027-01-24' }, ...vcRows.slice(3)] }));
+    r = await node('scripts/event-check.mjs', '--vc', vcFile, '--apply', '--date', '2026-10-01');
+    r = await node('scripts/board-research.mjs', 'targets', '--mode', 'mismatches', '--check', check, '--out', mfile, '--date', '2026-10-01');
+    const mw = JSON.parse(fs.readFileSync(mfile, 'utf8'));
+    r = await node('scripts/board-research.mjs', 'targets', '--mode', 'dates', '--check', check, '--out', tfile, '--date', '2026-10-01');
+    const dw = JSON.parse(fs.readFileSync(tfile, 'utf8'));
+    ok(mw.count === 0 && dw.targets.filter(x => x.multiWeek).length === 2 && dw.targets.find(x => x.id === '2026-w1').mismatch, 'board-research targets: a multi-week show is researched by the date runs but left out of the sweep\'s mismatches: ' + JSON.stringify({ mm: mw.count, mw: dw.targets.map(x => [x.id, x.multiWeek, x.mismatch]) }));
   }
 
   // ---- missing env is a loud failure

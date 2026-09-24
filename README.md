@@ -45,10 +45,11 @@ itself yet (`docs/ROADMAP.md`, stage 2).
 
 | when | routine | what |
 |---|---|---|
-| 7 days before a shift-picking meeting | `board-preflight` | research every event's dates, promoter, name; fix the board; list the questions for Alan |
+| 7 days before a shift-picking meeting | runs itself (rsd-shift-picking `run-preflight.sh`) | the date research: every upcoming show's dates checked on the web, the board corrected, reps whose days moved texted after Alan approves |
+| 2 days before a shift-picking meeting | runs itself (rsd-shift-picking `run-preflight.sh`); `board-preflight` is the hand-run fallback | the preflight: dates, venue, address, promoter, indoor/outdoor, cost, application link; the report to Alan and the coordinators |
 | the meeting | you | coordinators enter picks in plan mode; the page updates live for everyone |
-| the day after | `board-booking-sweep` | a VC booking request for every staffed event without one, `notes` in the Comments |
-| every Wednesday | `board-event-check` | refresh every VC status onto the board; draft texts (never send) for staffed reps whose show changed |
+| 2-8 days after | runs itself (rsd-shift-picking `run-booking-sweep.sh`); `board-booking-sweep` is the hand-run fallback | VC booking requests for staffed shows VC does not have, the Prospective list to Olean, board dates that disagree with VC researched first; Alan approves by text |
+| every Wednesday | runs itself (rsd-shift-picking's Wednesday job); `board-event-check` is the hand-run fallback | refresh every VC status onto the board; texts to staffed reps whose show changed, after Alan approves |
 | year end | `board-rollforward` | next year's board from this year's, minus the Never list and skip-next-year |
 
 Meeting dates live in plan mode → Division settings.

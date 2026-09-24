@@ -1,9 +1,17 @@
 ---
 name: board-preflight
-description: "Seven days before a shift-picking meeting: research every live event in the coming season on the RSD Show Shift Board, verify dates, promoter and name against the real world, fix what's certain on the board, and send Alan (and JP when asked) a short list of what's uncertain. Use when tick reports 'preflight', or when Alan says 'get the board ready for the meeting', 'verify the dates before shift picking', 'do the pre-meeting research'."
+description: "The HAND-RUN FALLBACK for the pre-meeting research on the RSD Show Shift Board. Since 2026-09-24 it runs itself from rsd-shift-picking (com.rsd.preflight): the date research 7 days before a shift-picking meeting and the preflight 2 days before, with Claude and web search, writing the board by script and texting/emailing the report. Use this skill only when Alan asks to run the pre-meeting research by hand, or when the unattended run failed and he wants it done now: 'run the preflight by hand', 'verify the dates before shift picking'."
 ---
 
 # board-preflight
+
+**Runs itself since 2026-09-24.** rsd-shift-picking's `run-preflight.sh` (launchd com.rsd.preflight, 10:00) does
+this unattended: the date research 7 days before a meeting (every upcoming show's dates) and the full preflight 2
+days before (dates, venue, address, promoter, and the blanks the booking sweep needs). The board side is
+`scripts/board-research.mjs` (read its header for the rules), the research is Claude with web search, the report
+is texted to Alan and emailed to the coordinators, and reps whose days moved get texts once Alan approves.
+Its date rule is Alan's: the date the show's own page states wins; nothing found online and VC disagrees = VC's
+dates, with a note on the board. What follows is the by-hand version, for when Alan asks for it.
 
 The meeting only works if the board is true. Reps will pick weekends off it; a wrong date means a
 rep books a hotel for the wrong Saturday. This is research mode over the whole upcoming list.

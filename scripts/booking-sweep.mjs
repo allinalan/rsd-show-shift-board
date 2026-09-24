@@ -10,11 +10,10 @@
     request   VC has no record for it this season -> a Booking Request. rsd-shift-picking looks up the
               previous record (rebook or new), fills VC's form and submits it after Alan replies "approved".
     email     VC has it as Prospective -> on the list emailed to Cutco's events team (Olean) asking them to book it.
-    fix       VC has it booked or cleared to book, VC's name agrees, and the board's selling days are VC's
-              moved by whole weeks -> the board's dates move to VC's (--apply) and the staffed reps are asked
-              "do those dates still work?" (texts built in rsd-shift-picking, previewed to Alan first).
-    question  any other date disagreement (VC only Prospective or pending, a different length or weekday
-              pattern, a multi-week show, a name that does not agree) -> listed for Alan, nothing changed.
+    question  a date disagreement still standing: VC-vs-board mismatches are researched and fixed BEFORE this
+              runs (scripts/board-research.mjs, Alan 2026-09-24: the web's date wins, else VC's, with a note on
+              the board), so what is left here is what that step could not settle (a multi-week show, a failed
+              lookup, a name that does not agree): listed for Alan, nothing changed.
     hold      would be a request, but is not safe to send unattended (reason each).
     pending   a request already submitted and still inside requestPendingDays.
 
@@ -22,82 +21,42 @@
   not on the exclude list rsd-shift-picking passes (Alan's direct shows), not ruled off, not a
   placeholder-only date, not a board VC number missing from the pull, not a number two unrelated shows claim.
 
-  Writes, only with --apply and only for `fix` shows: every date moves by the same whole number of weeks
-  (startDate, endDate, weekend, dates, each booth's day dates; day names and shifts untouched), so the new
-  selling days equal VC's by construction, and they are read back to prove it (a mismatch is put back and
-  becomes a question). datesEstimated goes false and datesMoved records where they were. Nothing else is
-  written here: rsd-shift-picking marks a show "Booking Request Submitted" after VC confirms the request.
+  Writes nothing (since 2026-09-24: dates are written by scripts/board-research.mjs; rsd-shift-picking marks a
+  show "Booking Request Submitted" after VC confirms the request). --apply means "a live run": it then refuses an
+  event check that ran dry.
 
   Usage:
     booking-sweep.mjs --vc <pull.json> [--check <out/event-check/latest.json>] [--exclude-file <json>]
-                      [--meeting YYYY-MM-DD] [--apply] [--date YYYY-MM-DD] [--max-fixes N]
+                      [--research <out/research/latest.json>] [--meeting YYYY-MM-DD] [--apply] [--date YYYY-MM-DD]
   --exclude-file: a JSON file with "exclude": [show names] (rsd-shift-picking data/booking-sweep-config.json).
+  --research: today's board-research apply output; a date question then says which side the show's own page backs
+  (VC is the one to fix) or that the lookup failed, instead of "could not settle".
   Output: out/booking-sweep/latest.json (+ a dated copy; mode 600: requests carry the promoter contacts the
   form needs, so this file never leaves the mini), out/reports/booking-sweep-<date>.md (no contacts).
-  Exit: 0 ok · 1 error · 4 no trustworthy event check to work from (nothing written) ·
-        5 refused: more date fixes than sweep.maxDateFixes (nothing written)
+  Exit: 0 ok · 1 error · 4 no trustworthy event check to work from
 */
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
-import { nameScore, dayDiff, addDaysIso, normName } from './lib/match.mjs';
-import { isSEday } from './parse-sheet.mjs';
+import { nameScore, dayDiff, normName } from './lib/match.mjs';
+import { sellingRun, within, sameRun } from './lib/dates.mjs';
+export { sellingRun, within };                     // lib/booking-sweep-exec.js in rsd-shift-picking reads them from here
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const flag = f => args.includes(f);
 const opt = (f, d = null) => { const i = args.indexOf(f); return i > -1 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : d; };
 const CFG = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8'));
-export const SW = { holdDaysBefore: 10, maxDateFixes: 15, maxShiftDays: 56, duplicateWindowDays: 60, duplicateMinScore: 0.6, nameAgreeScore: 0.6,
-  fixCategories: ['booked', 'coi', 'detail', 'contract'], ...(CFG.sweep || {}) };
+const host = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+export const SW = { holdDaysBefore: 10, duplicateWindowDays: 60, duplicateMinScore: 0.6, ...(CFG.sweep || {}) };
 const TODAY = opt('--date') || new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Phoenix' }).format(new Date());
 const MESA = new RegExp(CFG.mesaPattern, 'i');
 const t = v => String(v ?? '').replace(/\s+/g, ' ').trim();
 const OUT_BASE = process.env.BOARD_OUT_DIR || path.join(REPO, 'out');
 const OUT_S = path.join(OUT_BASE, 'booking-sweep'), OUT_R = path.join(OUT_BASE, 'reports');
 
-// ---------- pure helpers (exported for the tests) ----------
-/**
- * The show's selling days on the board: every booth's day dates, set-up/tear-down (SE) days left out.
- * null when there are none, or when they sit more than a week from the weekend the show is staffed for
- * (stale day cells: the Phoenix Quilt row carried 1/25/2024..1/27/2024) or span more than three weeks.
- */
-export function sellingRun(e) {
-  const ds = [];
-  for (const b of e.booths || []) (b.dates || []).forEach((d, i) => { if (d && /^\d{4}-\d{2}-\d{2}$/.test(d) && !isSEday((b.days || [])[i])) ds.push(d); });
-  ds.sort();
-  if (!ds.length) return null;
-  const run = { start: ds[0], end: ds[ds.length - 1] };
-  if (e.weekend && Math.abs(dayDiff(run.start, e.weekend)) > 7) return null;
-  if (dayDiff(run.end, run.start) > 21) return null;
-  return run;
-}
-const sameRun = (a, b) => !!a && !!b && a.start === b.start && a.end === b.end;
-/**
- * The board's selling days sit inside VC's run: nothing to fix. VC's record often carries a set-up or move-in day
- * the board keeps as an SE day (Run to the Sun: VC 10/21-10/25, the board sells 10/23-10/25), and a team may staff
- * only some days of a long show. Only a board day OUTSIDE VC's run is a date problem.
- */
-export const within = (board, vc) => !!board && !!vc && vc.start <= board.start && board.end <= vc.end;
-
-/** The whole-week move that turns the board's run into VC's, or null when it is anything else. */
-export function weekShift(board, vc, maxDays = SW.maxShiftDays) {
-  if (!board || !vc) return null;
-  const k = dayDiff(vc.start, board.start);
-  if (k === 0 || k % 7 !== 0 || Math.abs(k) > maxDays) return null;
-  if (dayDiff(vc.end, vc.start) !== dayDiff(board.end, board.start)) return null;
-  return k;
-}
-
-/** Every date on the event moved by k days: the patch, and nothing else changes. */
-export function shiftPatch(e, k) {
-  const mv = d => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? addDaysIso(d, k) : d);
-  const booths = JSON.parse(JSON.stringify(e.booths || []));
-  for (const b of booths) b.dates = (b.dates || []).map(mv);
-  return { startDate: mv(e.startDate), endDate: mv(e.endDate), weekend: mv(e.weekend), dates: (e.dates || []).map(mv), booths, datesEstimated: false };
-}
-
+// ---------- helpers ----------
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const md = iso => `${MON[+iso.slice(5, 7) - 1]} ${+iso.slice(8, 10)}`;
 /** "Oct 23-25", "Oct 30-Nov 1", "Oct 23"; what Alan reads in the preview. */
@@ -106,9 +65,12 @@ export const fmt = r => (r ? (r.start === r.end ? md(r.start) : r.start.slice(0,
 // ---------- the sweep ----------
 async function main() {
   const checkPath = opt('--check') || path.join(OUT_BASE, 'event-check', 'latest.json');
+  const research = (() => { const f = opt('--research'); try { const j = f ? JSON.parse(fs.readFileSync(f, 'utf8')) : null; return j && j.date === TODAY ? j : null; } catch (e) { return null; } })();
+  const webBacksBoard = id => research && (research.vcDisagrees || []).find(x => x.id === id);
+  const lookupFailed = id => research && (research.failed || []).find(x => x.id === id);
   const vcPath = opt('--vc');
   const result = { date: TODAY, runAt: new Date().toISOString(), meeting: opt('--meeting'), mode: flag('--apply') ? 'apply' : 'dry', written: false,
-    requests: [], holds: [], email: [], fixes: [], questions: [], pending: [], excluded: [], skipped: [], claimedVc: [] };
+    requests: [], holds: [], email: [], questions: [], pending: [], excluded: [], skipped: [], claimedVc: [] };
   const stop = async (why, code) => { result.stopped = why; await write(result); console.error('booking-sweep: ' + why); return code; };
 
   if (!fs.existsSync(checkPath)) return stop(`no event check result at ${checkPath}; run the event check first`, 4);
@@ -188,39 +150,17 @@ async function main() {
     if (prospective && !emailed.has(r.vcNumber)) { emailed.add(r.vcNumber); result.email.push({ ...base, vcNumber: r.vcNumber, vcName: r.vcName, vcPlace: vcPlace(r.vcNumber), vcStatus: r.vcStatus, vcRun, datesDiffer: !!run && !within(run, vcRun) }); }
     if (!vcRun || within(run, vcRun)) continue;
     if (!run) { result.questions.push({ ...base, kind: 'no-board-dates', vcNumber: r.vcNumber, vcStatus: r.vcStatus, vcRun, why: `VC has ${fmt(vcRun)} (${r.vcStatus}), and the board has no usable dates to compare` }); continue; }
-    const agrees = nameScore(r.name, r.vcName) >= SW.nameAgreeScore || r.matchedBy === 'alias' || r.matchedBy === 'qcfm';
-    const k = weekShift(run, vcRun);
-    if (SW.fixCategories.includes(r.category) && agrees && k) {
-      result.fixes.push({ ...base, vcNumber: r.vcNumber, vcStatus: r.vcStatus, vcName: r.vcName, from: run, to: vcRun, shift: k, applied: false });
-    } else {
-      const reason = !SW.fixCategories.includes(r.category) ? `VC only has it as ${r.vcStatus}, so VC's dates aren't confirmed yet`
-        : !agrees ? `the VC record is named "${r.vcName}", which doesn't match the board's name` : 'the days don\'t line up (not a clean week move), and changing them changes who works which day';
-      result.questions.push({ ...base, kind: 'dates', vcNumber: r.vcNumber, vcStatus: r.vcStatus, vcRun, why: `VC has ${fmt(vcRun)}, the board has ${fmt(run)}. Left alone: ${reason}` });
-    }
+    // the date research ran before this and fixes what it can: whatever still disagrees, it could not settle,
+    // or the show's own page backs the board (then VC is the one that is wrong)
+    const w = webBacksBoard(r.id), fl = lookupFailed(r.id);
+    const why = w ? `VC has ${fmt(vcRun)}, but ${host(w.source)} says ${fmt(w.web)}, which is what the board has: VC is the one to fix`
+      : fl ? `VC has ${fmt(vcRun)}, the board has ${fmt(run)}. The date research's lookup failed (${fl.why}), so nothing was changed`
+      : `VC has ${fmt(vcRun)}, the board has ${fmt(run)}. The date research could not settle it (see its report)`;
+    result.questions.push({ ...base, kind: w ? 'vc-wrong' : 'dates', vcNumber: r.vcNumber, vcStatus: r.vcStatus, vcRun, why, ...(w ? { source: w.source } : {}) });
   }
 
-  // ---- the only write: date fixes, all or nothing on the count check
-  let code = 0;
-  const maxFixes = opt('--max-fixes') !== null ? Number(opt('--max-fixes')) : SW.maxDateFixes;
-  if (result.fixes.length > maxFixes) {
-    result.stopped = `${result.fixes.length} date fixes is more than ${maxFixes}; that looks systematic (a wrong year, a bad pull), so nothing was moved`;
-    code = 5;
-  } else if (flag('--apply') && result.fixes.length) {
-    for (const f of result.fixes) {
-      const cur = (await api.events()).find(x => x.id === f.id);
-      if (!cur || !sameRun(sellingRun(cur), f.from)) { f.note = 'the board changed while the sweep ran; left alone'; result.questions.push({ ...f, kind: 'dates', why: `VC has ${fmt(f.to)}: ${f.note}` }); continue; }
-      const snapshot = { startDate: cur.startDate, endDate: cur.endDate, weekend: cur.weekend, dates: cur.dates, booths: cur.booths, datesEstimated: cur.datesEstimated ?? false };
-      await api.patchEvent(f.id, { ...shiftPatch(cur, f.shift), datesMoved: { from: f.from, to: f.to, at: TODAY, why: `VC ${f.vcNumber} (${f.vcStatus}) runs ${fmt(f.to)}`, by: 'service:booking-sweep' } });
-      const after = (await api.events()).find(x => x.id === f.id);
-      if (sameRun(sellingRun(after), f.to)) { f.applied = true; continue; }
-      await api.patchEvent(f.id, snapshot);
-      f.note = `read back ${fmt(sellingRun(after))}, not VC's ${fmt(f.to)}; put back`;
-      result.questions.push({ ...f, kind: 'dates', why: `VC has ${fmt(f.to)}, the board has ${fmt(f.from)}: the move did not read back right, so it was put back` });
-    }
-    result.written = result.fixes.some(f => f.applied);
-  }
-  result.fixes = result.fixes.filter(f => f.applied || !flag('--apply') || code === 5);
-  result.counts = Object.fromEntries(['requests', 'holds', 'email', 'fixes', 'questions', 'pending', 'excluded', 'skipped'].map(k => [k, result[k].length]));
+  const code = 0;
+  result.counts = Object.fromEntries(['requests', 'holds', 'email', 'questions', 'pending', 'excluded', 'skipped'].map(k => [k, result[k].length]));
   await write(result);
   console.log(summaryMd(result));
   return code;
@@ -237,15 +177,14 @@ function requestFields(e) {
 
 // ---------- outputs ----------
 export function summaryMd(r) {
-  const md = [`# Booking sweep, ${r.date}${r.meeting ? ` (meeting ${r.meeting})` : ''} (${r.mode}${r.written ? ', board dates moved' : ''})`, ''];
+  const md = [`# Booking sweep, ${r.date}${r.meeting ? ` (meeting ${r.meeting})` : ''} (${r.mode})`, ''];
   if (r.stopped) md.push(`**STOPPED:** ${r.stopped}`, '');
   const c = r.counts || {};
-  md.push(`${c.requests ?? 0} to request, ${c.holds ?? 0} held, ${c.email ?? 0} Prospective for the Olean email, ${c.fixes ?? 0} date fix(es), ${c.questions ?? 0} question(s), ${c.pending ?? 0} request(s) already with Olean.`);
+  md.push(`${c.requests ?? 0} to request, ${c.holds ?? 0} held, ${c.email ?? 0} Prospective for the Olean email, ${c.questions ?? 0} question(s), ${c.pending ?? 0} request(s) already with Olean.`);
   const sec = (title, xs, line) => { if (xs && xs.length) { md.push('', `## ${title}`); for (const x of xs) md.push('- ' + line(x)); } };
   sec('Requests (submitted only after Alan approves)', r.requests, x => `${fmt(x.run)} ${x.name} (${x.reps.join(', ')})`);
   sec('Held', r.holds, x => `${fmt(x.run)} ${x.name}: ${x.why.join('; ')}`);
   sec('Prospective in VC (the Olean email)', r.email, x => `${x.vcNumber} ${x.name}: VC ${fmt(x.vcRun)}${x.datesDiffer ? `, board ${fmt(x.run)}` : ''}`);
-  sec('Board dates moved to VC\'s', r.fixes, x => `${x.name}: ${fmt(x.from)} -> ${fmt(x.to)} (VC ${x.vcNumber}, ${x.vcStatus})${x.applied ? '' : ' (not applied)'}`);
   sec('Questions for Alan (nothing changed)', r.questions, x => `${x.name}: ${x.why}`);
   sec('Requests already with Olean', r.pending, x => `${x.name}: submitted ${x.requestedAt}`);
   sec('Left out (Alan\'s direct shows)', r.excluded, x => x.name);

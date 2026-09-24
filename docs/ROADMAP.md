@@ -45,8 +45,11 @@ Wednesdays from 2026-09-30.
 The booking sweep went unattended the same night (Alan, 2026-09-23): `scripts/booking-sweep.mjs` plus
 rsd-shift-picking's `run-booking-sweep.sh` (com.rsd.bookingsweep, days 2-8 after a meeting), submitting VC
 Booking Requests by script after Alan's reply. Its first real run is two days after the January 13, 2027 meeting,
-so the Jan-May book must be on the board by then (below). The preflight is the last routine still hand-run; Alan
-asked (2026-09-24) for it to run itself two days before each meeting, next.
+so the Jan-May book must be on the board by then (below). The pre-meeting research went unattended on 2026-09-24:
+`scripts/board-research.mjs` plus rsd-shift-picking's `run-preflight.sh` (com.rsd.preflight): the date research 7
+days before each meeting and the preflight 2 days before, Claude with web search, the board corrected from official
+pages (VC's dates, noted, when nothing online confirms), the report texted to Alan and emailed to the
+coordinators. Its first real runs are January 6 and 11, 2027. Roll-forward is the last routine still hand-run.
 
 **Before the January 2027 meeting: the Jan-May book.** The board and the sync hold only the Sept-Feb tab.
 Add the Jan-May book to the sync (its own tab and column map, checked with `parse-sheet.mjs --verify`)

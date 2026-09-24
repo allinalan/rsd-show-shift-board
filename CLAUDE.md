@@ -42,28 +42,43 @@ routines in `.claude/skills/` keep it true.
   (read by rsd-shift-picking's texts), the workbook and a summary under `out/reports/`.
 - `scripts/booking-sweep.mjs` — the board's half of the post-meeting booking sweep (2026-09-23), run by
   rsd-shift-picking's `run-booking-sweep.sh` (launchd com.rsd.bookingsweep, days 2-8 after a meeting) right after
-  a fresh event check. Sorts every staffed upcoming show: request (VC has no record), email (VC: Prospective),
-  fix (VC has it booked or cleared to book, the name agrees, and the board's selling days are VC's moved by whole
-  weeks), question (any other date disagreement; board selling days inside VC's run are fine), hold, pending. The
-  ONLY write, on `--apply`: fix shows move every date by the same whole weeks (`datesMoved` records it) and are read
-  back; more than 15 at once is refused (exit 5). Output `out/booking-sweep/latest.json` (600: it carries promoter
-  contacts for VC's form) and a report. rsd-shift-picking turns it into Alan's approval batch, submits the requests
-  in VC after his "approved", and marks each one `status: Booking Request Submitted` + `vcRequestedAt`.
-  The event check keeps that status 14 days (`requestPendingDays`) while Olean works it.
+  a fresh event check and the date research on every VC disagreement (below). Sorts every staffed upcoming show:
+  request (VC has no record), email (VC: Prospective), question (a date disagreement still standing: with
+  `--research`, whether the show's own page backs the board, so VC is the one to fix, or the lookup failed; board
+  selling days inside VC's run are fine), hold, pending. Writes nothing since 2026-09-24 (dates are the research's
+  job). Output `out/booking-sweep/latest.json` (600: it carries promoter contacts for VC's form) and a report.
+  rsd-shift-picking turns it into Alan's approval batch, submits the requests in VC after his "approved", and marks
+  each one `status: Booking Request Submitted` + `vcRequestedAt`. The event check keeps that status 14 days
+  (`requestPendingDays`) while Olean works it.
+- `scripts/board-research.mjs` + `scripts/lib/dates.mjs` — researching shows on the web (Alan, 2026-09-24), the
+  board's half; rsd-shift-picking owns the Claude API calls (web search), the texts and the email. `targets`
+  lists what to research (`--mode dates|full|mismatches`: every upcoming live non-Mesa show, or only the ones whose
+  board days are not inside VC's run); `apply` takes the findings and writes the board. Alan's date rule: the date
+  a page states for this edition wins (quote and URL kept); nothing found online and VC disagrees = VC's dates,
+  with `datesNote` on the board saying so; a failed lookup changes nothing; a cancellation is reported, never
+  written; multi-week shows are never moved; more than 25 moves at once moves none (exit 5). A move
+  (`planMove`) keeps reps on days that still happen, carries a rep to the same weekday in the new run, and reports
+  the reps whose day is gone (they get a text through Alan). The preflight (`--mode full`) also fills blanks and
+  corrects venue/promoter/website/application from official pages; an existing contact, cost, address or
+  indoor/outdoor answer is only reported, never overwritten. Every move writes `datesNote` (shown on the board as
+  "checked" or "VC dates"), `datesSource`, `datesMoved`. Output `out/research/<label>-<date>.json` (600) and a
+  report without contacts. Runs: the date research 7 days before a meeting, the preflight 2 days before
+  (rsd-shift-picking com.rsd.preflight), and the booking sweep's disagreements.
 - Both run from rsd-shift-picking's Wednesday 08:00 job (`run-event-check.sh` there), which owns the VC
   login (Playwright + Keychain; this repo has no node_modules) and all texting. `scripts/lib/board-api.mjs`
   is their REST layer (same env file and changelog path as board.mjs).
 - `deploy/tick.py` — the launchd entry point (`com.allinalan.rsd-board-tick`, 07:00 daily on the
   mini): decides what is due and notifies Alan. It does not run routines. `--dry`, `--status`. Wednesday is
-  no longer "due" (the event check runs unattended); the booking sweep is due days 2-8 after a meeting but marked
-  `auto` (it runs itself from rsd-shift-picking), so it is logged, never a "go run it" notice. It reminds Alan to send the freshmen training sign-in
+  no longer "due" (the event check runs unattended); the date research (7 days before a meeting), the preflight
+  (2 days before) and the booking sweep (days 2-8 after) are marked `auto` (they run themselves from
+  rsd-shift-picking), so they are logged, never a "go run it" notice. It reminds Alan to send the freshmen training sign-in
   sheet two days after a January/August meeting (Jan 20 / Aug 15 when none is set) and about the Jan-May
   changeover on Dec 28, and wakes Messages with a cheap read before texting (a cold Messages after the
   2026-09-22 reboot timed out the 2026-09-23 notice).
 - `install.sh` — preflight + plist, disarmed by default; `--arm`, `--disarm`, `--check`.
 - `tests/run-all.mjs` — CLI, launcher, Sheet-parser, matcher, sync and event-check tests against an in-memory fake database. Run before every commit.
 - `docs/ROADMAP.md` — the staged plan to replace the Sheet by Fall 2027. `docs/HANDOFF.md` — go-live steps.
-- `.claude/skills/` — the routines: `board-tick` (daily), `board-preflight`, `board-booking-sweep` (the hand-run fallback),
+- `.claude/skills/` — the routines: `board-tick` (daily), `board-preflight` and `board-booking-sweep` (hand-run fallbacks),
   `board-event-check`, `board-rollforward`. They lean on the account skills
   `vectorconnect-booking-request`, `event-check`, `vectorconnect-event-export`, `humanizer`.
 
@@ -71,7 +86,7 @@ routines in `.claude/skills/` keep it true.
 
 `events` — an event in a year. id `YYYY-<base>`; `base` is stable across years so `history/<base>`
 follows the show. Fields the routines care about: `name, year, weekend (Friday ISO), startDate,
-endDate, datesEstimated, status, vcNumber, vcStatus, tier, access, cityState, location, address,
+endDate, datesEstimated, datesNote, datesSource, datesMoved, status, vcNumber, vcStatus, tier, access, cityState, location, address,
 setting, promoter, contact, phone, email, website, cost, costBasis, applyUrl, applyBy, notes,
 booths[{label,days,dates,shifts[{label,slots[{rep,ft[]}]}]}], dead, skipNext, neverWork`.
 `event_contacts` — promoter `contact, phone, email` per event id. **Visible to everyone on the live
@@ -120,9 +135,10 @@ keyed by series key. `editors` — who may write. `changelog` — every write.
   silent failure here: it writes a wrong seed and everyone then trusts it. `--verify` differing on
   one or two events is the team editing the Sheet; differing on most of them is the parser having
   drifted. Rep names are stored as `settings.roster` spells them, not as the Sheet does.
-- Headless `claude -p` on the mini cannot see the account skills the routines need, so preflight
-  and roll-forward are still hand-run from the desktop app. The event check and the booking sweep no longer
-  need them: they are scripts (above); `board-event-check` and `board-booking-sweep` are their hand-run fallbacks.
+- Headless `claude -p` on the mini cannot see the account skills the routines need, so roll-forward is
+  still hand-run from the desktop app. The event check, the booking sweep and the preflight no longer need them:
+  they are scripts (above); `board-event-check`, `board-booking-sweep` and `board-preflight` are their hand-run
+  fallbacks.
 - **Board statuses** (index.html SORDER): Booked, Pending Promoter Acceptance, OK to Book - Need Contract, Pending
   Coordinator, Booking Request Submitted (2026-09-23: the sweep sent it, Olean has it; VC's "Request to Book" reads
   the same), Booking Request Needed, Prospective, Show Full, Cancelled.

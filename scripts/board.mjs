@@ -253,11 +253,16 @@ const commands = {
     // have to reach the board (and the coordinators finish the Sheet) before the requests go in. It stays due for a
     // follow-up week (days 3-8), when it texts Alan only if something new is ready: a held show whose missing fields
     // were filled on the board, a late pick, a show that turned Prospective.
+    // Before a meeting, both run themselves too (Alan, 2026-09-24), from rsd-shift-picking's com.rsd.preflight:
+    // the date research 7 days before (every upcoming show's dates: reps are already looking), the preflight 2 days
+    // before (dates, venue, promoter, and the blanks the booking sweep needs). Each texts Alan and e-mails the
+    // coordinators its report.
     for (const m of ms) {
       const d = Math.round((m - t) / 864e5);
-      if (d === 7) due.push({ routine: 'preflight', meeting: iso(m), note: 'research every event: dates, promoter, name; fix the board; ask Alan/JP about the rest' });
+      if (d === 7) due.push({ routine: 'date-research', meeting: iso(m), auto: true, note: 'runs itself (rsd-shift-picking com.rsd.preflight): research every upcoming show\'s dates, fix the board, text the reps whose days moved' });
+      if (d === 2) due.push({ routine: 'preflight', meeting: iso(m), auto: true, note: 'runs itself (rsd-shift-picking com.rsd.preflight): research every upcoming show: dates, venue, promoter, and the blanks the booking sweep needs' });
       if (d <= -2 && d >= -8) due.push({ routine: 'booking-sweep', meeting: iso(m), auto: true, day: -d, followUp: d < -2,
-        note: d === -2 ? 'runs itself (rsd-shift-picking com.rsd.bookingsweep): booking requests for staffed shows VC does not have, the Prospective list to Olean, board dates VC has booked differently; Alan approves by text'
+        note: d === -2 ? 'runs itself (rsd-shift-picking com.rsd.bookingsweep): booking requests for staffed shows VC does not have, the Prospective list to Olean, board dates that disagree with VC researched and corrected; Alan approves by text'
           : `follow-up day ${-d}: runs itself, and texts Alan only when something new is ready` });
     }
     // The Wednesday event check runs unattended now (rsd-shift-picking's 08:00 job, 2026-09-23), so it is not "due".
@@ -311,7 +316,7 @@ function parseCpo(s) { s = String(s || '').trim().toLowerCase().replace(/[$,]/g,
 function recomputeDates(e, startISO) {
   if (!e) return {}; const booths = JSON.parse(JSON.stringify(e.booths || [])); booths.forEach(b => { b.dates = dayDates(b.days, startISO); });
   const all = booths.flatMap(b => b.dates).filter(Boolean).sort();
-  return { startDate: startISO, endDate: all.length ? all[all.length - 1] : startISO, dates: dayDates(e.days || [], startISO), booths, weekend: fridayKey(startISO), datesEstimated: false };
+  return { startDate: startISO, endDate: all.length ? all[all.length - 1] : startISO, dates: dayDates(e.days || [], startISO), booths, weekend: fridayKey(startISO), datesEstimated: false, datesNote: '', datesSource: null };
 }
 
 if (!cmd || flags.help || !commands[cmd]) { console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('*/')[0].replace(/^\/\*\s*/, '')); process.exit(cmd && !commands[cmd] ? 1 : 0); }
