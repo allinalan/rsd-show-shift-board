@@ -45,8 +45,9 @@ routines in `.claude/skills/` keep it true.
   a fresh event check and the date research on every VC disagreement (below). Sorts every staffed upcoming show:
   request (VC has no record), email (VC: Prospective), question (a date disagreement still standing: with
   `--research`, whether the show's own page backs the board, so VC is the one to fix, or the lookup failed; board
-  selling days inside VC's run are fine), hold, pending. Writes nothing since 2026-09-24 (dates are the research's
-  job). Output `out/booking-sweep/latest.json` (600: it carries promoter contacts for VC's form) and a report.
+  selling days inside VC's run are fine), hold, pending, and sponsored (a show under a sponsorship named in the
+  exclude file, e.g. a market season Alan sponsors: never requested, emailed or asked about until its `until` date).
+  Writes nothing since 2026-09-24 (dates are the research's job). Output `out/booking-sweep/latest.json` (600: it carries promoter contacts for VC's form) and a report.
   rsd-shift-picking turns it into Alan's approval batch, submits the requests in VC after his "approved", and marks
   each one `status: Booking Request Submitted` + `vcRequestedAt`. The event check keeps that status 14 days
   (`requestPendingDays`) while Olean works it.
@@ -56,7 +57,9 @@ routines in `.claude/skills/` keep it true.
   board days are not inside VC's run); `apply` takes the findings and writes the board. Alan's date rule: the date
   a page states for this edition wins (quote and URL kept); nothing found online and VC disagrees = VC's dates,
   with `datesNote` on the board saying so; a failed lookup changes nothing; a cancellation is reported, never
-  written; multi-week shows are never moved; more than 25 moves at once moves none (exit 5). A move
+  written; multi-week shows are never moved; more than 25 moves at once moves none (exit 5). When the page backs the
+  board and VC's run does not cover it (VC holds one day of two), the report says VC is the one to fix. Each show is
+  looked up once (rsd-shift-picking keeps the findings and reuses them; `counts.reused` says how many). A move
   (`planMove`) keeps reps on days that still happen, carries a rep to the same weekday in the new run, and reports
   the reps whose day is gone (they get a text through Alan). The preflight (`--mode full`) also fills blanks and
   corrects venue/promoter/website/application from official pages; an existing contact, cost, address or

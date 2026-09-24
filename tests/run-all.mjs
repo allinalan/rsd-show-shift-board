@@ -559,6 +559,13 @@ sys.exit(tick.main())
     ok((fs.statSync(path.join(outd, 'booking-sweep', 'latest.json')).mode & 0o777) === 0o600, 'booking-sweep: the output (it carries promoter contacts) is mode 600');
     const md = fs.readFileSync(path.join(outd, 'reports', 'booking-sweep-2026-10-01.md'), 'utf8');
     ok(!md.includes('555-') && !md.includes('jane@') && md.includes('Pinecone Craft Fair'), 'booking-sweep: the report carries no contacts');
+    const spFile = path.join(home, 'bs-sponsor.json');
+    fs.writeFileSync(spFile, JSON.stringify({ exclude: ['Wigwam Holiday Festival of Art'], sponsorships: [{ name: 'Pinecone Craft Fair', kind: 'Gold Sponsorship', until: '2026-12-31' }, { name: 'Prospect Days', kind: 'Silver Sponsorship', until: '2026-10-01' }] }));
+    r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--exclude-file', spFile, '--meeting', '2026-09-29', '--date', '2026-10-01', '--apply');
+    const sp = JSON.parse(fs.readFileSync(path.join(outd, 'booking-sweep', 'latest.json'), 'utf8'));
+    ok(r.code === 0 && sp.sponsored.map(x => x.id).join() === '2026-r1' && !sp.requests.some(x => x.id === '2026-r1') && sp.sponsored[0].kind === 'Gold Sponsorship' && sp.counts.sponsored === 1, 'booking-sweep: a show under a sponsorship is covered, never requested: ' + JSON.stringify(sp.sponsored.map(x => x.id)));
+    ok(sp.email.some(x => x.id === '2026-p1'), 'booking-sweep: a sponsorship past its "until" lapses, and the show is swept normally again');
+    ok(/## Covered by a sponsorship/.test(fs.readFileSync(path.join(outd, 'reports', 'booking-sweep-2026-10-01.md'), 'utf8')), 'booking-sweep: the report lists what a sponsorship covers');
     const resFile = path.join(home, 'bs-research.json');
     fs.writeFileSync(resFile, JSON.stringify({ date: '2026-10-01', label: 'booking-sweep', vcDisagrees: [{ id: '2026-f1', name: 'Shifted Show', web: { start: '2026-10-16', end: '2026-10-18' }, source: 'https://www.shiftedshow.org/dates' }],
       failed: [{ id: '2026-q1', name: 'Off By One Fest', why: 'the lookup failed (API 529)' }] }));
@@ -678,6 +685,15 @@ sys.exit(tick.main())
       application: { url: 'https://www.heberovergaard.org/apply', deadline: '', confidence: 'official', sourceUrl: 'https://heberovergaard.org/apply' } });
     ok(!sf.changes.length, 'board-research (full): a website on the same site, or the same application page, is not a correction: ' + JSON.stringify(sf.changes));
     ok(decideDates({ vc: null }, { ok: false, notResearched: true, error: 'not researched: the run reached its $40 spend cap' }, { start: '2026-10-10', end: '2026-10-11' }).kind === 'not-researched', 'board-research: a show past the spend cap is "not researched", not a failed lookup');
+    const two = found('2026-09-25', '2026-09-26', 'https://chilitest.org/');
+    const dShort = decideDates({ vc: { number: '1', start: '2026-09-25', end: '2026-09-25' } }, two, { start: '2026-09-25', end: '2026-09-26' });
+    const dSetup = decideDates({ vc: { number: '1', start: '2026-09-24', end: '2026-09-26' } }, two, { start: '2026-09-25', end: '2026-09-26' });
+    ok(dShort.kind === 'confirmed' && dShort.vcDisagrees && dSetup.kind === 'confirmed' && !dSetup.vcDisagrees, 'board-research: VC holding one day of a two-day show is VC\'s to fix; a VC set-up day is not');
+    const withReuse = { results: { ...research.results, '2026-m1': { ...research.results['2026-m1'], reused: 'confirmed' } }, model: 'claude-sonnet-5', meeting: '2027-01-13', perMeeting: 60, spentBefore: 12.5, cost: 3.1 };
+    fs.writeFileSync(rfile, JSON.stringify(withReuse));
+    r = await node('scripts/board-research.mjs', 'apply', '--targets', tfile, '--research', rfile, '--mode', 'full', '--label', 'preflight', '--date', '2026-10-01');
+    const ru = JSON.parse(fs.readFileSync(path.join(outd, 'research', 'latest.json'), 'utf8'));
+    ok(r.code === 0 && ru.counts.reused === 1 && ru.meeting === '2027-01-13' && ru.perMeeting === 60 && ru.spentBefore === 12.5 && ru.model === 'claude-sonnet-5' && /1 already known from earlier runs/.test(r.stdout), 'board-research: findings reused from earlier runs are counted, and the meeting\'s budget travels with the result');
 
     // multi-week: one VC record over two board weeks is never moved, so the sweep's research leaves it out
     for (const t of Object.keys(db)) db[t].clear();

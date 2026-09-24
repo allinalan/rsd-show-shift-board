@@ -16,6 +16,9 @@
               lookup, a name that does not agree): listed for Alan, nothing changed.
     hold      would be a request, but is not safe to send unattended (reason each).
     pending   a request already submitted and still inside requestPendingDays.
+    sponsored covered by a sponsorship Alan arranged with Cutco (the exclude file's "sponsorships": a name, what it is,
+              and an "until" date after which the rule lapses and the dates are swept normally again): never requested,
+              never on the Olean email, never a question. Queen Creek Family Market, Gold Sponsorship (Alan, 2026-09-24).
 
   Scope: upcoming, staffed (SE days never count), live (not dead or never-work), not Mesa (outside VC),
   not on the exclude list rsd-shift-picking passes (Alan's direct shows), not ruled off, not a
@@ -28,7 +31,8 @@
   Usage:
     booking-sweep.mjs --vc <pull.json> [--check <out/event-check/latest.json>] [--exclude-file <json>]
                       [--research <out/research/latest.json>] [--meeting YYYY-MM-DD] [--apply] [--date YYYY-MM-DD]
-  --exclude-file: a JSON file with "exclude": [show names] (rsd-shift-picking data/booking-sweep-config.json).
+  --exclude-file: a JSON file with "exclude": [show names] and "sponsorships": [{ name, kind, until }] (rsd-shift-picking
+  data/booking-sweep-config.json). A sponsorship's name covers every show whose name starts with it.
   --research: today's board-research apply output; a date question then says which side the show's own page backs
   (VC is the one to fix) or that the lookup failed, instead of "could not settle".
   Output: out/booking-sweep/latest.json (+ a dated copy; mode 600: requests carry the promoter contacts the
@@ -70,7 +74,7 @@ async function main() {
   const lookupFailed = id => research && (research.failed || []).find(x => x.id === id);
   const vcPath = opt('--vc');
   const result = { date: TODAY, runAt: new Date().toISOString(), meeting: opt('--meeting'), mode: flag('--apply') ? 'apply' : 'dry', written: false,
-    requests: [], holds: [], email: [], questions: [], pending: [], excluded: [], skipped: [], claimedVc: [] };
+    requests: [], holds: [], email: [], questions: [], pending: [], excluded: [], sponsored: [], skipped: [], claimedVc: [] };
   const stop = async (why, code) => { result.stopped = why; await write(result); console.error('booking-sweep: ' + why); return code; };
 
   if (!fs.existsSync(checkPath)) return stop(`no event check result at ${checkPath}; run the event check first`, 4);
@@ -80,8 +84,10 @@ async function main() {
   if (flag('--apply') && check.mode !== 'apply') return stop('the event check ran dry, so the board does not carry today\'s VC status; not sweeping for real on it', 4);
   if (!vcPath || !fs.existsSync(vcPath)) throw new Error('--vc <pull.json> is required (the same My Events pull the event check used)');
   const vc = (JSON.parse(fs.readFileSync(vcPath, 'utf8')).rows || []).map(r => ({ ...r, eventNumber: t(r.eventNumber) }));
-  const excl = opt('--exclude-file') && fs.existsSync(opt('--exclude-file')) ? (JSON.parse(fs.readFileSync(opt('--exclude-file'), 'utf8')).exclude || []) : [];
-  const exclude = new Set(excl.map(normName));
+  const exJson = opt('--exclude-file') && fs.existsSync(opt('--exclude-file')) ? JSON.parse(fs.readFileSync(opt('--exclude-file'), 'utf8')) : {};
+  const exclude = new Set((exJson.exclude || []).map(normName));
+  const sponsorships = (exJson.sponsorships || []).filter(s => t(s.name));
+  const sponsorOf = (name, run) => sponsorships.find(s => { const k = normName(s.name), n = normName(name); return (n === k || n.startsWith(k + ' ')) && (!s.until || !run || run.start <= s.until); }) || null;
   const placeholders = new Set((CFG.placeholders || []).map(String));
   const vcByNumber = new Map(vc.map(v => [v.eventNumber, v]));
   const vcPlace = n => { const v = vcByNumber.get(n); return v ? [t(v.city), t(v.state)].filter(Boolean).join(', ') : ''; };
@@ -108,6 +114,8 @@ async function main() {
     if (r.ruling || r.category === 'dead') { result.skipped.push({ ...base, why: r.ruling ? "not happening (Alan's ruling)" : `dead in VC (${r.vcStatus})` }); continue; }
     const run = sellingRun(e);
     base.run = run;
+    const sp = sponsorOf(r.name, run);
+    if (sp) { result.sponsored.push({ ...base, covers: t(sp.name), kind: t(sp.kind) || 'sponsorship', until: sp.until || null }); continue; }
     if (r.openQuestion) { result.questions.push({ ...base, kind: 'placeholder', why: `only the placeholder VC record${(r.notes || []).join(' ').match(/placeholder (\d+)/) ? ' ' + (r.notes || []).join(' ').match(/placeholder (\d+)/)[1] : ''} covers ${fmt(run)}. Request it, or is it booked?` }); continue; }
     if (r.numberMissing) { result.questions.push({ ...base, kind: 'number-missing', why: `the board carries VC# ${r.vcNumber}, which is not in today's pull` }); continue; }
     if (r.suspicious) { result.questions.push({ ...base, kind: 'duplicate-number', why: `VC# ${r.vcNumber} is also claimed by an unrelated show` }); continue; }
@@ -160,7 +168,7 @@ async function main() {
   }
 
   const code = 0;
-  result.counts = Object.fromEntries(['requests', 'holds', 'email', 'questions', 'pending', 'excluded', 'skipped'].map(k => [k, result[k].length]));
+  result.counts = Object.fromEntries(['requests', 'holds', 'email', 'questions', 'pending', 'excluded', 'sponsored', 'skipped'].map(k => [k, result[k].length]));
   await write(result);
   console.log(summaryMd(result));
   return code;
@@ -187,6 +195,7 @@ export function summaryMd(r) {
   sec('Prospective in VC (the Olean email)', r.email, x => `${x.vcNumber} ${x.name}: VC ${fmt(x.vcRun)}${x.datesDiffer ? `, board ${fmt(x.run)}` : ''}`);
   sec('Questions for Alan (nothing changed)', r.questions, x => `${x.name}: ${x.why}`);
   sec('Requests already with Olean', r.pending, x => `${x.name}: submitted ${x.requestedAt}`);
+  sec('Covered by a sponsorship (not requested, not on the Olean email)', r.sponsored, x => `${fmt(x.run)} ${x.name}: ${x.kind}${x.until ? ` (the rule runs through ${x.until})` : ''}`);
   sec('Left out (Alan\'s direct shows)', r.excluded, x => x.name);
   return md.join('\n');
 }

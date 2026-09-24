@@ -123,7 +123,8 @@ export function decideDates(tgt, res, run) {
     && (!run || Math.abs(dayDiff(d.start, run.start)) <= 150);
   if (found) {
     const truth = { start: d.start, end: d.end };
-    if (run && within(run, truth)) return { kind: 'confirmed', truth, basis: 'researched', source: d.sourceUrl, confidence: d.confidence, vcDisagrees: !!(vcRun && !within(truth, vcRun) && !within(vcRun, truth)) };
+    // VC disagrees unless its run covers the show's (a VC set-up day is fine; VC holding one day of two is not)
+    if (run && within(run, truth)) return { kind: 'confirmed', truth, basis: 'researched', source: d.sourceUrl, confidence: d.confidence, vcDisagrees: !!(vcRun && !within(truth, vcRun)) };
     return { kind: 'move', truth, basis: 'researched', source: d.sourceUrl, confidence: d.confidence };
   }
   if (vcRun && run && !within(run, vcRun)) return { kind: 'move', truth: vcRun, basis: 'vc' };
@@ -185,7 +186,9 @@ async function apply() {
   const api = boardApi({ actor: `service:${label}` });
   const byId = new Map((await api.events()).map(e => [e.id, e]));
   const out = { date: TODAY, label, mode, apply: flag('--apply'), written: false, researched: 0, confirmed: 0, changes: [], vcDisagrees: [], unconfirmed: [], cancelled: [], failed: [],
-    notResearched: [], questions: [], fieldChanges: [], fieldNotes: [], usage: RS.usage || null, cost: RS.cost ?? null, capped: RS.capped || 0, maxCost: RS.maxCost ?? null };
+    notResearched: [], questions: [], fieldChanges: [], fieldNotes: [], usage: RS.usage || null, cost: RS.cost ?? null, capped: RS.capped || 0, maxCost: RS.maxCost ?? null,
+    model: RS.model || null, meeting: RS.meeting || null, perMeeting: RS.perMeeting ?? null, spentBefore: RS.spentBefore ?? null,
+    reused: Object.values(results).filter(x => x && x.reused).length };
   const moves = [], fieldPatches = [];
   for (const tgt of T.targets || []) {
     const e = byId.get(tgt.id);
@@ -247,7 +250,7 @@ async function apply() {
   }
   if (flag('--apply')) for (const p of fieldPatches) await api.patchEvent(p.id, p.patch);
   out.written = flag('--apply') && (out.changes.some(c => c.applied) || fieldPatches.length > 0);
-  out.counts = { targets: (T.targets || []).length, researched: out.researched, confirmed: out.confirmed, changes: out.changes.length, vcDisagrees: out.vcDisagrees.length,
+  out.counts = { targets: (T.targets || []).length, researched: out.researched, reused: out.reused, confirmed: out.confirmed, changes: out.changes.length, vcDisagrees: out.vcDisagrees.length,
     unconfirmed: out.unconfirmed.length, cancelled: out.cancelled.length, failed: out.failed.length, notResearched: out.notResearched.length, questions: out.questions.length,
     fieldChanges: out.fieldChanges.length, fieldNotes: out.fieldNotes.length };
   const dir = path.join(OUT_BASE, 'research');
@@ -262,7 +265,7 @@ export function summaryMd(r) {
   const c = r.counts || {}, L = [`# ${r.label}, ${r.date} (${r.apply ? (r.written ? 'board updated' : 'nothing to write') : 'dry'})`, ''];
   if (r.stopped) L.push(`**STOPPED:** ${r.stopped}`, '');
   const n = (k, one, many = one + 's') => `${k} ${k === 1 ? one : many}`;
-  L.push(`${n(c.targets, 'show')}, ${c.researched} researched: ${n(c.confirmed, 'date')} confirmed, ${c.changes} moved, ${c.unconfirmed} not confirmed online, ${n(c.failed, 'lookup')} failed.`);
+  L.push(`${n(c.targets, 'show')}, ${c.researched} researched${c.reused ? ` (${c.reused} already known from earlier runs, not looked up again)` : ''}: ${n(c.confirmed, 'date')} confirmed, ${c.changes} moved, ${c.unconfirmed} not confirmed online, ${n(c.failed, 'lookup')} failed.`);
   const sec = (title, xs, line) => { if (xs && xs.length) { L.push('', `## ${title}`); for (const x of xs) L.push('- ' + line(x)); } };
   sec('Dates moved', r.changes, x => `${x.name}: ${fmt(x.from)} -> ${fmt(x.to)} (${x.basis === 'vc' ? `VectorConnect ${x.vcNumber}, not confirmed online` : x.host})${x.affected.length ? `; reps: ${x.affected.map(a => `${a.rep} ${a.to ? `${a.from}->${a.to}` : `${a.from} gone`}`).join(', ')}` : ''}${x.applied ? '' : ' (not applied)'}`);
   sec('VectorConnect disagrees with the event\'s own page (fix VC)', r.vcDisagrees, x => `${x.name}: VC ${x.vc.number} has ${fmt({ start: x.vc.start, end: x.vc.end })}, ${host(x.source)} says ${fmt(x.web)}`);
