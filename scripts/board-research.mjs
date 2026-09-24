@@ -13,11 +13,13 @@
   wins. When nothing online confirms it, go with VC's date and put a note on the board. A show whose board days
   sit inside VC's run (VC often carries a set-up day) is not a disagreement.
 
-    board-research.mjs targets --mode dates|full|mismatches --check <out/event-check/latest.json> [--exclude-file <json>] [--out <file>] [--date YYYY-MM-DD]
+    board-research.mjs targets --mode dates|full|mismatches --check <out/event-check/latest.json> [--exclude-file <json>] [--skip-tiers Elite,...]
+                               [--out <file>] [--date YYYY-MM-DD]
     board-research.mjs apply --targets <file> --research <file> --mode dates|full [--label date-research|preflight|booking-sweep]
                              [--apply] [--max-date-changes N] [--date YYYY-MM-DD]
 
-  targets: upcoming, live (not dead or never-work), not Mesa (outside VC), not on the exclude list. Each target
+  targets: upcoming, live (not dead or never-work), not Mesa (outside VC), not on the exclude list, not of a tier in
+  --skip-tiers (Alan, 2026-09-24: Elite events are handled by the team, never researched; they are counted). Each target
   carries what the research needs (and, for the preflight, the promoter contacts: the file is mode 600, machine-
   local). Refuses an event check that is not from today or did not trust its VC data (exit 4).
 
@@ -72,6 +74,8 @@ async function targets() {
   if (!check || check.stopped || check.date !== TODAY) { console.error(`board-research: no trustworthy event check from today (${!check ? 'none' : check.stopped ? 'it stopped: ' + check.stopped : 'it is from ' + check.date})`); return 4; }
   const excl = opt('--exclude-file') && fs.existsSync(opt('--exclude-file')) ? (JSON.parse(fs.readFileSync(opt('--exclude-file'), 'utf8')).exclude || []) : [];
   const exclude = new Set(excl.map(normName));
+  const skipTiers = new Set(String(opt('--skip-tiers') || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean));
+  const skipped = [];
   const recById = new Map((check.events || []).map(r => [r.id, r]));
   // one VC record claimed by several shows = a multi-week show: researched, never moved
   const claims = new Map();
@@ -82,6 +86,7 @@ async function targets() {
     const run = sellingRun(e);
     const end = e.endDate || e.startDate || e.weekend || '';
     if (!end || end < TODAY || e.dead || e.neverWork || MESA.test(e.name || '') || exclude.has(normName(e.name))) continue;
+    if (skipTiers.has(t(e.tier).toLowerCase())) { skipped.push({ id: e.id, name: t(e.name), tier: t(e.tier) }); continue; }
     const r = recById.get(e.id);
     const vc = r && r.vcStart && r.category !== 'no-vc' ? { number: r.vcNumber, name: r.vcName, status: r.vcStatus, start: r.vcStart, end: r.vcEnd || r.vcStart } : null;
     const mismatch = !!(vc && run && !within(run, { start: vc.start, end: vc.end }));
@@ -98,7 +103,7 @@ async function targets() {
   const rank = x => (x.mismatch ? 0 : x.datesEstimated ? 1 : x.staffed ? 2 : 3);
   out.sort((a, b) => rank(a) - rank(b) || String(a.weekend).localeCompare(String(b.weekend)));
   const file = opt('--out');
-  const payload = { date: TODAY, mode, count: out.length, targets: out };
+  const payload = { date: TODAY, mode, count: out.length, targets: out, skippedTiers: skipped };
   if (file) writeJson(file, payload); else console.log(JSON.stringify(payload, null, 1));
   console.error(`board-research targets (${mode}): ${out.length} show(s)${mode !== 'mismatches' ? `, ${out.filter(x => x.mismatch).length} disagree with VC` : ''}`);
   return 0;
@@ -185,7 +190,7 @@ async function apply() {
   const results = RS.results || {};
   const api = boardApi({ actor: `service:${label}` });
   const byId = new Map((await api.events()).map(e => [e.id, e]));
-  const out = { date: TODAY, label, mode, apply: flag('--apply'), written: false, researched: 0, confirmed: 0, changes: [], vcDisagrees: [], unconfirmed: [], cancelled: [], failed: [],
+  const out = { date: TODAY, label, mode, apply: flag('--apply'), written: false, researched: 0, confirmed: 0, skippedTiers: T.skippedTiers || [], changes: [], vcDisagrees: [], unconfirmed: [], cancelled: [], failed: [],
     notResearched: [], questions: [], fieldChanges: [], fieldNotes: [], usage: RS.usage || null, cost: RS.cost ?? null, capped: RS.capped || 0, maxCost: RS.maxCost ?? null,
     model: RS.model || null, meeting: RS.meeting || null, perMeeting: RS.perMeeting ?? null, spentBefore: RS.spentBefore ?? null,
     reused: Object.values(results).filter(x => x && x.reused).length };
@@ -265,6 +270,7 @@ export function summaryMd(r) {
   const c = r.counts || {}, L = [`# ${r.label}, ${r.date} (${r.apply ? (r.written ? 'board updated' : 'nothing to write') : 'dry'})`, ''];
   if (r.stopped) L.push(`**STOPPED:** ${r.stopped}`, '');
   const n = (k, one, many = one + 's') => `${k} ${k === 1 ? one : many}`;
+  if ((r.skippedTiers || []).length) L.push(`Not researched, the team handles them: ${r.skippedTiers.map(x => `${x.name} (${x.tier})`).join(', ')}.`, '');
   L.push(`${n(c.targets, 'show')}, ${c.researched} researched${c.reused ? ` (${c.reused} already known from earlier runs, not looked up again)` : ''}: ${n(c.confirmed, 'date')} confirmed, ${c.changes} moved, ${c.unconfirmed} not confirmed online, ${n(c.failed, 'lookup')} failed.`);
   const sec = (title, xs, line) => { if (xs && xs.length) { L.push('', `## ${title}`); for (const x of xs) L.push('- ' + line(x)); } };
   sec('Dates moved', r.changes, x => `${x.name}: ${fmt(x.from)} -> ${fmt(x.to)} (${x.basis === 'vc' ? `VectorConnect ${x.vcNumber}, not confirmed online` : x.host})${x.affected.length ? `; reps: ${x.affected.map(a => `${a.rep} ${a.to ? `${a.from}->${a.to}` : `${a.from} gone`}`).join(', ')}` : ''}${x.applied ? '' : ' (not applied)'}`);

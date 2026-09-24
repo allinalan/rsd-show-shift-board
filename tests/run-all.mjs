@@ -559,6 +559,13 @@ sys.exit(tick.main())
     ok((fs.statSync(path.join(outd, 'booking-sweep', 'latest.json')).mode & 0o777) === 0o600, 'booking-sweep: the output (it carries promoter contacts) is mode 600');
     const md = fs.readFileSync(path.join(outd, 'reports', 'booking-sweep-2026-10-01.md'), 'utf8');
     ok(!md.includes('555-') && !md.includes('jane@') && md.includes('Pinecone Craft Fair'), 'booking-sweep: the report carries no contacts');
+    T('events').set('2026-p1', { ...T('events').get('2026-p1'), tier: 'Elite' });
+    const elFile = path.join(home, 'bs-elite.json');
+    fs.writeFileSync(elFile, JSON.stringify({ exclude: ['Wigwam Holiday Festival of Art'], excludeTiers: ['Elite'] }));
+    r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--exclude-file', elFile, '--meeting', '2026-09-29', '--date', '2026-10-01', '--apply');
+    const elo = JSON.parse(fs.readFileSync(path.join(outd, 'booking-sweep', 'latest.json'), 'utf8'));
+    ok(r.code === 0 && !elo.email.some(x => x.id === '2026-p1') && elo.excluded.some(x => x.id === '2026-p1' && x.tier === 'Elite') && /Elite shows\)\n- .*Prospect Days \(Elite\)/.test(fs.readFileSync(path.join(outd, 'reports', 'booking-sweep-2026-10-01.md'), 'utf8')), 'booking-sweep: an Elite show is never sent to Olean or requested; the team books it (Alan, 2026-09-24)');
+    { const p1 = T('events').get('2026-p1'); delete p1.tier; T('events').set('2026-p1', p1); }
     const spFile = path.join(home, 'bs-sponsor.json');
     fs.writeFileSync(spFile, JSON.stringify({ exclude: ['Wigwam Holiday Festival of Art'], sponsorships: [{ name: 'Pinecone Craft Fair', kind: 'Gold Sponsorship', until: '2026-12-31' }, { name: 'Prospect Days', kind: 'Silver Sponsorship', until: '2026-10-01' }] }));
     r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--exclude-file', spFile, '--meeting', '2026-09-29', '--date', '2026-10-01', '--apply');
@@ -634,6 +641,12 @@ sys.exit(tick.main())
     r = await node('scripts/board-research.mjs', 'targets', '--mode', 'full', '--check', check, '--out', tfile, '--date', '2026-10-01');
     const tg = JSON.parse(fs.readFileSync(tfile, 'utf8'));
     ok(r.code === 0 && tg.count === 6 && tg.targets[0].mismatch && tg.targets.find(x => x.id === '2026-p1').contact === 'Existing Person' && (fs.statSync(tfile).mode & 0o777) === 0o600, 'board-research targets (full): every upcoming show, disagreements first, contacts included, mode 600');
+    T('events').set('2026-x1', { ...T('events').get('2026-x1'), tier: 'Elite' });
+    const efile = path.join(home, 'br-elite.json');
+    r = await node('scripts/board-research.mjs', 'targets', '--mode', 'full', '--check', check, '--out', efile, '--date', '2026-10-01', '--skip-tiers', 'Elite');
+    const el = JSON.parse(fs.readFileSync(efile, 'utf8'));
+    ok(r.code === 0 && el.count === 5 && !el.targets.some(x => x.id === '2026-x1') && el.skippedTiers.map(x => x.id).join() === '2026-x1', 'board-research targets: an Elite show is never researched (Alan, 2026-09-24), and is counted');
+    { const x1 = T('events').get('2026-x1'); delete x1.tier; T('events').set('2026-x1', x1); }
     const found = (s, e2, url, extra = {}) => ({ ok: true, result: { dates: { found: true, start: s, end: e2, confidence: 'official', sourceUrl: url, evidence: `the show runs ${s} to ${e2}`, cancelled: false, notYetAnnounced: false, note: '' }, summary: '', ...extra } });
     const none = { ok: true, result: { dates: { found: false, start: '', end: '', confidence: 'none', sourceUrl: '', evidence: '', cancelled: false, notYetAnnounced: false, note: '' }, summary: '' } };
     const research = { results: {

@@ -31,8 +31,10 @@
   Usage:
     booking-sweep.mjs --vc <pull.json> [--check <out/event-check/latest.json>] [--exclude-file <json>]
                       [--research <out/research/latest.json>] [--meeting YYYY-MM-DD] [--apply] [--date YYYY-MM-DD]
-  --exclude-file: a JSON file with "exclude": [show names] and "sponsorships": [{ name, kind, until }] (rsd-shift-picking
-  data/booking-sweep-config.json). A sponsorship's name covers every show whose name starts with it.
+  --exclude-file: a JSON file with "exclude": [show names], "excludeTiers": [board tiers] and "sponsorships":
+  [{ name, kind, until }] (rsd-shift-picking data/booking-sweep-config.json). A sponsorship's name covers every show
+  whose name starts with it. A show of an excluded tier (Alan, 2026-09-24: every Elite show) is left out like his
+  direct shows: never requested, never on the Olean email, never a question; the team books those itself.
   --research: today's board-research apply output; a date question then says which side the show's own page backs
   (VC is the one to fix) or that the lookup failed, instead of "could not settle".
   Output: out/booking-sweep/latest.json (+ a dated copy; mode 600: requests carry the promoter contacts the
@@ -86,6 +88,7 @@ async function main() {
   const vc = (JSON.parse(fs.readFileSync(vcPath, 'utf8')).rows || []).map(r => ({ ...r, eventNumber: t(r.eventNumber) }));
   const exJson = opt('--exclude-file') && fs.existsSync(opt('--exclude-file')) ? JSON.parse(fs.readFileSync(opt('--exclude-file'), 'utf8')) : {};
   const exclude = new Set((exJson.exclude || []).map(normName));
+  const excludeTiers = new Set((exJson.excludeTiers || []).map(x => t(x).toLowerCase()).filter(Boolean));
   const sponsorships = (exJson.sponsorships || []).filter(s => t(s.name));
   const sponsorOf = (name, run) => sponsorships.find(s => { const k = normName(s.name), n = normName(name); return (n === k || n.startsWith(k + ' ')) && (!s.until || !run || run.start <= s.until); }) || null;
   const placeholders = new Set((CFG.placeholders || []).map(String));
@@ -111,6 +114,7 @@ async function main() {
     if (e.dead || e.neverWork) { result.skipped.push({ ...base, why: 'dead or never-work on the board' }); continue; }
     if (MESA.test(r.name)) continue;
     if (exclude.has(normName(r.name))) { result.excluded.push(base); continue; }
+    if (excludeTiers.has(t(e.tier).toLowerCase())) { result.excluded.push({ ...base, tier: t(e.tier) }); continue; }
     if (r.ruling || r.category === 'dead') { result.skipped.push({ ...base, why: r.ruling ? "not happening (Alan's ruling)" : `dead in VC (${r.vcStatus})` }); continue; }
     const run = sellingRun(e);
     base.run = run;
@@ -196,7 +200,7 @@ export function summaryMd(r) {
   sec('Questions for Alan (nothing changed)', r.questions, x => `${x.name}: ${x.why}`);
   sec('Requests already with Olean', r.pending, x => `${x.name}: submitted ${x.requestedAt}`);
   sec('Covered by a sponsorship (not requested, not on the Olean email)', r.sponsored, x => `${fmt(x.run)} ${x.name}: ${x.kind}${x.until ? ` (the rule runs through ${x.until})` : ''}`);
-  sec('Left out (Alan\'s direct shows)', r.excluded, x => x.name);
+  sec('Left out (the team books these itself: Alan\'s direct shows and Elite shows)', r.excluded, x => `${x.name}${x.tier ? ` (${x.tier})` : ''}`);
   return md.join('\n');
 }
 
