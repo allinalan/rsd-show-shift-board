@@ -16,6 +16,9 @@ routines that keep it accurate. Reps read it on the web; only listed editors can
    still work; this just skips a second confirmation for new editors).
 4. Authentication → URL Configuration → Site URL: `https://allinalan.github.io/rsd-show-shift-board/`
    and add the same to Redirect URLs.
+   Then Authentication → Emails → Templates → "Magic link or OTP": paste
+   `supabase/email-templates/magic-link-or-otp.html` as the body (subject in its header comment), so
+   the email carries the sign-in code.
 5. Project Settings → API: copy the **URL** and the **anon public** key into `config.js`.
    The **service_role** key goes into `~/.rsd/board.env` (mode 600) on the Mac mini only — never
    into the repo, a chat or a log.
@@ -52,7 +55,10 @@ Meeting dates live in plan mode → Division settings.
 
 ## Editing
 
-Plan mode → sign in with your email (a one-tap link, no password). If your email isn't on the
+Plan mode → your email → type in the code from the email (no password). That device stays signed
+in until you sign out. The link in the same email works too, on the device that opens it. On an
+iPhone, add the board to the Home Screen first (Share → Add to Home Screen) and sign in inside the
+icon: Safari forgets a sign-in after a week away, the icon doesn't. If your email isn't on the
 editor list you'll be told. Owners add editors in the SQL editor or with
 `node scripts/board.mjs editors add`.
 

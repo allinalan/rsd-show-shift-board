@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
+<!-- Home Screen app: an iPhone icon keeps its own sign-in, apart from Safari's, and Safari's
+     seven-day wipe of site data does not touch it. Sign in inside the icon with the emailed code. -->
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="RSD Board">
+<meta name="theme-color" content="#fbf9f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#211c17" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%238a6212%27/%3E%3Ctext x=%2716%27 y=%2721%27 text-anchor=%27middle%27 font-family=%27system-ui,sans-serif%27 font-weight=%27800%27 font-size=%2711%27 fill=%27%23fbf9f4%27%3ERSD%3C/text%3E%3C/svg%3E">
 <style>body{margin:0;padding:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>RSD Show Shift Board</title>
@@ -663,6 +670,8 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
 .authbox .who b{color:var(--ink-2);font-weight:600}
 .stamp-mtg b{color:var(--slate);font-weight:600}
 @media (max-width:640px){ .authbox{margin-left:0;width:100%} }
+#authPanel .form input{font-size:1rem}   /* 16px: iPhone zooms the page into any smaller field */
+#siCode{font-family:var(--f-mono);letter-spacing:.18em}
 @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 </style>
 
@@ -710,10 +719,12 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
   </div>
   <div class="panel" id="authPanel" hidden>
    <div class="panel-h">Sign in to edit</div>
-   <p>Only people on the editor list can change the board. Enter your email and we'll send a one-tap sign-in link — no password.</p>
-   <div class="form"><label>Email<input id="siEmail" type="email" placeholder="you@example.com" autocomplete="email"></label></div>
+   <p>Only people on the editor list can change the board. Enter your email and we'll send you a sign-in code — no password. Type the code in here and this device stays signed in until you sign out.</p>
+   <p class="hint" id="siHome" hidden>On iPhone, sign in from the Home Screen icon instead of Safari: Share → Add to Home Screen, open the icon, sign in there. Safari forgets a sign-in after a week away; the icon doesn't.</p>
+   <div class="form"><label>Email<input id="siEmail" type="email" placeholder="you@example.com" autocomplete="email" enterkeyhint="send"></label></div>
+   <div class="form" id="siCodeRow" hidden><label>Code from the email<input id="siCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="code" enterkeyhint="go"></label></div>
    <p class="hint" id="siOut"></p>
-   <div class="panel-actions"><button class="btn" id="siGo">Send sign-in link</button><button class="btn ghost" id="siCancel">Cancel</button></div>
+   <div class="panel-actions"><button class="btn" id="siVerify" hidden>Sign in</button><button class="btn" id="siGo">Email me a code</button><button class="btn ghost" id="siCancel">Cancel</button></div>
   </div>
   <div class="panel" id="rollPanel" hidden>
    <div class="panel-h">Roll <b id="rollFrom">2026</b> forward into <b id="rollTarget">2027</b></div>
@@ -1090,7 +1101,7 @@ function renderHeader(){
   document.getElementById('sheetTop').hidden=!nS;
   { const ab=document.getElementById('authBox'); if(ab){
     ab.innerHTML=dbKind!=='supabase'?'':(authUser
-      ?`<span class="who">${isEditor?'Editing as':'Signed in as'} <b>${esc(authUser.email)}</b>${isEditor?'':' — not on the editor list yet'}</span><button class="linkbtn" id="signOut">sign out</button>`
+      ?`<span class="who">${isEditor?'Editing as':'Signed in as'} <b>${esc(authUser.email)}</b>${isEditor?'':' — not on the editor list yet'}</span><button class="linkbtn" id="signOut" title="Signs out this device only">sign out</button>`
       :`<span class="who">Sign in to edit</span>`); } }
   document.getElementById('reset').hidden=!nS;
   document.getElementById('planNote').innerHTML=nB&&!nS
@@ -1693,7 +1704,7 @@ document.getElementById('rep').addEventListener('change',e=>{F.rep=e.target.valu
 document.getElementById('lvl').addEventListener('change',e=>{F.lvl=e.target.value;build();});
 document.getElementById('bk').addEventListener('change',e=>{F.bk=e.target.value;build();});
 document.getElementById('planMode').addEventListener('change',e=>{store.plan=e.target.checked;save();build();
-  if(store.plan&&dbKind==='supabase'&&!isEditor){ closePanels(); P('authPanel').hidden=false; P('siEmail').focus(); document.body.classList.add('plan'); P('planBar').style.display='flex'; }});
+  if(store.plan&&dbKind==='supabase'&&!isEditor) openSignin(); });
 document.getElementById('viewSeg').addEventListener('click',e=>{const b=e.target.closest('[data-view]'); if(!b)return; store.view=b.dataset.view; save(); build();});
 function bindChips(id,set){ document.getElementById(id).addEventListener('click',e=>{ const b=e.target.closest('.chip'); if(!b)return; const v=b.dataset.v; set.has(v)?set.delete(v):set.add(v); build(); }); }
 bindChips('stateChips',F.state); bindChips('tierChips',F.tier);
@@ -1778,15 +1789,50 @@ P('copy').addEventListener('click',()=>{
 P('reset').addEventListener('click',()=>{store.slots={};store.extra={};save();build();toast('Shift scratchpad cleared');});
 
 /* ---- init ---- */
-P('siCancel').addEventListener('click',()=>{ closePanels(); if(!isEditor){ store.plan=false; P('planMode').checked=false; save(); build(); } });
+/* Sign-in. The email carries a code and a link. The code signs in the screen it is typed into,
+   wherever the email was opened: a laptop while the email sits on a phone, or an iPhone Home
+   Screen icon, which a link can never reach (links open in Safari, and the icon keeps its own
+   storage). The link still works when the email is opened on the device being signed in.
+   store.signin remembers that a code is on its way, so an iPhone reloading the icon while you
+   read Mail doesn't lose your place. Codes last an hour (Supabase: Email OTP Expiration). */
+const SIGNIN_TTL=60*60*1000;
+function pendingSignin(){ const s=store.signin; if(s&&s.email&&Date.now()-(+s.at||0)<SIGNIN_TTL) return s; if(s){ delete store.signin; save(); } return null; }
+function codeStep(on){ P('siCodeRow').hidden=!on; P('siVerify').hidden=!on; P('siGo').textContent=on?'Send a new code':'Email me a code'; P('siGo').classList.toggle('ghost',on); if(!on) P('siCode').value=''; }
+function openSignin(){ closePanels(); P('authPanel').hidden=false; document.body.classList.add('plan'); P('planBar').style.display='flex';
+  P('siHome').hidden=navigator.standalone!==false;   // only iPhone Safari says false; the Home Screen icon says true
+  const p=pendingSignin();
+  if(p){ P('siEmail').value=p.email; codeStep(true); P('siOut').textContent='A code went to '+p.email+'. Type it here.'; P('siCode').focus({preventScroll:true}); }
+  else { codeStep(false); P('siOut').textContent=''; P('siEmail').focus({preventScroll:true}); }
+  scrollTo({top:0}); }   // the panel sits just under the controls; any lower and the sticky header (a quarter of a phone screen) covers it
+P('siCancel').addEventListener('click',()=>{ closePanels(); delete store.signin; codeStep(false); P('siOut').textContent=''; save();
+  if(!isEditor){ store.plan=false; P('planMode').checked=false; save(); build(); } });
 P('siGo').addEventListener('click',async()=>{
   const email=P('siEmail').value.trim().toLowerCase(); if(!email||!db||!db.auth){ P('siOut').textContent='Enter your email.'; return; }
   P('siGo').disabled=true;
   const {error}=await db.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});
   P('siGo').disabled=false;
-  P('siOut').textContent=error?('Couldn\'t send: '+error.message):'Check your email — tap the link and you\'ll come back here signed in.';
+  if(error){ P('siOut').textContent='Couldn\'t send: '+error.message; return; }
+  store.signin={email,at:Date.now()}; save();
+  codeStep(true); P('siCode').focus();
+  P('siOut').textContent='Code sent to '+email+'. Type it here. (The link in the email works too, if you open it on this device.)';
 });
-document.addEventListener('click',async ev=>{ if(ev.target.closest('#signOut')&&db&&db.auth){ await db.auth.signOut(); } });
+async function verifyCode(){
+  const email=P('siEmail').value.trim().toLowerCase(), token=P('siCode').value.replace(/\D/g,'');
+  if(!email||!db||!db.auth){ P('siOut').textContent='Enter your email.'; return; }
+  if(token.length<6){ P('siOut').textContent='Type the code from the email.'; P('siCode').focus(); return; }
+  P('siVerify').disabled=true;
+  const {error}=await db.auth.verifyOtp({email,token,type:'email'});
+  P('siVerify').disabled=false;
+  if(error){ P('siOut').textContent=/expired|invalid/i.test(error.message)
+      ?'That code didn\'t work: mistyped, already used, or more than an hour old. Check it, or tap "Send a new code".'
+      :'Couldn\'t sign in: '+error.message; return; }
+  P('siOut').textContent='Signed in.';   // onAuthStateChange takes it from here
+}
+P('siVerify').addEventListener('click',verifyCode);
+P('siCode').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); verifyCode(); } });
+P('siEmail').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); P('siGo').click(); } });
+/* this device only: Supabase's default scope ends the sign-in on every device at once */
+document.addEventListener('click',async ev=>{ if(ev.target.closest('#signOut')&&db&&db.auth){ store.plan=false; P('planMode').checked=false; save(); await db.auth.signOut({scope:'local'}); } });
 P('ctlToggle').addEventListener('click',()=>{ const on=document.body.classList.toggle('filters-open'); P('ctlToggle').setAttribute('aria-expanded',on); });
 addEventListener('scroll',()=>{ document.querySelector('.top').classList.toggle('scrolled',scrollY>4); },{passive:true});
 P('planMode').checked=plan();
@@ -1865,8 +1911,12 @@ async function checkEditor(){
   if(!db){ dbState='none'; build(); return; }
   dbKind=db.kind; dbState=dbKind==='supabase'?'ready':'static';
   if(dbKind==='supabase'){
-    db.auth.onAuthStateChange(async(_ev,session)=>{ authUser=session?session.user:null; await checkEditor(); if(isEditor) closePanels(); db.refresh(); build(); });
+    db.auth.onAuthStateChange((_ev,session)=>{ authUser=session?session.user:null;
+      if(authUser&&store.signin){ delete store.signin; save(); codeStep(false); }
+      // Supabase's own advice: never await a Supabase call inside this callback (it can deadlock the client)
+      setTimeout(async()=>{ await checkEditor(); if(isEditor) closePanels(); db.refresh(); build(); },0); });
     try{ const {data}=await db.auth.getSession(); authUser=data&&data.session?data.session.user:null; await checkEditor(); }catch(e){}
+    if(store.plan&&!authUser) openSignin();   // plan mode left on while signed out (or a code on its way): ask again
   }
   db.collection('never_work').onSnapshot(snap=>{ neverList=snap.docs.map(d=>Object.assign({id:d.id},d.data()||{})); build(); },()=>{});
   db.doc('settings/division').onSnapshot(s=>{ if(s.exists) settings=Object.assign({},DEFAULT_SETTINGS,s.data()); build(); },()=>{});

@@ -1,0 +1,12 @@
+<!-- Supabase → Authentication → Emails → Templates → "Magic link or OTP". Paste this whole file as the Body.
+     Subject: Your RSD board sign-in code
+     The big number is the code the board's sign-in box asks for; the link still works on the device that opens the email. -->
+<h2>Your sign-in code</h2>
+
+<p style="font-size:30px;font-weight:700;letter-spacing:4px;margin:16px 0">{{ .Token }}</p>
+
+<p>Type this code into the RSD Show Shift Board on the phone or computer you're signing in on. It works once, within the hour.</p>
+
+<p>Opened this email on that same device? You can <a href="{{ .ConfirmationURL }}">tap here to sign in</a> instead.</p>
+
+<p style="color:#7d7263;font-size:12px">Someone asked to sign in to the RSD Show Shift Board with this address. If it wasn't you, ignore this email.</p>

@@ -7,6 +7,10 @@ routines in `.claude/skills/` keep it true.
 ## Shape
 
 - `index.html` — the whole app, one file, no build. Deployed by GitHub Pages from `main`.
+- `manifest.webmanifest`, `icons/` — the iPhone Home Screen app ("RSD Board"). An icon keeps its own
+  sign-in, apart from Safari's, and Safari's seven-day wipe of site data doesn't touch it.
+- `supabase/email-templates/magic-link-or-otp.html` — the sign-in email exactly as set in Supabase
+  (subject in its header comment). Restore it from here on a rebuild.
 - `config.js` — Supabase URL + anon key for this deployment (public by design; RLS guards writes).
 - `seed/*.json` — the data as of the migration off the Google Sheet. Also what the page shows
   when `config.js` is blank (read-only preview). `seed/private/` (gitignored, mode 600) holds the
@@ -75,6 +79,11 @@ keyed by series key. `editors` — who may write. `changelog` — every write.
 - The routines never text the whole roster. Only staffed reps on events whose status changed.
 - Set `BOARD_ACTOR=service:<routine>` so the changelog says who did what.
 - Never commit `~/.rsd/board.env` or a service key. The anon key in `config.js` is fine.
+- **Editors sign in with an emailed code** (8 digits, one hour), typed into the board on the device
+  being signed in; that device then stays signed in until "sign out", which is this device only. The
+  link in the same email still works on the device that opens it. The Supabase "Magic link or OTP"
+  template must carry `{{ .Token }}`, or the email is link-only and the code box has nothing to take.
+  Why and how: `docs/HANDOFF.md` section 9. Never request a code for someone else's address to test it.
 - **This repo is public.** No phone numbers, no promoter or rep e-mails, no contact fields in
   `seed/events.json`, nothing from `seed/private/`, no reports (`out/` is gitignored). The
   pre-commit hook enforces it; do not bypass it with `--no-verify`.

@@ -250,6 +250,50 @@ of them in the Supabase auth log, and their address showing up in `board changel
   <fingerprint>`, read-back of the stored text). The steps are in `CLAUDE.md` under "Rules that are
   easy to get wrong". Use it for any follow-up to Matt and JP; the connector stays for reading mail.
 
+## 9. Sign in with a code; the board as an iPhone Home Screen app  (2026-09-23)
+**Why.** A sign-in never expired on the server (sessions last until sign-out; the time limits are a
+paid feature this project doesn't use), yet it felt like signing in every time. Three things on the
+device side made it so:
+- The link signs in whichever browser opens it (supabase-js's default implicit flow), not the one the
+  person is looking at: another Chrome profile, the other Mac, the Gmail app on a phone.
+- Safari deletes a site's saved data, sign-in included, after seven days of Safari use without a
+  visit. A Home Screen icon is exempt, but keeps storage apart from Safari, so a link can never sign it
+  in: links open in Safari.
+- The page's "sign out" used supabase-js's default scope, `global`: signing out anywhere ended the
+  sign-in on every device.
+
+**What changed.**
+- The sign-in email carries a code as well as the link. The sign-in box asks for the code, which signs
+  in the screen it is typed into, wherever the email was opened. The link still works on the device
+  that opens it. Supabase's settings (Sign In / Providers → Email): codes are **8 digits** and last
+  **3600 s**; the page accepts any length from 6 up, so changing the length needs no page change.
+- The template is `supabase/email-templates/magic-link-or-otp.html` (subject in its header comment).
+  Set 2026-09-23 from Alan's Chrome, read back after a fresh load byte-identical to that file. The
+  default it replaced is in `backups/2026-09-23-magic-link-template-before.html`. To restore on a rebuild:
+  Authentication → Emails → Templates → "Magic link or OTP" → paste the file as Body, subject as given.
+  **If the code ever stops arriving, check the template first:** without `{{ .Token }}` the email is
+  link-only and the board's code box has nothing to take.
+- A pending sign-in (`store.signin`: email and time, one hour) survives a reload, so an iPhone
+  reloading the Home Screen app while you read Mail reopens at the code step. Plan mode left on while
+  signed out reopens the sign-in box instead of sitting there empty.
+- "sign out" is `scope: 'local'` (this device only) and turns Plan mode off.
+- `onAuthStateChange` no longer awaits a Supabase call inside the callback (it defers with
+  `setTimeout`): Supabase documents that as a deadlock. The current 2.x client coordinates without a
+  lock, but the page loads `@supabase/supabase-js@2` unpinned.
+- Home Screen app: `manifest.webmanifest` (name "RSD Board", standalone), `icons/` (the brass RSD
+  badge in Bricolage Grotesque 800, rendered with headless Chrome; 180 for iOS, 192/512 for the
+  manifest), `apple-mobile-web-app-title`, `theme-color`. On iPhone Safari (and only there:
+  `navigator.standalone === false`) the sign-in box says to add the board to the Home Screen and sign
+  in inside the icon.
+
+**Tested before it went live** (local copy against the live project, iPhone-size viewport): send
+error on a malformed address; code step restored after a reload; a short code refused on the page; a
+wrong 6-digit code refused by Supabase with the plain-language message; Cancel clears the pending
+code and turns Plan mode off; the Plan mode switch opens the box from anywhere on the page. In the
+offline copy (`config.js` blank), the editing tools and the rep picker fit a 375 px screen. No real
+code was requested: the first real code sign-in is Alan's, on his iPhone. JP and Matt were not told
+(Alan, 2026-09-23: no text or e-mail); they meet the code box the first time they sign in.
+
 ## If something breaks later
 `touch PAUSED` stops the job. `node scripts/board.mjs export` before any big change (includes the
 private contacts; `backups/` is gitignored). `board changelog` says who did what.
