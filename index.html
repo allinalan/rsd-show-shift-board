@@ -165,7 +165,7 @@ body.plan .btn.plan-only{display:inline-block !important}
 .chip[aria-pressed="true"] .n{color:inherit}
 .chip:hover{border-color:var(--steel)}
 .c-Booked{color:var(--ok)} .c-Prospective{color:var(--mute)}
-.c-BRN{color:var(--warn)} .c-OTB{color:var(--info)} .c-PPA{color:var(--pend)} .c-PCO{color:var(--info)} .c-SF{color:var(--mute)} .c-CX{color:var(--ink-3)}
+.c-BRN{color:var(--warn)} .c-BRS{color:var(--info)} .c-OTB{color:var(--info)} .c-PPA{color:var(--pend)} .c-PCO{color:var(--info)} .c-SF{color:var(--mute)} .c-CX{color:var(--ink-3)}
 .c-open{color:var(--ok)} .c-full{color:var(--mute)} .c-closed{color:var(--ink-3)}
 .c-Elite{color:var(--elite)} .c-Key{color:var(--key)} .c-Traditional{color:var(--trad)} .c-Untagged{color:var(--untag)}
 .note{font-size:.74rem;color:var(--ink-3);display:flex;gap:7px;align-items:flex-start;
@@ -302,6 +302,7 @@ table.wgrid tr.gdetail .ev-b{border-top:0;padding-left:16px}
   letter-spacing:.01em}
 .p-Booked{color:var(--ok);background:var(--ok-bg)}
 .p-BRN{color:var(--warn);background:var(--warn-bg)}
+.p-BRS{color:var(--info);background:var(--info-bg)}
 .p-OTB{color:var(--info);background:var(--info-bg)}
 .p-PPA{color:var(--pend);background:var(--pend-bg)}
 .p-Prospective,.p-SF{color:var(--mute);background:var(--mute-bg)}
@@ -823,12 +824,12 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
 const D = window.__RSD__;
 const SHEET='https://docs.google.com/spreadsheets/d/10p5Ro2WpeJ7mMOyS92OWIT3w3Nl-KGX4vBMkXJoOCTs/edit';
 const GID='1119870878';
-const SKEY={'Booked':'Booked','Prospective':'Prospective','Booking Request Needed':'BRN','OK to Book - Need Contract':'OTB',
+const SKEY={'Booked':'Booked','Prospective':'Prospective','Booking Request Needed':'BRN','Booking Request Submitted':'BRS','OK to Book - Need Contract':'OTB',
  'Pending Promoter Acceptance':'PPA','Pending Coordinator':'PCO','Show Full':'SF','Cancelled':'CX'};
-const SORDER=['Booked','Pending Promoter Acceptance','OK to Book - Need Contract','Pending Coordinator','Booking Request Needed','Prospective','Show Full','Cancelled'];
+const SORDER=['Booked','Pending Promoter Acceptance','OK to Book - Need Contract','Pending Coordinator','Booking Request Submitted','Booking Request Needed','Prospective','Show Full','Cancelled'];
 const KORDER=['open','full','closed'];
 const KLABEL={open:'Open',full:'Full',closed:'Closed'};
-const BKSHORT={'Booked':'booked','Prospective':'prospective','Booking Request Needed':'request needed','OK to Book - Need Contract':'need contract',
+const BKSHORT={'Booked':'booked','Prospective':'prospective','Booking Request Needed':'request needed','Booking Request Submitted':'request sent','OK to Book - Need Contract':'need contract',
  'Pending Promoter Acceptance':'pending promoter','Pending Coordinator':'pending coord.','Show Full':'show full','Cancelled':'cancelled'};
 const TIERS=['Elite','Key','Traditional'];
 const TIERPICK=[['Elite','Elite'],['Key','Key'],['Traditional','Traditional']];
@@ -1067,7 +1068,7 @@ function renderTally(list){
   list.forEach(e=>{ if(wkPast(e.weekend))return; const p=pickState(e);
     if(p.key==='open')openN+=p.n; else if(p.key==='full')full++;
     if(e.status==='Booked')booked++;
-    if(['Booking Request Needed','OK to Book - Need Contract','Pending Promoter Acceptance','Pending Coordinator'].includes(e.status))act++;});
+    if(['Booking Request Needed','Booking Request Submitted','OK to Book - Need Contract','Pending Promoter Acceptance','Pending Coordinator'].includes(e.status))act++;});
   const up=list.filter(e=>!wkPast(e.weekend)).length;
   document.getElementById('tally').innerHTML=
    `<div class="t-open"><b>${openN}</b><span>Open shifts</span></div>`+

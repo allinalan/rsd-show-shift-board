@@ -40,19 +40,30 @@ routines in `.claude/skills/` keep it true.
   status is kept beside it, and the rep text uses the ruling's repReason. Refuses to write when the pull
   is too small (exit 4) or lacks the board's own VC numbers (exit 5). Writes `out/event-check/latest.json`
   (read by rsd-shift-picking's texts), the workbook and a summary under `out/reports/`.
+- `scripts/booking-sweep.mjs` — the board's half of the post-meeting booking sweep (2026-09-23), run by
+  rsd-shift-picking's `run-booking-sweep.sh` (launchd com.rsd.bookingsweep, days 2-8 after a meeting) right after
+  a fresh event check. Sorts every staffed upcoming show: request (VC has no record), email (VC: Prospective),
+  fix (VC has it booked or cleared to book, the name agrees, and the board's selling days are VC's moved by whole
+  weeks), question (any other date disagreement; board selling days inside VC's run are fine), hold, pending. The
+  ONLY write, on `--apply`: fix shows move every date by the same whole weeks (`datesMoved` records it) and are read
+  back; more than 15 at once is refused (exit 5). Output `out/booking-sweep/latest.json` (600: it carries promoter
+  contacts for VC's form) and a report. rsd-shift-picking turns it into Alan's approval batch, submits the requests
+  in VC after his "approved", and marks each one `status: Booking Request Submitted` + `vcRequestedAt`.
+  The event check keeps that status 14 days (`requestPendingDays`) while Olean works it.
 - Both run from rsd-shift-picking's Wednesday 08:00 job (`run-event-check.sh` there), which owns the VC
   login (Playwright + Keychain; this repo has no node_modules) and all texting. `scripts/lib/board-api.mjs`
   is their REST layer (same env file and changelog path as board.mjs).
 - `deploy/tick.py` — the launchd entry point (`com.allinalan.rsd-board-tick`, 07:00 daily on the
   mini): decides what is due and notifies Alan. It does not run routines. `--dry`, `--status`. Wednesday is
-  no longer "due" (the event check runs unattended). It reminds Alan to send the freshmen training sign-in
+  no longer "due" (the event check runs unattended); the booking sweep is due days 2-8 after a meeting but marked
+  `auto` (it runs itself from rsd-shift-picking), so it is logged, never a "go run it" notice. It reminds Alan to send the freshmen training sign-in
   sheet two days after a January/August meeting (Jan 20 / Aug 15 when none is set) and about the Jan-May
   changeover on Dec 28, and wakes Messages with a cheap read before texting (a cold Messages after the
   2026-09-22 reboot timed out the 2026-09-23 notice).
 - `install.sh` — preflight + plist, disarmed by default; `--arm`, `--disarm`, `--check`.
 - `tests/run-all.mjs` — CLI, launcher, Sheet-parser, matcher, sync and event-check tests against an in-memory fake database. Run before every commit.
 - `docs/ROADMAP.md` — the staged plan to replace the Sheet by Fall 2027. `docs/HANDOFF.md` — go-live steps.
-- `.claude/skills/` — the routines: `board-tick` (daily), `board-preflight`, `board-booking-sweep`,
+- `.claude/skills/` — the routines: `board-tick` (daily), `board-preflight`, `board-booking-sweep` (the hand-run fallback),
   `board-event-check`, `board-rollforward`. They lean on the account skills
   `vectorconnect-booking-request`, `event-check`, `vectorconnect-event-export`, `humanizer`.
 
@@ -109,9 +120,12 @@ keyed by series key. `editors` — who may write. `changelog` — every write.
   silent failure here: it writes a wrong seed and everyone then trusts it. `--verify` differing on
   one or two events is the team editing the Sheet; differing on most of them is the parser having
   drifted. Rep names are stored as `settings.roster` spells them, not as the Sheet does.
-- Headless `claude -p` on the mini cannot see the account skills the routines need, so preflight,
-  booking sweep and roll-forward are still hand-run from the desktop app. The event check no longer
-  needs them: it is scripts (above); `board-event-check` is its hand-run fallback.
+- Headless `claude -p` on the mini cannot see the account skills the routines need, so preflight
+  and roll-forward are still hand-run from the desktop app. The event check and the booking sweep no longer
+  need them: they are scripts (above); `board-event-check` and `board-booking-sweep` are their hand-run fallbacks.
+- **Board statuses** (index.html SORDER): Booked, Pending Promoter Acceptance, OK to Book - Need Contract, Pending
+  Coordinator, Booking Request Submitted (2026-09-23: the sweep sent it, Olean has it; VC's "Request to Book" reads
+  the same), Booking Request Needed, Prospective, Show Full, Cancelled.
 - **Nothing here writes the Sheet** (Alan, 2026-09-23: VC status lives on the board now; the Sheet's
   Z/AA columns froze "as of 9/9"). The sync only reads it; the team keeps editing it until stage 3.
 - `state/` and `out/` hold private data (the baseline can carry promoter contacts; reports name reps).

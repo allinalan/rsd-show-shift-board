@@ -91,14 +91,20 @@ try {
   T('settings').set('division', { meetings: ['2027-01-15'] });
   const due = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due.map(x => x.routine);
   ok((await due('2027-01-08')).join() === 'preflight', 'tick: preflight 7 days before a meeting');
-  ok((await due('2027-01-16')).join() === 'booking-sweep', 'tick: booking sweep the day after');
+  ok((await due('2027-01-16')).length === 0, 'tick: nothing the day after a meeting (the sweep waits a day for the picks to reach the board)');
+  const dueFull = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due;
+  let bs = (await dueFull('2027-01-17')).find(x => x.routine === 'booking-sweep');
+  ok(bs && bs.auto === true && bs.day === 2 && bs.followUp === false && bs.meeting === '2027-01-15', 'tick: the booking sweep is due two days after a meeting, and runs itself (auto)');
+  bs = (await dueFull('2027-01-23')).find(x => x.routine === 'booking-sweep');
+  ok(bs && bs.followUp === true && bs.day === 8, 'tick: the booking sweep follows up through day 8');
+  ok((await due('2027-01-24')).length === 0, 'tick: and not on day 9');
   ok((await due('2027-01-13')).length === 0, 'tick: Wednesday is no longer "due" (the event check runs unattended at 08:00)');
   ok((await due('2027-01-14')).length === 0, 'tick: nothing on an ordinary Thursday');
-  ok((await due('2027-01-17')).join() === 'freshmen-roster', 'tick: freshmen roster two days after a January meeting');
+  ok((await due('2027-01-17')).join() === 'booking-sweep,freshmen-roster', 'tick: freshmen roster two days after a January meeting (the sweep\'s first day too)');
   T('settings').set('division', { meetings: ['2027-04-28'] });
   ok((await due('2027-08-15')).join() === 'freshmen-roster', 'tick: freshmen roster on Aug 15 when no August meeting is on the calendar');
   T('settings').set('division', { meetings: ['2027-08-03'] });
-  ok((await due('2027-08-15')).length === 0 && (await due('2027-08-05')).join() === 'freshmen-roster', 'tick: with an August meeting, the reminder follows the meeting, not the fixed day');
+  ok((await due('2027-08-15')).length === 0 && (await due('2027-08-05')).join() === 'booking-sweep,freshmen-roster', 'tick: with an August meeting, the reminder follows the meeting, not the fixed day');
   ok((await due('2026-12-28')).join() === 'season-changeover', 'tick: season changeover reminder on Dec 28');
   T('settings').set('division', { meetings: ['2027-01-15'] });
 
@@ -135,6 +141,10 @@ try {
   ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /WOULD iMESSAGE ALAN/.test(r.stdout) && /say "run the board preflight"/.test(r.stdout), 'tick.py --dry: a due routine produces one Slack + one iMessage notice: ' + r.stderr);
   r = await tickpy('--date', '2027-01-14');
   ok(r.code === 0 && /nothing due/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: nothing due means no notices');
+  r = await tickpy('--date', '2027-01-20');
+  ok(r.code === 0 && /due, runs itself: booking-sweep/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: a routine that runs itself (the booking sweep) is logged, never a "go run it" notice: ' + r.stdout);
+  r = await tickpy('--date', '2027-01-17');
+  ok(r.code === 0 && /WOULD iMESSAGE ALAN/.test(r.stdout) && /training sign-in sheet/.test(r.stdout) && !/booking sweep/.test(r.stdout.split('WOULD iMESSAGE ALAN')[1] || ''), 'tick.py --dry: on the sweep\'s first day the notice is only the freshmen sheet: ' + r.stdout);
 
   // ---- a real (not --dry) run, with slack() and imessage_alan() swapped for printers before main() starts, so the
   // pull and the log are exercised and nothing is sent. The guard on subprocess.run is the backstop: whatever tick.py
@@ -431,6 +441,8 @@ sys.exit(tick.main())
     e('2026-e', 'Queen Creek Family Market-November', '2026-11-13', ['Kendall'], { vcNumber: '00092192', vcStatus: 'Booked', status: 'Booked', dates: ['2026-11-14'], days: ['Saturday'] });
     e('2026-f', 'Beta Fest', '2026-10-16', ['Cameron'], { vcNumber: '00300006', vcStatus: 'Booked', status: 'Booked' });
     e('2026-k', 'Cochise County Fair', '2026-10-02', ['J. Parker'], { vcNumber: '00300011', vcStatus: 'OK to Book - Need Contract', status: 'OK to Book - Need Contract' });
+    e('2026-l', 'Lambda Market', '2026-11-20', ['Eli'], { status: 'Booking Request Submitted', vcRequestedAt: '2026-09-28' });
+    e('2026-m', 'Mu Pageant', '2026-11-27', ['Sarah'], { status: 'Booking Request Submitted', vcRequestedAt: '2026-09-01' });
     const filler = Array.from({ length: 22 }, (_, i) => ({ eventNumber: String(310000 + i), name: `Filler Show ${String.fromCharCode(65 + i)}`, status: 'Booked', startDate: '2026-12-0' + (1 + (i % 9)), endDate: '2026-12-0' + (1 + (i % 9)) }));
     const rows = [
       { eventNumber: '00300001', name: 'Alpha Days', status: 'Booked', startDate: '2026-10-09', endDate: '2026-10-11' },
@@ -466,6 +478,11 @@ sys.exit(tick.main())
     ok(latest.headline.deadWithReps === 2 && latest.headline.openQuestions === 1 && latest.written, 'event-check: the headline counts the dead shows and the open question');
     ok(latest.flags.ruledOff.length === 1 && latest.events.find(x => x.id === '2026-k').ruling.reason === "we couldn't get in", 'event-check: the ruling travels to the texts with its reason');
     ok(!JSON.stringify(latest).includes('555-'), 'event-check: the result carries no contact data');
+    ok(T('events').get('2026-l').status === 'Booking Request Submitted' && latest.events.find(x => x.id === '2026-l').requestPending === true, 'event-check: a booking request inside 14 days keeps "Booking Request Submitted" (it is with Olean)');
+    ok(T('events').get('2026-m').status === 'Booking Request Needed' && latest.flags.staleRequests.some(x => x.id === '2026-m'), 'event-check: a request with no VC record after 14 days goes back to "Booking Request Needed" and is flagged');
+    ok(latest.headline.requestsPending === 1 && !latest.events.find(x => x.id === '2026-l').notes.join().includes('stale'), 'event-check: the headline counts requests with Olean apart from shows with no booking');
+    const { boardStatus } = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
+    ok(boardStatus('Request to Book', '', 1).status === 'Booking Request Submitted', 'event-check: VC\'s "Request to Book" reads as Booking Request Submitted on the board');
     // a pull that lacks the numbers the board already has must not be trusted
     T('events').set('2026-g', { ...T('events').get('2026-f'), name: 'Gamma', vcNumber: '00300099', dead: false, status: 'Booked', vcCheckedAt: undefined });
     T('events').set('2026-h', { ...T('events').get('2026-f'), name: 'Delta', vcNumber: '00300098', dead: false, status: 'Booked', vcCheckedAt: undefined });
@@ -476,6 +493,81 @@ sys.exit(tick.main())
     fs.writeFileSync(vcFile, JSON.stringify({ rows: rows.slice(0, 3) }));
     r = await ec('--vc', vcFile, '--apply', '--date', '2026-10-01');
     ok(r.code === 4, 'event-check: a VC pull too small to judge against exits 4 and writes nothing');
+  }
+
+  // ---- booking-sweep end to end: the buckets, the only write (whole-week date moves), and its refusals
+  {
+    for (const t of Object.keys(db)) db[t].clear();
+    const addD = (iso, n) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+    const ev = (id, name, weekend, reps, extra = {}) => { const days = ['Friday', 'Saturday', 'Sunday']; const dates = days.map((_, i) => addD(weekend, i));
+      T('events').set(id, { year: 2026, name, weekend, startDate: dates[0], endDate: dates[2], days, dates,
+        booths: [{ label: '', days, dates, shifts: [{ label: 'Shift 1', slots: days.map((_, i) => ({ rep: reps[i] || '', ft: [] })) }] }], status: 'Prospective', ...extra }); };
+    ev('2026-r1', 'Pinecone Craft Fair', '2026-11-13', ['Eli', 'Eli'], { cityState: 'Flagstaff, AZ', promoter: 'Pinecone Co', cost: '$300', setting: 'outdoor', notes: 'north lot, not south' });
+    T('event_contacts').set('2026-r1', { contact: 'Jane Doe', phone: '(928) 555-0100', email: 'jane@example.com' });
+    ev('2026-r2', 'Estimated Expo', '2026-11-20', ['Sarah'], { datesEstimated: true });
+    ev('2026-r3', 'Soon Fest', '2026-10-02', ['Reed']);
+    ev('2026-p1', 'Prospect Days', '2026-11-06', ['Kendall']);
+    ev('2026-f1', 'Shifted Show', '2026-10-16', ['Cameron', 'Eli', 'Sarah'], { vcNumber: '00400002' });
+    ev('2026-q1', 'Off By One Fest', '2026-10-16', ['Reed'], { vcNumber: '00400003' });
+    ev('2026-q2', 'Pending Promo Show', '2026-10-30', ['Reed'], { vcNumber: '00400004' });
+    ev('2026-x1', 'Wigwam Holiday Festival of Art', '2026-11-27', ['Eli']);
+    ev('2026-d1', 'Duplicate Rodeo', '2026-11-20', ['Kendall']);
+    ev('2026-s1', 'Sent Already Show', '2026-11-13', ['Sarah'], { status: 'Booking Request Submitted', vcRequestedAt: '2026-09-29' });
+    ev('2026-c1', 'Contained Show', '2026-10-23', ['Eli'], { vcNumber: '00400006' });
+    ev('2026-d2', 'Placeholder Bazaar', '2026-11-27', ['Reed'], { cityState: 'Queen Creek, AZ' });
+    const filler = Array.from({ length: 22 }, (_, i) => ({ eventNumber: String(410000 + i), name: `Filler Show ${String.fromCharCode(65 + i)}`, status: 'Booked', startDate: '2026-12-0' + (1 + (i % 9)), endDate: '2026-12-0' + (1 + (i % 9)) }));
+    const vcRows = [
+      { eventNumber: '00400001', name: 'Prospect Days', status: 'Prospective', startDate: '2026-11-06', endDate: '2026-11-08' },
+      { eventNumber: '00400002', name: 'Shifted Show', status: 'Booked', startDate: '2026-10-23', endDate: '2026-10-25' },
+      { eventNumber: '00400003', name: 'Off By One Fest', status: 'Booked', startDate: '2026-10-17', endDate: '2026-10-18' },
+      { eventNumber: '00400004', name: 'Pending Promo Show', status: 'Pending Promoter - Acceptance into Event', startDate: '2026-11-06', endDate: '2026-11-08' },
+      { eventNumber: '00400005', name: 'Duplicate Rodeo', status: 'Booked', startDate: '2026-11-06', endDate: '2026-11-08' },
+      { eventNumber: '00400006', name: 'Contained Show', status: 'Booked', startDate: '2026-10-21', endDate: '2026-10-25' },
+      { eventNumber: '00092192', name: 'Placeholder Bazaar', status: 'Booked', startDate: '2026-11-01', endDate: '2026-11-30' },
+      ...filler];
+    const vcFile = path.join(home, 'bs-vc.json'); fs.writeFileSync(vcFile, JSON.stringify({ coordinator: 'Matt Foss', rows: vcRows }));
+    const outd = path.join(home, 'bs-out'), exFile = path.join(home, 'bs-exclude.json');
+    fs.writeFileSync(exFile, JSON.stringify({ exclude: ['Wigwam Holiday Festival of Art'] }));
+    const envB = { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_OUT_DIR: outd };
+    const node = (script, ...a) => new Promise(res => execFile(process.execPath, [path.join(REPO, script), ...a], { env: envB }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    r = await node('scripts/event-check.mjs', '--vc', vcFile, '--apply', '--date', '2026-10-01');
+    ok(r.code === 0, 'booking-sweep fixture: the event check ran: ' + r.stderr.slice(0, 300));
+    const before = JSON.stringify(T('events').get('2026-f1'));
+    r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--exclude-file', exFile, '--meeting', '2026-09-29', '--date', '2026-10-01');
+    const dry = JSON.parse(fs.readFileSync(path.join(outd, 'booking-sweep', 'latest.json'), 'utf8'));
+    ok(r.code === 0 && dry.mode === 'dry' && dry.fixes.length === 1 && !dry.fixes[0].applied && JSON.stringify(T('events').get('2026-f1')) === before, 'booking-sweep dry: lists the date fix and writes nothing: ' + r.stderr.slice(0, 200));
+    r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--exclude-file', exFile, '--meeting', '2026-09-29', '--date', '2026-10-01', '--apply');
+    const out = JSON.parse(fs.readFileSync(path.join(outd, 'booking-sweep', 'latest.json'), 'utf8'));
+    const ids = k => out[k].map(x => x.id).sort().join();
+    ok(r.code === 0 && out.mode === 'apply', 'booking-sweep --apply exits 0: ' + r.stderr.slice(0, 300));
+    ok(ids('requests') === '2026-d2,2026-r1', 'booking-sweep: a staffed show VC does not have is a request (a placeholder record is never a duplicate): ' + ids('requests'));
+    const req = out.requests.find(x => x.id === '2026-r1');
+    ok(req.fields.phone === '(928) 555-0100' && req.fields.contact === 'Jane Doe' && req.fields.setting === 'outdoor' && req.fields.notes === 'north lot, not south' && req.run.start === '2026-11-13' && req.run.end === '2026-11-15', 'booking-sweep: the request carries what the form needs, contacts included');
+    ok(ids('holds') === '2026-d1,2026-r2,2026-r3', 'booking-sweep: estimated dates, a show days away and a same-name VC record at other dates are held: ' + ids('holds'));
+    ok(out.holds.find(x => x.id === '2026-d1').why.join().includes('00400005'), 'booking-sweep: the duplicate hold names the VC record');
+    ok(ids('email') === '2026-p1' && out.email[0].vcNumber === '00400001' && out.email[0].datesDiffer === false, 'booking-sweep: a Prospective VC record goes on the Olean email');
+    ok(out.fixes.length === 1 && out.fixes[0].id === '2026-f1' && out.fixes[0].applied && out.fixes[0].shift === 7, 'booking-sweep: a booked show a week off on the board is fixed');
+    const F = T('events').get('2026-f1');
+    ok(F.weekend === '2026-10-23' && F.startDate === '2026-10-23' && F.endDate === '2026-10-25' && F.booths[0].dates.join() === '2026-10-23,2026-10-24,2026-10-25' && F.dates.join() === '2026-10-23,2026-10-24,2026-10-25', 'booking-sweep: every date on the fixed show moved to VC\'s run');
+    ok(F.booths[0].shifts[0].slots.map(x => x.rep).join() === 'Cameron,Eli,Sarah' && F.booths[0].days.join() === 'Friday,Saturday,Sunday' && F.datesMoved.from.start === '2026-10-16' && F.datesEstimated === false, 'booking-sweep: the shifts and day names are untouched, and the move is recorded');
+    ok(ids('questions') === '2026-q1,2026-q2', 'booking-sweep: a partial-weekend difference and a VC date on a show VC has not booked are questions: ' + ids('questions'));
+    ok(!out.fixes.some(x => x.id === '2026-c1') && !out.questions.some(x => x.id === '2026-c1'), 'booking-sweep: board selling days inside VC\'s run (a set-up day in VC) are not a date problem');
+    ok(out.claimedVc.includes('00400006') && !out.claimedVc.includes('00092192'), 'booking-sweep: the VC numbers the board already claims travel with the result');
+    ok(ids('pending') === '2026-s1' && ids('excluded') === '2026-x1', 'booking-sweep: a request already with Olean waits; Alan\'s direct shows are left out');
+    ok((fs.statSync(path.join(outd, 'booking-sweep', 'latest.json')).mode & 0o777) === 0o600, 'booking-sweep: the output (it carries promoter contacts) is mode 600');
+    const md = fs.readFileSync(path.join(outd, 'reports', 'booking-sweep-2026-10-01.md'), 'utf8');
+    ok(!md.includes('555-') && !md.includes('jane@') && md.includes('Pinecone Craft Fair'), 'booking-sweep: the report carries no contacts');
+    r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--exclude-file', exFile, '--date', '2026-10-01', '--apply');
+    ok(r.code === 0 && JSON.parse(fs.readFileSync(path.join(outd, 'booking-sweep', 'latest.json'), 'utf8')).fixes.length === 0, 'booking-sweep: a second run finds nothing left to move');
+    T('events').set('2026-f1', JSON.parse(before));
+    r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--date', '2026-10-01', '--apply', '--max-fixes', '0');
+    ok(r.code === 5 && T('events').get('2026-f1').weekend === '2026-10-16', 'booking-sweep: more date fixes than the cap refuses them all (exit 5) and moves nothing');
+    r = await node('scripts/booking-sweep.mjs', '--vc', vcFile, '--date', '2026-10-02', '--apply');
+    ok(r.code === 4 && T('events').get('2026-f1').weekend === '2026-10-16', 'booking-sweep: an event check from another day is not swept on (exit 4)');
+    const { sellingRun, weekShift } = await import(path.join(REPO, 'scripts/booking-sweep.mjs'));
+    ok(sellingRun({ weekend: '2026-10-16', booths: [{ days: ['Thursday SE', 'Friday', 'Saturday'], dates: ['2026-10-15', '2026-10-16', '2026-10-17'] }] }).start === '2026-10-16', 'sellingRun: a set-up day is not a selling day');
+    ok(sellingRun({ weekend: '2027-01-29', booths: [{ days: ['Friday'], dates: ['2024-01-26'] }] }) === null, 'sellingRun: stale day cells a year off are not trusted');
+    ok(weekShift({ start: '2026-10-16', end: '2026-10-18' }, { start: '2026-10-30', end: '2026-11-01' }) === 14 && weekShift({ start: '2026-10-16', end: '2026-10-18' }, { start: '2026-10-17', end: '2026-10-18' }) === null, 'weekShift: whole weeks of the same length only');
   }
 
   // ---- missing env is a loud failure

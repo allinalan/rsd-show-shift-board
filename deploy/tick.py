@@ -19,6 +19,9 @@ WHAT IT DOES (stage 1: decide and notify, nothing else)
      skills (event-check, vectorconnect-booking-request, vectorconnect-event-export, humanizer)
      that a headless `claude -p` on this mini cannot see (verified 2026-09-19). Unattended runs
      are stage 2 in docs/ROADMAP.md, after those skills are vendored into this repo.
+     A routine the tick marks "auto" runs itself somewhere else and is only logged here: the
+     booking sweep (rsd-shift-picking com.rsd.bookingsweep, 07:30 two days after a meeting, since
+     2026-09-23) texts Alan its own preview, so a second "go run it" notice would be wrong.
   6. Any failure -> Slack alert with the reason and the log path, exit 1. Never silent. That includes
      an exception nobody planned for: main() catches it, names the function and line, alerts the same.
 
@@ -256,8 +259,13 @@ def run():
     except Exception:  # noqa: BLE001
         return fail("board tick printed something that is not the expected JSON: %s" % r.stdout.strip()[:200])
 
+    auto = [d for d in due if d.get("auto")]
+    due = [d for d in due if not d.get("auto")]
+    if auto:
+        log("due, runs itself: " + ", ".join(d.get("routine", "?") for d in auto))
     if not due:
-        log("nothing due on %s" % tick.get("date"))
+        if not auto:
+            log("nothing due on %s" % tick.get("date"))
         return 0
 
     lines = []

@@ -432,6 +432,8 @@ export function boardStatus(vcStatus, sheetStatus, staffed) {
     if (/^show full/i.test(v)) return { status: 'Show Full', dead: false };
     if (/cancel|missed|declin|closed/i.test(v)) return { status: 'Cancelled', dead: true };
     if (/^booking request needed/i.test(v)) return { status: 'Booking Request Needed', dead: false };
+    // VC's "Request to Book" = Olean has the booking request (VC Status Definitions, read 2026-09-23)
+    if (/^request to book/i.test(v)) return { status: 'Booking Request Submitted', dead: false };
     if (/^prospective/i.test(v)) return { status: 'Prospective', dead: false };
     return { status: v, dead: false };
   }

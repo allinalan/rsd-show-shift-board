@@ -17,6 +17,9 @@
   Never writes Mesa (handled outside VC), a number two unrelated events both claim, or an event whose
   board VC number is missing from the pull (flagged instead). The Sheet is never written (Alan,
   2026-09-23: the board carries VC status now).
+  A show the booking sweep requested ("Booking Request Submitted", vcRequestedAt) keeps that status while
+  Olean works it: requestPendingDays (14) with no VC record, then it goes back to "Booking Request Needed"
+  and is flagged as a stale request. Once VC has the record, VC's status takes over as for any show.
 
   Usage:
     event-check.mjs --window                         print the VC window for today's scope as JSON
@@ -33,7 +36,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
-import { matchAll, duplicateClaims, statusCategory, CATEGORY_LABEL, effectiveDate, inRun, addDaysIso, normName } from './lib/match.mjs';
+import { matchAll, duplicateClaims, statusCategory, CATEGORY_LABEL, effectiveDate, inRun, addDaysIso, dayDiff, normName } from './lib/match.mjs';
 import { boardStatus, isSEday, XLSX_PATHS } from './parse-sheet.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -130,6 +133,13 @@ async function main() {
     const ruled = notHappening(e);
     if (ruled) { cat = 'dead'; notes.push(`Alan's ruling: ${ruled.note || 'not happening'}${row ? ` (VC still shows ${vcStatus})` : ''}`); }
     const openQuestion = !!m.placeholder && !ruled;
+    // a booking request the sweep submitted is in Olean's hands until VC shows the record (or it goes stale)
+    const requestedAt = t(e.vcRequestedAt), submitted = t(e.status) === 'Booking Request Submitted';
+    const requestAge = requestedAt ? dayDiff(TODAY, requestedAt) : null;
+    const requestPending = !row && submitted && requestAge !== null && requestAge <= (CFG.requestPendingDays ?? 14);
+    const staleRequest = !row && submitted && !requestPending;
+    if (requestPending) notes.push(`booking request submitted ${requestedAt}; waiting on Olean`);
+    if (staleRequest) notes.push(requestedAt ? `booking request submitted ${requestedAt}, still no VC record after ${requestAge} days` : 'marked Booking Request Submitted with no request date');
     const rec = {
       id: e.id, name: e.name, weekend: e.weekend, startDate: e.startDate, endDate: e.endDate, effective: m.effective || effectiveDate(e),
       upcoming: f.upcoming, staffed: f.staffed, reps: f.reps, shifts: shiftCount(e), sheetStatus: t(e.sheetStatus), boardStatus: t(e.status),
@@ -138,6 +148,7 @@ async function main() {
       dateMismatch: !!m.dateMismatch, numberMissing: !!m.numberMissing && !row, suspicious: suspicious.has(e.id), openQuestion,
       mismatchRow: m.mismatchRow ? { eventNumber: m.mismatchRow.eventNumber, name: m.mismatchRow.name, startDate: m.mismatchRow.startDate, endDate: m.mismatchRow.endDate, status: m.mismatchRow.status } : null,
       notes, ruling: ruled ? { note: ruled.note || '', reason: ruled.repReason || '' } : null,
+      vcRequestedAt: requestedAt || null, requestPending, staleRequest,
     };
     out.push(rec);
 
@@ -161,7 +172,7 @@ async function main() {
         if (t(e.status) !== bs.status) patch.status = bs.status;
         if (!!e.dead !== !!bs.dead) patch.dead = !!bs.dead;
       }
-    } else if (f.upcoming && f.staffed && !openQuestion && t(e.status) !== 'Booking Request Needed' && !t(e.vcNumber)) {
+    } else if (f.upcoming && f.staffed && !openQuestion && t(e.status) !== 'Booking Request Needed' && !t(e.vcNumber) && !requestPending) {
       patch.status = 'Booking Request Needed';
     }
     if (Object.keys(patch).length) { patch.vcCheckedAt = TODAY; patches.push({ id: e.id, name: e.name, patch, before: { status: t(e.status), vcStatus: t(e.vcStatus), vcNumber: t(e.vcNumber), dead: !!e.dead } }); }
@@ -201,7 +212,8 @@ async function main() {
   const live = out.filter(r => r.upcoming && r.staffed);
   result.headline = {
     staffedUpcoming: live.length,
-    noBooking: live.filter(r => r.category === 'no-vc' && !r.numberMissing && !r.openQuestion).length,
+    noBooking: live.filter(r => r.category === 'no-vc' && !r.numberMissing && !r.openQuestion && !r.requestPending).length,
+    requestsPending: live.filter(r => r.requestPending).length,
     notFullyBooked: live.filter(r => r.category !== 'booked').length,
     deadWithReps: live.filter(r => r.category === 'dead').length,
     openQuestions: live.filter(r => r.openQuestion).length,
@@ -220,6 +232,7 @@ async function main() {
     numberMissing: out.filter(r => r.numberMissing).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, vcNumber: r.vcNumber, lastKnown: r.vcStatus })),
     dateMismatches: out.filter(r => r.dateMismatch).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, board: `${r.startDate || r.effective}..${r.endDate || ''}`, vc: r.vcStart ? `${r.vcStart}..${r.vcEnd}` : (r.mismatchRow ? `${r.mismatchRow.startDate}..${r.mismatchRow.endDate} (${r.mismatchRow.eventNumber})` : '') })),
     openQuestions: out.filter(r => r.openQuestion).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, note: r.notes.join('; ') })),
+    staleRequests: out.filter(r => r.staleRequest && r.upcoming).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, requestedAt: r.vcRequestedAt })),
     aliasCandidates: out.filter(r => (r.aliasCandidates || []).length).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, candidates: r.aliasCandidates })),
     pastProblems: out.filter(r => !r.upcoming && r.staffed && ['no-vc', 'dead'].includes(r.category)).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, vc: r.vcStatus || 'no VC record' })),
   };
@@ -251,6 +264,7 @@ export function summaryMd(r) {
     md.push(`**${h.noBooking}** staffed upcoming shows have no booking in VectorConnect. **${h.notFullyBooked}** of ${h.staffedUpcoming} are not fully booked.`);
     md.push(`${h.deadWithReps} dead show(s) still have reps on them. Mesa Swapmeet excluded (${h.mesaExcluded} staffed weekends). VC pull: ${r.vc.rows} rows for ${r.vc.coordinator}.`);
     if (h.openQuestions) md.push(`${h.openQuestions} open question(s) (placeholder records), not counted as missing.`);
+    if (h.requestsPending) md.push(`${h.requestsPending} booking request(s) submitted and waiting on Olean, not counted as missing.`);
     md.push('', '## Since last week');
     md.push(`Resolved ${r.delta.resolved.length}, newly flagged ${r.delta.newlyFlagged.length}, status moved on ${r.delta.statusMoved.length}.`);
     for (const x of r.delta.resolved) md.push(`- resolved: ${x.weekend} ${x.name} (${x.from} -> ${x.to})`);
@@ -266,6 +280,7 @@ export function summaryMd(r) {
     if (bad.length) { md.push('', '## One VC number, two unrelated events (not written)'); for (const d of bad) md.push(`- ${d.number}: ${d.events.join(' / ')}`); }
     if (f.aliasCandidates.length) { md.push('', '## Possible name changes (confirm, and they match silently from then on)'); for (const x of f.aliasCandidates) md.push(`- ${x.weekend} ${x.name} -> ${x.candidates.map(c => `${c.eventNumber} ${c.name} (${c.status})`).join('; ')}`); }
     if (f.openQuestions.length) { md.push('', '## Open questions'); for (const x of f.openQuestions) md.push(`- ${x.weekend} ${x.name}: ${x.note}`); }
+    if ((f.staleRequests || []).length) { md.push('', `## Booking requests with no VC record after ${CFG.requestPendingDays ?? 14} days (back to Booking Request Needed)`); for (const x of f.staleRequests) md.push(`- ${x.weekend} ${x.name}: requested ${x.requestedAt || '(no date)'}`); }
   }
   if (r.sync) md.push('', `Sheet -> board sync: ${r.sync.eventsTouched} event(s), ${r.sync.slotChanges} shift change(s)${r.sync.wrote ? '' : ' (not written)'}; ${r.sync.held.length} held, ${r.sync.conflicts.length} conflict(s), ${r.sync.flagged.length} flagged.`);
   return md.join('\n');

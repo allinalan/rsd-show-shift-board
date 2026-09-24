@@ -22,7 +22,7 @@
     board editors list | add <email> [--role owner|coordinator] [--name "…"] | remove <email>
     board settings get | set field=value ...            (meetings:='["2027-01-15","2027-05-01"]')
     board history set <baseId> <year> <cpo> [orders]
-    board tick [--date 2027-01-08]                      (which routines are due today)
+    board tick [--date 2027-01-08]                      (which routines are due today; "auto": true = runs itself)
     board changelog [--limit 50]
     board seed [--force]                                (load seed/*.json into an empty database)
     board export [dir]                                  (dump every table to JSON — a backup)
@@ -248,7 +248,18 @@ const commands = {
   async tick() {
     const t = today(), s = (await getDoc('settings', 'division')) || {}; const ms = (s.meetings || []).map(fromISO).filter(Boolean);
     const due = [];
-    for (const m of ms) { const d = Math.round((m - t) / 864e5); if (d === 7) due.push({ routine: 'preflight', meeting: iso(m), note: 'research every event: dates, promoter, name; fix the board; ask Alan/JP about the rest' }); if (d === -1) due.push({ routine: 'booking-sweep', meeting: iso(m), note: 'submit a booking request for every staffed event with no VC number' }); }
+    // The booking sweep runs itself two days after a meeting (Alan, 2026-09-23): rsd-shift-picking's com.rsd.bookingsweep
+    // asks this command whether it is due, prepares the batch and texts Alan the preview. Two days, not one: the picks
+    // have to reach the board (and the coordinators finish the Sheet) before the requests go in. It stays due for a
+    // follow-up week (days 3-8), when it texts Alan only if something new is ready: a held show whose missing fields
+    // were filled on the board, a late pick, a show that turned Prospective.
+    for (const m of ms) {
+      const d = Math.round((m - t) / 864e5);
+      if (d === 7) due.push({ routine: 'preflight', meeting: iso(m), note: 'research every event: dates, promoter, name; fix the board; ask Alan/JP about the rest' });
+      if (d <= -2 && d >= -8) due.push({ routine: 'booking-sweep', meeting: iso(m), auto: true, day: -d, followUp: d < -2,
+        note: d === -2 ? 'runs itself (rsd-shift-picking com.rsd.bookingsweep): booking requests for staffed shows VC does not have, the Prospective list to Olean, board dates VC has booked differently; Alan approves by text'
+          : `follow-up day ${-d}: runs itself, and texts Alan only when something new is ready` });
+    }
     // The Wednesday event check runs unattended now (rsd-shift-picking's 08:00 job, 2026-09-23), so it is not "due".
     // New freshmen come from the training sign-in sheet filled at the January and August meetings (Alan,
     // 2026-09-23): ask for it two days after either meeting, or on a fixed day when none is on the calendar.

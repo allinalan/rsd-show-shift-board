@@ -11,6 +11,8 @@
   "scopeDaysAhead": 200,
   "vcWindowPadDays": 30,
   "dateSlackDays": 4,
+  "requestPendingDays": 14,
+  "_requestPendingDays": "A show the booking sweep requested keeps Booking Request Submitted this many days with no VC record, then goes back to Booking Request Needed (Olean works requests in 1-2 business days).",
   "effectiveDateMaxDrift": 45,
   "minScore": 0.5,
   "mesaPattern": "mesa\\s*market|swap\\s*meet|swapmeet",

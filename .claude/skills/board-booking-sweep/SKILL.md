@@ -1,11 +1,21 @@
 ---
 name: board-booking-sweep
-description: "The day after a shift-picking meeting: find every staffed event on the RSD Show Shift Board that has no VectorConnect booking (Prospective, or no VC number), research and submit a Booking Request for each through VectorConnect, and write the VC number and status back to the board. Use when tick reports 'booking-sweep', or when Alan says 'submit the booking requests from the meeting', 'send in everything we staffed', 'run the sweep'."
+description: "The HAND-RUN FALLBACK for the post-meeting booking sweep, which runs itself since 2026-09-23 (rsd-shift-picking com.rsd.bookingsweep, days 2-8 after a meeting, Alan approves by text). Use only when Alan asks to do the sweep by hand in Chrome ('do the booking requests by hand', 'the sweep is broken, submit them yourself') or to research and submit a show the unattended sweep held. For the normal flow, point him at rsd-shift-picking docs/booking-sweep.md."
 ---
 
 # board-booking-sweep
 
-Yesterday the coordinators filled shifts. Today every one of those promises gets a booking behind it.
+**Since 2026-09-23 this runs itself.** rsd-shift-picking's `run-booking-sweep.sh` (launchd com.rsd.bookingsweep,
+07:30 on days 2-8 after a meeting) runs the event check's stages, this repo's `scripts/booking-sweep.mjs`, VC's
+pre-fill lookups and the booking form by script, and texts Alan ONE batch: the rep date texts, the requests VC's
+form can take as they stand, and the email to Cutco's events team (Olean) for shows VC has as Prospective
+(addresses in rsd-shift-picking's private data/booking-sweep-config.json; never in this public repo). Nothing goes to Cutco without his "approved". Details: rsd-shift-picking `docs/booking-sweep.md`.
+
+This skill is the fallback: the unattended run is down, or Alan wants a held show researched and submitted by
+hand. Before submitting anything by hand, run `node booking-sweep.js status` in rsd-shift-picking so a show the
+unattended sweep already sent is not sent twice.
+
+Two days after the meeting the coordinators have filled shifts. Every one of those promises gets a booking behind it.
 
 ## The list
 
@@ -39,11 +49,13 @@ A meeting produces 20–40 of these; one approval covers the batch.
 After each confirmed submission (the banner):
 
 ```
-node scripts/board.mjs set <id> status="Booking Request Needed" vcStatus="Booking Request Submitted" vcRequestedAt=2027-01-16
+node scripts/board.mjs set <id> status="Booking Request Submitted" vcRequestedAt=2027-01-15
 ```
 
-When the event already had a VC record (REBOOK found it), also write `vcNumber=<number>`. Set
-`BOARD_ACTOR=service:board-booking-sweep` so the changelog says who did it.
+"Booking Request Submitted" is a board status (2026-09-23); the event check keeps it 14 days while Olean works the
+request. Leave `vcStatus` alone (it is VC's own words, written by the event check) and never write the REBOOK
+pre-fill's number into `vcNumber`: that is last year's record, and the event check would then look for it in this
+season's pull. Set `BOARD_ACTOR=service:board-booking-sweep` so the changelog says who did it.
 
 ## Output
 
