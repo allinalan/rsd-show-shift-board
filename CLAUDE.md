@@ -24,12 +24,16 @@ routines in `.claude/skills/` keep it true.
   (VC's), never promoter contacts (edited on the board: the parser misreads spilled contact cells). VC
   wins: a rep added to a VC-dead show, or a date moved away from a VC booking, is held; an event deleted or
   moved on the Sheet is flagged, never deleted or duplicated. Board edits win ties (both changed = held,
-  named in the report). Stops on parser drift (exit 2) or an oversized change set (exit 3). Dry unless `--apply`.
+  named in the report). Two identical rows for one market on one day are one event (the extra row is reported,
+  never added); a start date weeks away from the event's own banner-resolved days is a stale cell and is never
+  copied. Stops on parser drift (exit 2) or an oversized change set (exit 3). Dry unless `--apply`.
 - `scripts/event-check.mjs` — the Wednesday Event Check against the board, unattended: matches every
   staffed non-Mesa event to a VectorConnect My Events pull (`scripts/lib/match.mjs`: VC number first, then
   name + shared distinctive word + date gate, aliases/rejects in `config/event-check.json`, Queen Creek by
   exact date, placeholder 00092192 never books a date, duplicate-number audit) and writes vcStatus /
-  vcNumber / status / dead back (past events: vcStatus and vcNumber only). Refuses to write when the pull
+  vcNumber / status / dead back (past events: vcStatus and vcNumber only). Alan's global "not-worked" rulings
+  (rsd-shift-picking data/event-rulings.json, `--rulings`) outrank VC: the show is dead on the board, VC's
+  status is kept beside it, and the rep text uses the ruling's repReason. Refuses to write when the pull
   is too small (exit 4) or lacks the board's own VC numbers (exit 5). Writes `out/event-check/latest.json`
   (read by rsd-shift-picking's texts), the workbook and a summary under `out/reports/`.
 - Both run from rsd-shift-picking's Wednesday 08:00 job (`run-event-check.sh` there), which owns the VC

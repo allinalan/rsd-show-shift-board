@@ -20,7 +20,11 @@
 
   Usage:
     event-check.mjs --window                         print the VC window for today's scope as JSON
-    event-check.mjs --vc <pull.json> [--apply] [--sync-report <sheet-sync.json>] [--status-defs <defs.json>] [--date YYYY-MM-DD]
+    event-check.mjs --vc <pull.json> [--apply] [--sync-report <sheet-sync.json>] [--status-defs <defs.json>] [--rulings <event-rulings.json>] [--date YYYY-MM-DD]
+  --rulings: rsd-shift-picking's data/event-rulings.json. A global (not rep-scoped) "not-worked" ruling
+  whose event text is inside the board name and whose dates cover the event means Alan ruled the show is
+  not happening: it is dead on the board whatever VC still says (Cochise County Fair 2026, "we could not
+  get in"), and the rep texts use the ruling's repReason. VC's own status is kept verbatim beside it.
   Outputs: out/event-check/latest.json (+ a dated copy), out/reports/Event_Check_<label>_<date>.xlsx,
            out/reports/event-check-<date>.md
   Exit: 0 ok · 1 error · 4 the VC pull is unusable (nothing written) · 5 a safety check refused the write
@@ -83,6 +87,10 @@ async function main() {
   const rows = (vc.rows || []).map(r => ({ ...r, eventNumber: t(r.eventNumber) }));
   const syncReport = opt('--sync-report') && fs.existsSync(opt('--sync-report')) ? JSON.parse(fs.readFileSync(opt('--sync-report'), 'utf8')) : null;
   const defs = opt('--status-defs') && fs.existsSync(opt('--status-defs')) ? JSON.parse(fs.readFileSync(opt('--status-defs'), 'utf8')) : null;
+  const rulings = opt('--rulings') && fs.existsSync(opt('--rulings')) ? (JSON.parse(fs.readFileSync(opt('--rulings'), 'utf8')).rulings || []) : [];
+  // the stat system's matching (lib/reconcile.js rulingFor): the ruling's event text inside the name, dates inside [from, to]
+  const notHappening = e => { const n = String(e.name || '').toLowerCase(), d = effectiveDate(e, CFG.effectiveDateMaxDrift);
+    return rulings.find(r => !r.rep && r.ruling === 'not-worked' && r.event && n.includes(String(r.event).toLowerCase()) && d && d >= (r.from || '0000') && d <= (r.to || '9999')) || null; };
   const result = { date: TODAY, runAt: new Date().toISOString(), mode: flag('--apply') ? 'apply' : 'dry', written: false,
     vc: { pulledAt: vc.pulledAt || null, rows: rows.length, coordinator: vc.coordinator || CFG.coordinator, window: vc.window || null } };
 
@@ -119,7 +127,9 @@ async function main() {
     if (m.note) notes.push(m.note);
     if (m.numberMissing && !row) { vcStatus = beforeStatus; cat = beforeStatus ? statusCategory(beforeStatus, { past: f.past }) : 'no-vc'; notes.push('last known status kept'); }
     if (suspicious.has(e.id)) notes.push(`VC ${row && row.eventNumber} is also claimed by an unrelated event; not written`);
-    const openQuestion = !!m.placeholder;
+    const ruled = notHappening(e);
+    if (ruled) { cat = 'dead'; notes.push(`Alan's ruling: ${ruled.note || 'not happening'}${row ? ` (VC still shows ${vcStatus})` : ''}`); }
+    const openQuestion = !!m.placeholder && !ruled;
     const rec = {
       id: e.id, name: e.name, weekend: e.weekend, startDate: e.startDate, endDate: e.endDate, effective: m.effective || effectiveDate(e),
       upcoming: f.upcoming, staffed: f.staffed, reps: f.reps, shifts: shiftCount(e), sheetStatus: t(e.sheetStatus), boardStatus: t(e.status),
@@ -127,13 +137,22 @@ async function main() {
       matchedBy: m.by || null, score: m.score || 0, category: cat, before: { vcStatus: beforeStatus, category: beforeCat, vcNumber: t(e.vcNumber), status: t(e.status) },
       dateMismatch: !!m.dateMismatch, numberMissing: !!m.numberMissing && !row, suspicious: suspicious.has(e.id), openQuestion,
       mismatchRow: m.mismatchRow ? { eventNumber: m.mismatchRow.eventNumber, name: m.mismatchRow.name, startDate: m.mismatchRow.startDate, endDate: m.mismatchRow.endDate, status: m.mismatchRow.status } : null,
-      notes,
+      notes, ruling: ruled ? { note: ruled.note || '', reason: ruled.repReason || '' } : null,
     };
     out.push(rec);
 
     // the write-back
-    if (suspicious.has(e.id) || rec.numberMissing) continue;
+    if (suspicious.has(e.id) || (rec.numberMissing && !ruled)) continue;
     const patch = {};
+    if (ruled) {
+      // Alan's word outranks VC's status, past or upcoming: the show is not happening.
+      if (row && t(e.vcNumber) !== row.eventNumber) patch.vcNumber = row.eventNumber;
+      if (row && t(e.vcStatus) !== vcStatus) patch.vcStatus = vcStatus;
+      if (t(e.status) !== 'Cancelled') patch.status = 'Cancelled';
+      if (!e.dead) patch.dead = true;
+      if (Object.keys(patch).length) { patch.vcCheckedAt = TODAY; patches.push({ id: e.id, name: e.name, patch, before: { status: t(e.status), vcStatus: t(e.vcStatus), vcNumber: t(e.vcNumber), dead: !!e.dead } }); }
+      continue;
+    }
     if (row) {
       if (t(e.vcNumber) !== row.eventNumber) patch.vcNumber = row.eventNumber;
       if (t(e.vcStatus) !== vcStatus) patch.vcStatus = vcStatus;
@@ -204,6 +223,7 @@ async function main() {
     aliasCandidates: out.filter(r => (r.aliasCandidates || []).length).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, candidates: r.aliasCandidates })),
     pastProblems: out.filter(r => !r.upcoming && r.staffed && ['no-vc', 'dead'].includes(r.category)).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, vc: r.vcStatus || 'no VC record' })),
   };
+  result.flags.ruledOff = out.filter(r => r.ruling).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, vc: r.vcStatus || 'no VC record', note: r.ruling.note }));
   result.aliasesUsed = out.filter(r => r.matchedBy === 'alias').map(r => ({ board: r.name, vc: r.vcName, number: r.vcNumber }));
   result.sync = syncReport ? { mode: syncReport.mode, wrote: syncReport.wrote, eventsTouched: syncReport.eventsTouched, slotChanges: syncReport.slotChanges,
     held: syncReport.held, conflicts: syncReport.conflicts, flagged: syncReport.flagged, created: syncReport.created, stopped: syncReport.stopped || null, unresolved: syncReport.unresolved } : null;
@@ -240,6 +260,7 @@ export function summaryMd(r) {
     const f = r.flags;
     if (f.sheetSaysBooked.length) { md.push('', '## Column C says Booked, VectorConnect does not'); for (const x of f.sheetSaysBooked) md.push(`- ${x.weekend} ${x.name}: VC ${x.vc}`); }
     if (f.offListStatuses.length) md.push('', `Statuses not on the definitions list: ${f.offListStatuses.map(x => `${x.status} (${x.count})`).join(', ')}`);
+    if ((f.ruledOff || []).length) { md.push('', "## Not happening by Alan's ruling (dead on the board whatever VC shows)"); for (const x of f.ruledOff) md.push(`- ${x.weekend} ${x.name}: VC ${x.vc}. ${x.note}`); }
     if (f.numberMissing.length) { md.push('', '## Board VC number not in this pull'); for (const x of f.numberMissing) md.push(`- ${x.weekend} ${x.name}: ${x.vcNumber} (last known ${x.lastKnown || 'none'})`); }
     const bad = f.duplicates.filter(d => !d.legit);
     if (bad.length) { md.push('', '## One VC number, two unrelated events (not written)'); for (const d of bad) md.push(`- ${d.number}: ${d.events.join(' / ')}`); }

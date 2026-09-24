@@ -34,7 +34,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseAll, makeRepResolver, repKey, boardStatus, staffedCount, matchToSeed, STRUCTURAL, readGrid, normName } from './parse-sheet.mjs';
 import { boardApi } from './lib/board-api.mjs';
-import { nameScore, statusCategory, effectiveDate, inRun, toDate } from './lib/match.mjs';
+import { nameScore, statusCategory, effectiveDate, inRun, dayDiff } from './lib/match.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -107,8 +107,13 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today }) {
     else { conflicts.push(`${f}: the Sheet changed it to ${JSON.stringify(s)} but the board already says ${JSON.stringify(bd)}`); keepBase.fields.add(f); }
   }
 
-  // dates: carried like the rest, unless VectorConnect has the booking somewhere else
-  const dateChanged = DATE_FIELDS.some(f => t(sheet[f]) !== t(base[f])) || JSON.stringify(sheet.dates || []) !== JSON.stringify(base.dates || []);
+  // dates: carried like the rest, unless VectorConnect has the booking somewhere else. A start date far from
+  // the event's own banner-resolved days is a stale cell, not a move (the Queen Creek October rows carry 11/1,
+  // the placeholder's date, for markets on 10/10 and 10/24): it is never copied onto the board.
+  const firstDay = (sheet.dates || []).filter(Boolean).sort()[0];
+  const staleStart = !!(firstDay && sheet.startDate && Math.abs(dayDiff(sheet.startDate, firstDay)) > 7);
+  const datesArrayChanged = JSON.stringify(sheet.dates || []) !== JSON.stringify(base.dates || []);
+  const dateChanged = (!staleStart && DATE_FIELDS.some(f => t(sheet[f]) !== t(base[f]))) || datesArrayChanged;
   let datesHeld = false;
   if (dateChanged) {
     const boardUntouched = DATE_FIELDS.every(f => t(board[f]) === t(base[f]));
@@ -120,6 +125,9 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today }) {
       if (vcRow && !deadByVc && statusCategory(vcRow.status) !== 'no-vc' && !inRun(eff, vcRow, CFG.dateSlackDays ?? 4)) {
         held.push(`dates: the Sheet moved it to ${sheet.startDate}..${sheet.endDate}, but VectorConnect has ${vcRow.eventNumber} on ${vcRow.startDate}..${vcRow.endDate} (${vcRow.status})`);
         datesHeld = true;
+      } else if (staleStart) {
+        patch.dates = sheet.dates || [];
+        changes.push(`days: ${(base.dates || []).filter(Boolean).join(', ')} -> ${(sheet.dates || []).filter(Boolean).join(', ')} (the Sheet's start date ${sheet.startDate} is stale; not copied)`);
       } else {
         for (const f of DATE_FIELDS) patch[f] = sheet[f] || '';
         patch.dates = sheet.dates || [];
@@ -212,12 +220,26 @@ async function main() {
     if (pairs.length >= 20 && bad > pairs.length * (CFG.sync.structuralDriftShare ?? 0.1)) drift.push(`${k} differs on ${bad} of ${pairs.length}`);
   }
 
-  // renames (same weekend) and moves (same name, another weekend) among the unmatched
+  // Two identical rows for one market on one day (a row copied up and the old one left behind) are one event:
+  // same name, weekend, days and staffing. The board keeps one; the extra row is reported, never added.
+  const staffKey = e => JSON.stringify((e.booths || []).map(b => (b.shifts || []).map(x => (x.slots || []).map(sl => repKey(sl.rep, resolve)))));
+  const sameDays = (a, b) => JSON.stringify((a.dates || []).filter(Boolean)) === JSON.stringify((b.dates || []).filter(Boolean));
+  const duplicates = [];
+  for (const x of liveOnly) {
+    const twin = sheetEvents.find(o => o !== x && !liveOnly.includes(o) && normName(o.name) === normName(x.name) && o.weekend === x.weekend && sameDays(o, x) && staffKey(o) === staffKey(x));
+    if (twin) duplicates.push({ sheet: x, twin });
+  }
+  const dupSet = new Set(duplicates.map(d => d.sheet));
+
+  // renames (same weekend) and moves (same name, another weekend) among the unmatched. Only against events the
+  // board still has: an old-weekend event someone deleted on the board is settled, and the Sheet's row is new.
   const renames = [], moves = [];
   const repSet = e => new Set((e.booths || []).flatMap(b => b.shifts.flatMap(s => s.slots.map(sl => repKey(sl.rep, resolve)).filter(k => k && k !== '__X__'))));
   for (const s of [...liveOnly]) {
+    if (dupSet.has(s)) continue;
     let best = null;
     for (const b of seedOnly) {
+      if (!b.id || !boardById.get(b.id)) continue;
       if (renames.some(r => r.base === b) || moves.some(m => m.base === b)) continue;
       if (normName(s.name) === normName(b.name) && s.weekend !== b.weekend) { best = { kind: 'move', b }; break; }
       if (s.weekend === b.weekend) {
@@ -231,7 +253,8 @@ async function main() {
   }
   const pairedSheet = new Set([...renames, ...moves].map(x => x.sheet)), pairedBase = new Set([...renames, ...moves].map(x => x.base));
 
-  const plan = { applied: [], held: [], conflicts: [], created: [], flagged: [], unresolved: [], warnings };
+  const plan = { applied: [], held: [], conflicts: [], created: [], flagged: [], unresolved: [], warnings,
+    duplicates: duplicates.map(d => ({ name: d.sheet.name, weekend: d.sheet.weekend, rows: [d.twin.row, d.sheet.row] })) };
   const newBaseline = [];
   let eventsTouched = 0, slotChanges = 0;
   const writes = [];
@@ -265,7 +288,7 @@ async function main() {
     newBaseline.push(clone(base));
   }
   for (const sheet of liveOnly) {
-    if (pairedSheet.has(sheet)) continue;
+    if (pairedSheet.has(sheet) || dupSet.has(sheet)) continue;
     const existing = boardByKey.get(`${normName(sheet.name)}|${sheet.weekend || ''}`);
     if (existing) {
       // added on both sides independently: carry only what fills a blank on the board
@@ -340,6 +363,7 @@ async function main() {
   if (plan.held.length) { md.push('', '## Held (VectorConnect or a move says no; comes back next run until decided)'); for (const h of plan.held) md.push(`- ${h.weekend} ${h.name}: ${h.why}`); }
   if (plan.conflicts.length) { md.push('', '## Conflicts (the Sheet and the board both changed it; neither touched)'); for (const c of plan.conflicts) md.push(`- ${c.weekend} ${c.name}: ${c.why}`); }
   if (plan.flagged.length) { md.push('', '## Flagged'); for (const f of plan.flagged) md.push(`- ${f}`); }
+  if (plan.duplicates.length) { md.push('', '## The same event twice on the Sheet (the board keeps one; tidy the Sheet when convenient)'); for (const d of plan.duplicates) md.push(`- ${d.weekend} ${d.name}: rows ${d.rows.join(' and ')}, same day, same staffing`); }
   if (plan.created.length) { md.push('', '## New events'); for (const c of plan.created) md.push(`- ${c.weekend} ${c.name} (${c.staffed} shift(s), ${c.status}) [${c.id}]`); }
   if (plan.applied.length) { md.push('', '## Changed'); for (const a of plan.applied) { md.push(`- ${a.weekend} ${a.name}`); for (const c of a.changes) md.push(`    - ${c}`); } }
   if (plan.unresolved.length) md.push('', `Names the roster cannot place (carried as written): ${plan.unresolved.join(', ')}`);

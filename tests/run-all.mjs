@@ -364,6 +364,8 @@ sys.exit(tick.main())
     ok(!('startDate' in p.patch) && p.held.length === 1 && p.keepBase.fields.has('startDate'), 'sync: a date moved away from a VC-booked record is held');
     p = S.planEvent({ base: ev(['Cameron', '']), sheet: ev(['Cameron', ''], { startDate: '2026-09-06', endDate: '2026-09-06' }), board: ev(['Cameron', '']), resolve, vcRow: null, today: '2026-08-01' });
     ok(p.patch.startDate === '2026-09-06', 'sync: a date change with no VC record behind it is carried');
+    p = S.planEvent({ base: ev(['Cameron', '']), sheet: ev(['Cameron', ''], { startDate: '2026-11-01', endDate: '2026-11-01' }), board: ev(['Cameron', '']), resolve, vcRow: null, today: '2026-08-01' });
+    ok(!('startDate' in p.patch) && !p.held.length, 'sync: a start date weeks away from the event\'s own days is a stale cell, never copied (QCFM\'s 11/1)');
     const two = reps => ({ ...ev(reps.slice(0, 2)), booths: [{ label: '', days: ['Saturday', 'Sunday'], dates: ['2026-09-05', '2026-09-06'], shifts: [{ label: 'Shift 1', slots: reps.slice(0, 2).map(r => ({ rep: r, ft: [] })) }, { label: 'Shift 2', slots: reps.slice(2).map(r => ({ rep: r, ft: [] })) }] }] });
     p = S.planEvent({ base: ev(['Cameron', '']), sheet: two(['Cameron', '', 'Eli', 'Eli']), board: ev(['Cameron', '']), resolve, vcRow: null, today: '2026-08-01' });
     ok(p.patch.booths && p.patch.booths[0].shifts.length === 2, 'sync: a shift row added on the Sheet is carried when the board still has the old shape');
@@ -394,6 +396,8 @@ sys.exit(tick.main())
     G[3][6] = 'Sarah';        // Corn Fest Sunday: a rep added
     G[5][5] = '';             // Dead Fest Saturday: Eli removed
     G[5][6] = 'Sarah';        // Dead Fest Sunday: a rep added to a show VC calls dead
+    row({ 2: 'Prospective', 4: 'Corn Fest', 5: 'Saturday', 6: 'Sunday', 12: '100', 13: SER('2026-09-05'), 14: SER('2026-09-06'), 15: 'Phoenix, AZ' });
+    row({ 4: 'Shift 1', 5: 'Cameron', 6: 'Sarah' });   // the same market, same weekend, same staffing, written twice
     const gridFile = path.join(home, 'sync-grid.json'); fs.writeFileSync(gridFile, JSON.stringify(G));
     const vcFile = path.join(home, 'sync-vc.json');
     fs.writeFileSync(vcFile, JSON.stringify({ rows: [{ eventNumber: '00200001', name: 'Corn Fest', status: 'Booked', startDate: '2026-09-05', endDate: '2026-09-06' }, { eventNumber: '00200002', name: 'Dead Fest', status: 'Promoter Cancelled Event', startDate: '2026-09-05', endDate: '2026-09-06' }] }));
@@ -402,6 +406,7 @@ sys.exit(tick.main())
     r = await sync();
     const dry = JSON.parse(r.stdout);
     ok(r.code === 0 && dry.eventsTouched === 2 && dry.held.length === 1 && !dry.wrote, 'sheet-sync dry: two events planned, one addition held, nothing written: ' + r.stderr.slice(0, 200));
+    ok(dry.duplicates.length === 1 && dry.created.length === 0, 'sheet-sync: the same event written twice on the Sheet is reported, and the board keeps one');
     ok(T('events').get('2026-corn-fest-t1').booths[0].shifts[0].slots[1].rep === '', 'sheet-sync dry: the board is untouched');
     r = await sync('--apply');
     ok(r.code === 0 && JSON.parse(r.stdout).wrote, 'sheet-sync --apply exits 0 and writes: ' + r.stderr.slice(0, 200));
@@ -425,6 +430,7 @@ sys.exit(tick.main())
     e('2026-d', 'Past Show', '2026-09-11', ['Eli'], { vcNumber: '00300004', vcStatus: 'Booked', status: 'Booked' });
     e('2026-e', 'Queen Creek Family Market-November', '2026-11-13', ['Kendall'], { vcNumber: '00092192', vcStatus: 'Booked', status: 'Booked', dates: ['2026-11-14'], days: ['Saturday'] });
     e('2026-f', 'Beta Fest', '2026-10-16', ['Cameron'], { vcNumber: '00300006', vcStatus: 'Booked', status: 'Booked' });
+    e('2026-k', 'Cochise County Fair', '2026-10-02', ['J. Parker'], { vcNumber: '00300011', vcStatus: 'OK to Book - Need Contract', status: 'OK to Book - Need Contract' });
     const filler = Array.from({ length: 22 }, (_, i) => ({ eventNumber: String(310000 + i), name: `Filler Show ${String.fromCharCode(65 + i)}`, status: 'Booked', startDate: '2026-12-0' + (1 + (i % 9)), endDate: '2026-12-0' + (1 + (i % 9)) }));
     const rows = [
       { eventNumber: '00300001', name: 'Alpha Days', status: 'Booked', startDate: '2026-10-09', endDate: '2026-10-11' },
@@ -432,6 +438,7 @@ sys.exit(tick.main())
       { eventNumber: '00300004', name: 'Past Show', status: 'Closed', startDate: '2026-09-11', endDate: '2026-09-13' },
       { eventNumber: '00092192', name: 'Queen Creek Family Market 11/1', status: 'Booked', startDate: '2026-11-01', endDate: '2026-11-30' },
       { eventNumber: '00300006', name: 'Beta Fest', status: 'Promoter Cancelled Event', startDate: '2026-10-16', endDate: '2026-10-18' },
+      { eventNumber: '00300011', name: 'Cochise County Fair', status: 'OK to Book - Need Contract', startDate: '2026-10-01', endDate: '2026-10-04' },
       ...filler];
     const vcFile = path.join(home, 'ec-vc.json'); fs.writeFileSync(vcFile, JSON.stringify({ coordinator: 'Matt Foss', rows }));
     const outd = path.join(home, 'ec-out');
@@ -440,7 +447,10 @@ sys.exit(tick.main())
     r = await ec('--window', '--date', '2026-10-01');
     const win = JSON.parse(r.stdout);
     ok(r.code === 0 && win.from < '2026-09-11' && win.to > '2026-11-14', 'event-check --window covers every event in scope with room: ' + r.stdout);
-    r = await ec('--vc', vcFile, '--apply', '--date', '2026-10-01');
+    const rulingsFile = path.join(home, 'ec-rulings.json');
+    fs.writeFileSync(rulingsFile, JSON.stringify({ rulings: [{ event: 'Cochise County Fair', from: '2026-09-25', to: '2026-10-10', ruling: 'not-worked', note: 'we could not get in', repReason: "we couldn't get in" },
+      { event: 'Alpha Days', from: '2026-10-01', to: '2026-10-31', ruling: 'not-worked', rep: 'eli-camacho', note: 'rep-scoped: does not kill the show' }] }));
+    r = await ec('--vc', vcFile, '--apply', '--date', '2026-10-01', '--rulings', rulingsFile);
     ok(r.code === 0, 'event-check --apply exits 0: ' + r.stderr.slice(0, 300));
     const A = T('events').get('2026-a'), B = T('events').get('2026-b'), C = T('events').get('2026-c'), D = T('events').get('2026-d'), E = T('events').get('2026-e'), F = T('events').get('2026-f');
     ok(A.vcStatus === 'Booked' && A.status === 'Booked' && A.vcCheckedAt === '2026-10-01', 'event-check: a status change is written in VC\'s words and the board\'s');
@@ -449,8 +459,12 @@ sys.exit(tick.main())
     ok(D.vcStatus === 'Closed' && D.status === 'Booked' && !D.dead, 'event-check: a finished show VC has closed out stays Booked, not Cancelled');
     ok(!E.vcCheckedAt && E.status === 'Booked', 'event-check: a placeholder-only date is not written either way');
     ok(F.dead === true && F.status === 'Cancelled', 'event-check: a show VC cancelled is marked dead');
+    const K = T('events').get('2026-k');
+    ok(K.dead === true && K.status === 'Cancelled' && K.vcStatus === 'OK to Book - Need Contract', 'event-check: Alan\'s not-worked ruling kills the show whatever VC still says, and VC\'s status is kept beside it');
+    ok(A.status === 'Booked' && !A.dead, 'event-check: a rep-scoped ruling never kills the show');
     const latest = JSON.parse(fs.readFileSync(path.join(outd, 'event-check', 'latest.json'), 'utf8'));
-    ok(latest.headline.deadWithReps === 1 && latest.headline.openQuestions === 1 && latest.written, 'event-check: the headline counts the dead show and the open question');
+    ok(latest.headline.deadWithReps === 2 && latest.headline.openQuestions === 1 && latest.written, 'event-check: the headline counts the dead shows and the open question');
+    ok(latest.flags.ruledOff.length === 1 && latest.events.find(x => x.id === '2026-k').ruling.reason === "we couldn't get in", 'event-check: the ruling travels to the texts with its reason');
     ok(!JSON.stringify(latest).includes('555-'), 'event-check: the result carries no contact data');
     // a pull that lacks the numbers the board already has must not be trusted
     T('events').set('2026-g', { ...T('events').get('2026-f'), name: 'Gamma', vcNumber: '00300099', dead: false, status: 'Booked', vcCheckedAt: undefined });
