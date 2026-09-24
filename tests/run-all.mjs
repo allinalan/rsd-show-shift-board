@@ -434,6 +434,36 @@ sys.exit(tick.main())
     ok(fs.statSync(path.join(state, 'sheet-baseline.json')).mode % 0o1000 === 0o600, 'sheet-sync: the baseline (it can carry promoter contacts) is mode 600');
   }
 
+  // ---- tier rules (Alan, 2026-09-24: Maricopa is Elite, always, except the Maricopa County Fair)
+  {
+    const { ruleTier, tierOf } = await import(path.join(REPO, 'scripts/lib/match.mjs'));
+    const R = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8')).tierRules;
+    ok(ruleTier('Maricopa County Home & Garden Show', R) === 'Elite' && ruleTier('Maricopa County Fair', R) === null && ruleTier('Maricopa County Fair & Rodeo', R) === null
+      && ruleTier('Queen Creek Family Market', R) === null && ruleTier('Maricopan Days', R) === null, 'tier rules: every Maricopa show is Elite except the Maricopa County Fair (whole words only)');
+    ok(tierOf({ name: 'Maricopa County Home & Garden Show', tier: 'Traditional' }, R) === 'Elite' && tierOf({ name: 'Maricopa County Fair', tier: 'Key' }, R) === 'Key' && tierOf({ name: 'Corn Fest', tier: 'Traditional' }, R) === 'Traditional',
+      'tier rules: a rule wins over the tag on the board; without one the tag stands');
+    const PS = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
+    const G = [], row = o => { const r = new Array(27).fill(null); for (const [i, v] of Object.entries(o)) r[+i] = v; G.push(r); };
+    const SER = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000);
+    row({ 2: 'Status', 4: 'header' });
+    row({ 1: 'Weekend 09-18' });
+    row({ 2: 'Booked', 4: 'Maricopa County Home & Garden Show', 5: 'Saturday', 6: 'Sunday', 12: '100', 13: SER('2026-09-19'), 14: SER('2026-09-20'), 15: 'Phoenix, AZ' });
+    row({ 4: 'Shift 1', 5: 'Eli', 6: 'Sarah' });
+    row({ 2: 'Booked', 4: 'Maricopa County Fair', 5: 'Saturday', 6: 'Sunday', 12: '100', 13: SER('2026-09-19'), 14: SER('2026-09-20'), 15: 'Phoenix, AZ' });
+    row({ 4: 'Shift 1', 5: 'Cameron', 6: '' });
+    for (const t of Object.keys(db)) db[t].clear();
+    T('settings').set('division', { roster: ['Cameron', 'Eli', 'Sarah', 'Kendall'] });
+    const state = path.join(home, 'tier-state'), outd = path.join(home, 'tier-out');
+    fs.mkdirSync(state, { recursive: true }); fs.writeFileSync(path.join(state, 'sheet-baseline.json'), '[]');
+    const gridFile = path.join(home, 'tier-grid.json'); fs.writeFileSync(gridFile, JSON.stringify(G));
+    const vcFile = path.join(home, 'tier-vc.json'); fs.writeFileSync(vcFile, JSON.stringify({ rows: [] }));
+    r = await new Promise(res => execFile(process.execPath, [path.join(REPO, 'scripts/sheet-sync.mjs'), '--grid', gridFile, '--vc', vcFile, '--date', '2026-08-01', '--json', '--apply'],
+      { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_STATE_DIR: state, BOARD_OUT_DIR: outd } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    const made = [...T('events').values()];
+    const mc = made.find(e => e.name === 'Maricopa County Home & Garden Show'), fair = made.find(e => e.name === 'Maricopa County Fair');
+    ok(r.code === 0 && mc && mc.tier === 'Elite' && fair && fair.tier === 'Traditional', 'sheet-sync: a new Maricopa show is created Elite; the Maricopa County Fair is not: ' + JSON.stringify({ code: r.code, tiers: made.map(e => [e.name, e.tier]), err: r.stderr.slice(0, 200) }));
+  }
+
   // ---- event-check end to end: write-back rules, Mesa, the past, the placeholder, the safety refusal
   {
     for (const t of Object.keys(db)) db[t].clear();

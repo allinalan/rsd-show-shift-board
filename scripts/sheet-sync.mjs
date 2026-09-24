@@ -34,7 +34,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseAll, makeRepResolver, repKey, boardStatus, staffedCount, matchToSeed, STRUCTURAL, readGrid, normName } from './parse-sheet.mjs';
 import { boardApi } from './lib/board-api.mjs';
-import { nameScore, statusCategory, effectiveDate, inRun, dayDiff } from './lib/match.mjs';
+import { nameScore, statusCategory, effectiveDate, inRun, dayDiff, ruleTier } from './lib/match.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -311,7 +311,7 @@ async function main() {
       contact: sheet.contact || '', phone: sheet.phone || '', email: sheet.email || '',
       cost: sheet.cost || '', costNum: sheet.costNum ?? null, costBasis: sheet.costBasis || 'date', bestCPO: sheet.bestCPO || '',
       level: sheet.level || '', flag: sheet.flag || '', sheetStatus: sheet.sheetStatus || '', status: st.status, dead: !!st.dead,
-      vcNumber: '', vcStatus: '', tier: 'Traditional', access: 'Unassigned', address: '', setting: '', applyUrl: '', applyBy: '', notes: '',
+      vcNumber: '', vcStatus: '', tier: ruleTier(sheet.name, CFG.tierRules) || 'Traditional', access: 'Unassigned', address: '', setting: '', applyUrl: '', applyBy: '', notes: '',
       skipNext: false, neverWork: false,
       booths: (sheet.booths || []).map(b => ({ ...clone(b), shifts: b.shifts.map(s => ({ ...clone(s), slots: s.slots.map(sl => ({ rep: isRep(sl.rep) || t(sl.rep) === '__X__' ? (t(sl.rep) === '__X__' ? '__X__' : resolve(t(sl.rep))) : '', ft: (sl.ft || []).map(x => resolve(t(x))) })) })) })),
       createdAt: new Date().toISOString(), createdBy: 'service:sheet-sync',

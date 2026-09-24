@@ -18,6 +18,8 @@
   "mesaPattern": "mesa\\s*market|swap\\s*meet|swapmeet",
   "qcfmPattern": "queen\\s*creek\\s*family\\s*market",
   "placeholders": ["00092192"],
+  "tierRules": [{ "match": "Maricopa", "except": ["Maricopa County Fair"], "tier": "Elite" }],
+  "_tierRules": "Alan, 2026-09-24: 'Maricopa is Elite. always (except for the maricopa county fair)'. A show whose name has the word(s) in match, and none of except, is that tier: the Sheet sync creates new shows with it, and the research runs and the booking sweep treat the show so whatever its tag on the board says.",
   "aliases": [
     { "board": "FallFest In the Park", "vc": "Prescott Fall Arts & Crafts Show", "confirmed": "Alan, 2026-08-26" },
     { "board": "Fall Carefree Fine Art & Wine Festival", "vc": "Carefree Garden Art Experience", "confirmed": "Alan, 2026-08-26 (event renamed)" },

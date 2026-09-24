@@ -35,6 +35,20 @@ export const addDaysIso = (iso, n) => { const d = toDate(iso); return d ? isoOf(
 export const dayDiff = (a, b) => Math.round((toDate(a) - toDate(b)) / 864e5);
 
 export const normName = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+/**
+ * The tier a rule gives a show by its name (config tierRules: [{ match, except: [], tier }]; Alan, 2026-09-24: every
+ * Maricopa show is Elite, except the Maricopa County Fair), or null. Whole words: "Maricopa" never matches "Maricopan".
+ */
+export function ruleTier(name, rules = []) {
+  const n = ` ${normName(name)} `;
+  for (const r of rules || []) {
+    const m = normName(r.match);
+    if (m && n.includes(` ${m} `) && !(r.except || []).some(x => normName(x) && n.includes(` ${normName(x)} `))) return r.tier || null;
+  }
+  return null;
+}
+/** A show's tier for the automations: a tier rule wins over the tag on the board. */
+export const tierOf = (e, rules) => ruleTier(e && e.name, rules) || (e && e.tier) || '';
 
 /** The distinctive-ish word list of a name: lowercase, punctuation gone, stop words and bare numbers out, light stemming. */
 export function tokens(name) {

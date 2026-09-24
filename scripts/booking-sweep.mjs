@@ -45,7 +45,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
-import { nameScore, dayDiff, normName } from './lib/match.mjs';
+import { nameScore, dayDiff, normName, tierOf } from './lib/match.mjs';
 import { sellingRun, within, sameRun } from './lib/dates.mjs';
 export { sellingRun, within };                     // lib/booking-sweep-exec.js in rsd-shift-picking reads them from here
 
@@ -114,7 +114,7 @@ async function main() {
     if (e.dead || e.neverWork) { result.skipped.push({ ...base, why: 'dead or never-work on the board' }); continue; }
     if (MESA.test(r.name)) continue;
     if (exclude.has(normName(r.name))) { result.excluded.push(base); continue; }
-    if (excludeTiers.has(t(e.tier).toLowerCase())) { result.excluded.push({ ...base, tier: t(e.tier) }); continue; }
+    if (excludeTiers.has(t(tierOf(e, CFG.tierRules)).toLowerCase())) { result.excluded.push({ ...base, tier: t(tierOf(e, CFG.tierRules)) }); continue; }
     if (r.ruling || r.category === 'dead') { result.skipped.push({ ...base, why: r.ruling ? "not happening (Alan's ruling)" : `dead in VC (${r.vcStatus})` }); continue; }
     const run = sellingRun(e);
     base.run = run;

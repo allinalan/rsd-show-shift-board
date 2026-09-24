@@ -104,6 +104,10 @@ keyed by series key. `editors` — who may write. `changelog` — every write.
 ## Rules that are easy to get wrong
 
 - A shift is a slot with a `rep` that isn't empty or `__X__`. **SE days are never shifts.**
+- **Tier rules** (config/event-check.json `tierRules`, Alan 2026-09-24): every show named Maricopa is Elite, except the
+  Maricopa County Fair. The Sheet sync creates new shows with the rule's tier, and the research runs and the booking
+  sweep use `tierOf()` (lib/match.mjs), so the rule wins even over a wrong tag. Elite shows are never researched and
+  never sent to Olean (rsd-shift-picking skipTiers / excludeTiers).
 - Same-year series (Queen Creek, Mesa) share name/promoter/cost/notes; shifts and status are per date.
 - `notes` roll forward and are read into VC booking-request Comments. Don't overwrite them; append.
 - Roll-forward holds back `skipNext`, `neverWork`, and Never-list series keys. Idempotent.
