@@ -249,7 +249,15 @@ const commands = {
     const t = today(), s = (await getDoc('settings', 'division')) || {}; const ms = (s.meetings || []).map(fromISO).filter(Boolean);
     const due = [];
     for (const m of ms) { const d = Math.round((m - t) / 864e5); if (d === 7) due.push({ routine: 'preflight', meeting: iso(m), note: 'research every event: dates, promoter, name; fix the board; ask Alan/JP about the rest' }); if (d === -1) due.push({ routine: 'booking-sweep', meeting: iso(m), note: 'submit a booking request for every staffed event with no VC number' }); }
-    if (t.getDay() === 3) due.push({ routine: 'event-check', note: 'Wednesday: refresh every VC status, text staffed reps whose show changed' });
+    // The Wednesday event check runs unattended now (rsd-shift-picking's 08:00 job, 2026-09-23), so it is not "due".
+    // New freshmen come from the training sign-in sheet filled at the January and August meetings (Alan,
+    // 2026-09-23): ask for it two days after either meeting, or on a fixed day when none is on the calendar.
+    const janAug = ms.filter(m => [0, 7].includes(m.getMonth()));
+    const freshNote = "ask Alan for this season's training sign-in sheet, so the new freshmen get onto the roster";
+    for (const m of janAug) if (Math.round((t - m) / 864e5) === 2) due.push({ routine: 'freshmen-roster', meeting: iso(m), note: freshNote });
+    if (((t.getMonth() === 0 && t.getDate() === 20) || (t.getMonth() === 7 && t.getDate() === 15)) && !janAug.some(m => m.getFullYear() === t.getFullYear() && m.getMonth() === t.getMonth()))
+      due.push({ routine: 'freshmen-roster', note: freshNote + ' (no meeting on the calendar this month)' });
+    if (t.getMonth() === 11 && t.getDate() === 28) due.push({ routine: 'season-changeover', note: 'the board and the sheet sync still read only the Sept-Feb book: add the Jan-May book before the January meeting (config/event-check.json)' });
     out(json ? { date: iso(t), due } : (due.length ? due.map(d => `${d.routine}${d.meeting ? ' (meeting ' + d.meeting + ')' : ''} — ${d.note}`).join('\n') : `nothing due on ${iso(t)}`));
   },
   async changelog() { out(await rest('GET', `changelog?select=at,actor,tbl,doc_id,op,patch&order=at.desc&limit=${+flags.limit || 50}`)); },

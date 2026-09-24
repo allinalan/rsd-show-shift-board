@@ -196,6 +196,15 @@ Update the registry entry's status from PREPARED to production in the same sitti
 moved to production. Dry runs say nothing is due 9/21 or 9/22 and `event-check` is due **Wed
 9/23**: that 07:00 run is the first proof of the iMessage (TCC) path. Read `logs/tick.log` after it.
 
+**Result, 2026-09-23 07:00.** Slack got the due notice; the iMessage did NOT go out: `osascript timed
+out after 45s`. Not TCC: the Mini rebooted at 23:26 the night before and Messages was not reopened, so
+the tick's own Apple Event had to launch it (Messages' process start time was 07:00:05), and a cold
+Messages does not answer a send inside 45 s. Two hours later the stat job's calls answered in 0.2 s,
+through the same python3 identity. Fix (same day): `tick.py` now wakes Messages with a cheap read (90 s,
+then 45 s after a pause) before sending, and says so when it cannot. The iMessage path itself is still
+unproven end to end; the next due notice is the freshmen reminder or a meeting routine. Optionally add
+Messages to the Mini's Login Items so it is open after any reboot (Alan's setting to change).
+
 - **Arm and `touch PAUSED` in either order** (fixed 2026-09-20, later the same night). Three
   `tick.py --dry` tests used to run against the real repo root, so with `PAUSED` present they
   failed and `install.sh` refused to arm: failed closed, but it read as broken tests. The tests

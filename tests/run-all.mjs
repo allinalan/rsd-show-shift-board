@@ -92,8 +92,15 @@ try {
   const due = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due.map(x => x.routine);
   ok((await due('2027-01-08')).join() === 'preflight', 'tick: preflight 7 days before a meeting');
   ok((await due('2027-01-16')).join() === 'booking-sweep', 'tick: booking sweep the day after');
-  ok((await due('2027-01-13')).join() === 'event-check', 'tick: event check on a Wednesday');
+  ok((await due('2027-01-13')).length === 0, 'tick: Wednesday is no longer "due" (the event check runs unattended at 08:00)');
   ok((await due('2027-01-14')).length === 0, 'tick: nothing on an ordinary Thursday');
+  ok((await due('2027-01-17')).join() === 'freshmen-roster', 'tick: freshmen roster two days after a January meeting');
+  T('settings').set('division', { meetings: ['2027-04-28'] });
+  ok((await due('2027-08-15')).join() === 'freshmen-roster', 'tick: freshmen roster on Aug 15 when no August meeting is on the calendar');
+  T('settings').set('division', { meetings: ['2027-08-03'] });
+  ok((await due('2027-08-15')).length === 0 && (await due('2027-08-05')).join() === 'freshmen-roster', 'tick: with an August meeting, the reminder follows the meeting, not the fixed day');
+  ok((await due('2026-12-28')).join() === 'season-changeover', 'tick: season changeover reminder on Dec 28');
+  T('settings').set('division', { meetings: ['2027-01-15'] });
 
   // ---- seed: refuses a public seed that carries contacts; the real seed is clean
   const real = JSON.parse(fs.readFileSync(path.join(REPO, 'seed/events.json'), 'utf8'));
@@ -276,6 +283,185 @@ sys.exit(tick.main())
     fs.writeFileSync(seedAlias, JSON.stringify(asSeed(ev)));
     r = await ps('--verify', '--seed', seedAlias);
     ok(!/reps the roster cannot place/.test(r.stdout), 'parse-sheet --verify: Cam, JP and Matt A all resolve to the roster');
+  }
+
+  // ---- tick.py words the freshmen reminder as an ask, not an "open Claude on this repo" routine
+  fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.rsd', 'board.env'), `BOARD_SUPABASE_URL=${base}\nBOARD_SERVICE_KEY=test\nBOARD_ALAN_IMESSAGE=+15555550100\n`);
+  T('settings').set('division', { meetings: ['2027-01-15'] });
+  r = await run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', '--date', '2027-01-17']);
+  ok(r.code === 0 && /New freshmen: send Claude this season's training sign-in sheet/.test(r.stdout), 'tick.py --dry: the freshmen reminder reads as an ask: ' + r.stdout.slice(0, 300));
+  fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });
+
+  // ---- lib/match.mjs: the event-check skill's rules, as code
+  {
+    const M = await import(path.join(REPO, 'scripts/lib/match.mjs'));
+    ok(M.nameScore('Santa Cruz County Fair', 'Navajo County Fair') === 0, 'match: two county fairs share no distinctive word, so they score zero');
+    ok(M.nameScore('Kierland Fine Art & Wine Festival', 'Waterfront Fine Art & Wine Festival') === 0, 'match: "<City> Fine Art & Wine" family scores zero across cities');
+    ok(M.nameScore('Oro Valley Festival of the Arts', 'Tempe Fall Festival of the Arts') < 0.5, 'match: Oro Valley vs Tempe festival of the arts stays under the bar');
+    ok(M.nameScore('Lake Havasu City Oktoberfest', 'Lake Havasu City Octoberfest') >= 0.5, 'match: Oktoberfest and Octoberfest are the same word');
+    ok(M.nameScore('Sahaurita Art on the Lake', 'Sahuarita Art on the Lake Festival') >= 0.5, 'match: a one-letter typo in a long word still matches');
+    ok(M.nameScore("Women's Day Out Expo - Glendale", "Women's Day Out Expo - Mesa") === 0, 'match: a family of same-named expos never matches across cities');
+    ok(M.effectiveDate({ weekend: '2027-01-29', startDate: '2027-01-28', days: ['1/25/2024', '1/26/2024', 'Sunday SE'], dates: [null, null, '2027-01-31'] }) === '2027-01-28', 'match: a set-up day is never the effective date');
+    ok(M.effectiveDate({ weekend: '2026-10-09', startDate: '2026-11-01', days: ['Saturday'], dates: ['2026-10-10'] }) === '2026-10-10', 'match: the banner-resolved day beats a stale start date');
+    const cat = (s, past) => M.statusCategory(s, { past });
+    ok(cat('OK to Book - Need Contract') === 'contract' && cat('Pending Promoter - Acceptance') === 'promoter' && cat('Show Full - on Waiting List') === 'dead'
+      && cat('Booked Own') === 'booked' && cat('Booked - Needs Insurance') === 'coi' && cat('Prospective') === 'not-committed' && cat('OK to Book') === 'not-committed'
+      && cat('Missed Event - No Response From CO') === 'dead' && cat('Pending Promo - Payment Needed') === 'promoter' && cat('Check Requested') === 'olean' && cat('') === 'no-vc',
+      'match: VC statuses land in the right work-list bucket, whatever their case or truncation');
+    ok(cat('Closed', true) === 'booked' && cat('Closed', false) === 'dead', 'match: Closed is a finished show in the past, a dead one ahead');
+    const vc = [
+      { eventNumber: '00100001', name: 'Graham County Fair', status: 'Booked', startDate: '2026-10-08', endDate: '2026-10-11' },
+      { eventNumber: '00100002', name: 'Navajo County Fair', status: 'Booked', startDate: '2026-09-17', endDate: '2026-09-20' },
+      { eventNumber: '00103124', name: 'Queen Creek Family Market 1/24', status: 'Prospective', startDate: '2026-10-24', endDate: '2026-10-24' },
+      { eventNumber: '00092192', name: 'Queen Creek Family Market 11/1', status: 'Booked', startDate: '2026-11-01', endDate: '2026-11-30' },
+      { eventNumber: '00100005', name: 'Prescott Fall Arts & Crafts Show', status: 'Booked', startDate: '2026-10-03', endDate: '2026-10-04' },
+      { eventNumber: '00100006', name: 'Quartzsite RV Show', status: 'Booked', startDate: '2027-01-15', endDate: '2027-01-25' },
+      { eventNumber: '00100007', name: 'Tucson Home Show', status: 'Booked', startDate: '2027-03-12', endDate: '2027-03-14' },
+    ];
+    const boardEv = [
+      { id: 'a', name: 'Santa Cruz County Fair', weekend: '2026-09-18', startDate: '2026-09-18' },
+      { id: 'b', name: 'Graham Co. Fair renamed on the board', weekend: '2026-10-09', startDate: '2026-10-09', vcNumber: '00100001' },
+      { id: 'c', name: 'Queen Creek Family Market-October', weekend: '2026-10-23', startDate: '2026-11-01', days: ['Saturday'], dates: ['2026-10-24'], vcNumber: '00092192' },
+      { id: 'd', name: 'Queen Creek Family Market-November', weekend: '2026-11-13', startDate: '2026-11-14', days: ['Saturday'], dates: ['2026-11-14'] },
+      { id: 'e', name: 'FallFest In the Park', weekend: '2026-10-02', startDate: '2026-10-03' },
+      { id: 'f', name: 'Quartzsite RV Show w 1', weekend: '2027-01-15', startDate: '2027-01-15' },
+      { id: 'g', name: 'Quartzsite RV Show W 2', weekend: '2027-01-22', startDate: '2027-01-22' },
+      { id: 'h', name: 'Tucson Home Show', weekend: '2027-01-08', startDate: '2027-01-09' },
+    ];
+    const cfg = JSON.parse(fs.readFileSync(path.join(REPO, 'config/event-check.json'), 'utf8'));
+    const { results, claims } = M.matchAll(boardEv, vc, cfg);
+    ok(!results.get('a').row, 'match: Santa Cruz County Fair does not steal Navajo County Fair');
+    ok(results.get('b').by === 'number' && results.get('b').row.eventNumber === '00100001', 'match: a board VC number wins over the name');
+    ok(results.get('c').by === 'qcfm' && results.get('c').row.eventNumber === '00103124', 'match: Queen Creek matches the exact date, ignoring the placeholder number the board carried');
+    ok(!results.get('d').row && results.get('d').placeholder === '00092192', 'match: a date only the placeholder covers is an open question, not a booking');
+    ok(results.get('e').by === 'alias' && results.get('e').row.eventNumber === '00100005', 'match: a confirmed alias matches a name that shares no words');
+    ok(results.get('f').row && results.get('g').row && results.get('f').row.eventNumber === results.get('g').row.eventNumber, 'match: both weeks of a two-week show land on the one VC record');
+    ok(!results.get('h').row && results.get('h').dateMismatch, 'match: a perfect name two months off is a date mismatch, not a match and not a missing booking');
+    const dup = M.duplicateClaims(claims, new Map(boardEv.map(x => [x.id, x])));
+    ok(dup.length === 1 && dup[0].legit, 'match: the week-split show is a legitimate duplicate claim');
+    ok(!M.duplicateClaims(new Map([['1', ['a', 'b']]]), new Map(boardEv.map(x => [x.id, x])))[0].legit, 'match: two unrelated events claiming one number is flagged');
+  }
+
+  // ---- sheet-sync: three-way, VC wins, board edits win, held changes stay pending
+  {
+    const S = await import(path.join(REPO, 'scripts/sheet-sync.mjs'));
+    const PS = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
+    const resolve = PS.makeRepResolver(['Cameron', 'Eli', 'Kendall', 'Kendall H.', 'Sarah', 'Jerry']);
+    const ev = (reps, extra = {}) => ({ name: 'Corn Fest', weekend: '2026-09-04', startDate: '2026-09-05', endDate: '2026-09-06', days: ['Saturday', 'Sunday'], dates: ['2026-09-05', '2026-09-06'],
+      booths: [{ label: '', days: ['Saturday', 'Sunday'], dates: ['2026-09-05', '2026-09-06'], shifts: [{ label: 'Shift 1', slots: reps.map(r => ({ rep: r, ft: [] })) }] }], ...extra });
+    let p = S.planEvent({ base: ev(['Cameron', '']), sheet: ev(['Cam', 'Sarah']), board: ev(['Cameron', '']), resolve, vcRow: null, today: '2026-08-01' });
+    ok(p.patch.booths && p.patch.booths[0].shifts[0].slots[1].rep === 'Sarah' && p.slotChanges === 1, 'sync: a shift added on the Sheet reaches an untouched board (Cam is Cameron, not a change)');
+    p = S.planEvent({ base: ev(['Kendall', '']), sheet: ev(['Kendall G.', '']), board: ev(['Kendall', '']), resolve, vcRow: null, today: '2026-08-01' });
+    ok(!p.patch.booths && !p.conflicts.length, 'sync: "Kendall G." on the Sheet is the board\'s "Kendall", not a change');
+    p = S.planEvent({ base: ev(['Cameron', '']), sheet: ev(['Sarah', '']), board: ev(['Eli', '']), resolve, vcRow: null, today: '2026-08-01' });
+    ok(!p.patch.booths && p.conflicts.length === 1 && p.keepBase.slots.has('0.0.0'), 'sync: when the Sheet and the board both changed a shift, neither wins and it is held');
+    const dead = { eventNumber: '9', status: 'Promoter Cancelled Event', startDate: '2026-09-05', endDate: '2026-09-06' };
+    p = S.planEvent({ base: ev(['Cameron', '']), sheet: ev(['', 'Sarah']), board: ev(['Cameron', '']), resolve, vcRow: dead, today: '2026-08-01' });
+    ok(p.patch.booths && p.patch.booths[0].shifts[0].slots[0].rep === '' && p.patch.booths[0].shifts[0].slots[1].rep === '' && p.held.length === 1, 'sync: on a show VC calls dead, a removal applies but a new rep is held');
+    const booked = { eventNumber: '8', status: 'Booked', startDate: '2026-09-05', endDate: '2026-09-06' };
+    p = S.planEvent({ base: ev(['Cameron', '']), sheet: ev(['Cameron', ''], { startDate: '2026-10-10', endDate: '2026-10-11', dates: ['2026-10-10', '2026-10-11'] }), board: ev(['Cameron', '']), resolve, vcRow: booked, today: '2026-08-01' });
+    ok(!('startDate' in p.patch) && p.held.length === 1 && p.keepBase.fields.has('startDate'), 'sync: a date moved away from a VC-booked record is held');
+    p = S.planEvent({ base: ev(['Cameron', '']), sheet: ev(['Cameron', ''], { startDate: '2026-09-06', endDate: '2026-09-06' }), board: ev(['Cameron', '']), resolve, vcRow: null, today: '2026-08-01' });
+    ok(p.patch.startDate === '2026-09-06', 'sync: a date change with no VC record behind it is carried');
+    const two = reps => ({ ...ev(reps.slice(0, 2)), booths: [{ label: '', days: ['Saturday', 'Sunday'], dates: ['2026-09-05', '2026-09-06'], shifts: [{ label: 'Shift 1', slots: reps.slice(0, 2).map(r => ({ rep: r, ft: [] })) }, { label: 'Shift 2', slots: reps.slice(2).map(r => ({ rep: r, ft: [] })) }] }] });
+    p = S.planEvent({ base: ev(['Cameron', '']), sheet: two(['Cameron', '', 'Eli', 'Eli']), board: ev(['Cameron', '']), resolve, vcRow: null, today: '2026-08-01' });
+    ok(p.patch.booths && p.patch.booths[0].shifts.length === 2, 'sync: a shift row added on the Sheet is carried when the board still has the old shape');
+    p = S.planEvent({ base: ev(['Cameron', '']), sheet: two(['Cameron', '', 'Eli', 'Eli']), board: ev(['Sarah', '']), resolve, vcRow: null, today: '2026-08-01' });
+    ok(!p.patch.booths && p.keepBase.whole && p.conflicts.length === 1, 'sync: a Sheet row change on top of a board edit is held whole');
+  }
+
+  // ---- sheet-sync end to end: the fake database, a synthetic grid, a baseline file, --apply twice
+  {
+    const PS = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
+    const G = [], row = o => { const r = new Array(27).fill(null); for (const [i, v] of Object.entries(o)) r[+i] = v; G.push(r); };
+    const SER = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000);
+    row({ 2: 'Status', 4: 'header' });
+    row({ 1: 'Weekend 09-04' });
+    row({ 2: 'Booked', 4: 'Corn Fest', 5: 'Saturday', 6: 'Sunday', 12: '100', 13: SER('2026-09-05'), 14: SER('2026-09-06'), 15: 'Phoenix, AZ' });
+    row({ 4: 'Shift 1', 5: 'Cam', 6: '' });
+    row({ 2: 'Booked', 4: 'Dead Fest', 5: 'Saturday', 6: 'Sunday', 12: '100', 13: SER('2026-09-05'), 14: SER('2026-09-06'), 15: 'Mesa, AZ' });
+    row({ 4: 'Shift 1', 5: 'Eli', 6: '' });
+    const baseGrid = JSON.parse(JSON.stringify(G));
+    const { events: baseEvents } = PS.parseAll(baseGrid, { seasonYear: 2026 });
+    const ids = ['2026-corn-fest-t1', '2026-dead-fest-t2'];
+    const baseline = baseEvents.map((e, i) => ({ ...e, id: ids[i] }));
+    for (const t of Object.keys(db)) db[t].clear();
+    baseline.forEach((e, i) => { const { id, ...d } = e; T('events').set(id, { ...d, year: 2026, vcStatus: i === 1 ? 'Promoter Cancelled Event' : 'Booked', vcNumber: i === 1 ? '00200002' : '00200001', booths: JSON.parse(JSON.stringify(d.booths)).map(b => ({ ...b, shifts: b.shifts.map(s => ({ ...s, slots: s.slots.map(sl => ({ ...sl, rep: sl.rep === 'Cam' ? 'Cameron' : sl.rep })) })) })) }); });
+    T('settings').set('division', { roster: ['Cameron', 'Eli', 'Sarah', 'Kendall'] });
+    const state = path.join(home, 'sync-state'), outd = path.join(home, 'sync-out');
+    fs.mkdirSync(state, { recursive: true }); fs.writeFileSync(path.join(state, 'sheet-baseline.json'), JSON.stringify(baseline));
+    G[3][6] = 'Sarah';        // Corn Fest Sunday: a rep added
+    G[5][5] = '';             // Dead Fest Saturday: Eli removed
+    G[5][6] = 'Sarah';        // Dead Fest Sunday: a rep added to a show VC calls dead
+    const gridFile = path.join(home, 'sync-grid.json'); fs.writeFileSync(gridFile, JSON.stringify(G));
+    const vcFile = path.join(home, 'sync-vc.json');
+    fs.writeFileSync(vcFile, JSON.stringify({ rows: [{ eventNumber: '00200001', name: 'Corn Fest', status: 'Booked', startDate: '2026-09-05', endDate: '2026-09-06' }, { eventNumber: '00200002', name: 'Dead Fest', status: 'Promoter Cancelled Event', startDate: '2026-09-05', endDate: '2026-09-06' }] }));
+    const sync = (...a) => new Promise(res => execFile(process.execPath, [path.join(REPO, 'scripts/sheet-sync.mjs'), '--grid', gridFile, '--vc', vcFile, '--date', '2026-08-01', '--json', ...a],
+      { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_STATE_DIR: state, BOARD_OUT_DIR: outd } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    r = await sync();
+    const dry = JSON.parse(r.stdout);
+    ok(r.code === 0 && dry.eventsTouched === 2 && dry.held.length === 1 && !dry.wrote, 'sheet-sync dry: two events planned, one addition held, nothing written: ' + r.stderr.slice(0, 200));
+    ok(T('events').get('2026-corn-fest-t1').booths[0].shifts[0].slots[1].rep === '', 'sheet-sync dry: the board is untouched');
+    r = await sync('--apply');
+    ok(r.code === 0 && JSON.parse(r.stdout).wrote, 'sheet-sync --apply exits 0 and writes: ' + r.stderr.slice(0, 200));
+    ok(T('events').get('2026-corn-fest-t1').booths[0].shifts[0].slots[1].rep === 'Sarah', 'sheet-sync --apply: the new shift is on the board');
+    const df = T('events').get('2026-dead-fest-t2').booths[0].shifts[0].slots;
+    ok(df[0].rep === '' && df[1].rep === '', 'sheet-sync --apply: the removal on the dead show applied, the addition did not');
+    r = await sync('--apply');
+    const again = JSON.parse(r.stdout);
+    ok(r.code === 0 && again.eventsTouched === 0 && again.held.length === 1, 'sheet-sync: a second run changes nothing, and the held change comes back until someone decides');
+    ok(fs.statSync(path.join(state, 'sheet-baseline.json')).mode % 0o1000 === 0o600, 'sheet-sync: the baseline (it can carry promoter contacts) is mode 600');
+  }
+
+  // ---- event-check end to end: write-back rules, Mesa, the past, the placeholder, the safety refusal
+  {
+    for (const t of Object.keys(db)) db[t].clear();
+    const e = (id, name, weekend, reps, extra = {}) => T('events').set(id, { year: 2026, name, weekend, startDate: weekend, endDate: weekend, days: ['Friday'], dates: [weekend],
+      booths: [{ label: '', days: ['Friday'], dates: [weekend], shifts: [{ label: 'Shift 1', slots: reps.map(r => ({ rep: r, ft: [] })) }] }], status: 'Booked', ...extra });
+    e('2026-a', 'Alpha Days', '2026-10-09', ['Eli'], { vcNumber: '00300001', vcStatus: 'OK to Book - Need Contract', status: 'OK to Book - Need Contract' });
+    e('2026-b', 'Graham County Fair', '2026-10-09', ['Sarah'], { status: 'Prospective' });
+    e('2026-c', 'Mesa Market Place Swapmeet', '2026-10-09', ['Reed']);
+    e('2026-d', 'Past Show', '2026-09-11', ['Eli'], { vcNumber: '00300004', vcStatus: 'Booked', status: 'Booked' });
+    e('2026-e', 'Queen Creek Family Market-November', '2026-11-13', ['Kendall'], { vcNumber: '00092192', vcStatus: 'Booked', status: 'Booked', dates: ['2026-11-14'], days: ['Saturday'] });
+    e('2026-f', 'Beta Fest', '2026-10-16', ['Cameron'], { vcNumber: '00300006', vcStatus: 'Booked', status: 'Booked' });
+    const filler = Array.from({ length: 22 }, (_, i) => ({ eventNumber: String(310000 + i), name: `Filler Show ${String.fromCharCode(65 + i)}`, status: 'Booked', startDate: '2026-12-0' + (1 + (i % 9)), endDate: '2026-12-0' + (1 + (i % 9)) }));
+    const rows = [
+      { eventNumber: '00300001', name: 'Alpha Days', status: 'Booked', startDate: '2026-10-09', endDate: '2026-10-11' },
+      { eventNumber: '00300002', name: 'Graham County Fair', status: 'Pending Promoter - Acceptance into Event', startDate: '2026-10-08', endDate: '2026-10-11' },
+      { eventNumber: '00300004', name: 'Past Show', status: 'Closed', startDate: '2026-09-11', endDate: '2026-09-13' },
+      { eventNumber: '00092192', name: 'Queen Creek Family Market 11/1', status: 'Booked', startDate: '2026-11-01', endDate: '2026-11-30' },
+      { eventNumber: '00300006', name: 'Beta Fest', status: 'Promoter Cancelled Event', startDate: '2026-10-16', endDate: '2026-10-18' },
+      ...filler];
+    const vcFile = path.join(home, 'ec-vc.json'); fs.writeFileSync(vcFile, JSON.stringify({ coordinator: 'Matt Foss', rows }));
+    const outd = path.join(home, 'ec-out');
+    const ec = (...a) => new Promise(res => execFile(process.execPath, [path.join(REPO, 'scripts/event-check.mjs'), ...a],
+      { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_OUT_DIR: outd } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    r = await ec('--window', '--date', '2026-10-01');
+    const win = JSON.parse(r.stdout);
+    ok(r.code === 0 && win.from < '2026-09-11' && win.to > '2026-11-14', 'event-check --window covers every event in scope with room: ' + r.stdout);
+    r = await ec('--vc', vcFile, '--apply', '--date', '2026-10-01');
+    ok(r.code === 0, 'event-check --apply exits 0: ' + r.stderr.slice(0, 300));
+    const A = T('events').get('2026-a'), B = T('events').get('2026-b'), C = T('events').get('2026-c'), D = T('events').get('2026-d'), E = T('events').get('2026-e'), F = T('events').get('2026-f');
+    ok(A.vcStatus === 'Booked' && A.status === 'Booked' && A.vcCheckedAt === '2026-10-01', 'event-check: a status change is written in VC\'s words and the board\'s');
+    ok(B.vcNumber === '00300002' && B.status === 'Pending Promoter Acceptance', 'event-check: a name match gets its VC number and status');
+    ok(!C.vcCheckedAt && C.status === 'Booked', 'event-check: Mesa is never touched');
+    ok(D.vcStatus === 'Closed' && D.status === 'Booked' && !D.dead, 'event-check: a finished show VC has closed out stays Booked, not Cancelled');
+    ok(!E.vcCheckedAt && E.status === 'Booked', 'event-check: a placeholder-only date is not written either way');
+    ok(F.dead === true && F.status === 'Cancelled', 'event-check: a show VC cancelled is marked dead');
+    const latest = JSON.parse(fs.readFileSync(path.join(outd, 'event-check', 'latest.json'), 'utf8'));
+    ok(latest.headline.deadWithReps === 1 && latest.headline.openQuestions === 1 && latest.written, 'event-check: the headline counts the dead show and the open question');
+    ok(!JSON.stringify(latest).includes('555-'), 'event-check: the result carries no contact data');
+    // a pull that lacks the numbers the board already has must not be trusted
+    T('events').set('2026-g', { ...T('events').get('2026-f'), name: 'Gamma', vcNumber: '00300099', dead: false, status: 'Booked', vcCheckedAt: undefined });
+    T('events').set('2026-h', { ...T('events').get('2026-f'), name: 'Delta', vcNumber: '00300098', dead: false, status: 'Booked', vcCheckedAt: undefined });
+    T('events').set('2026-i', { ...T('events').get('2026-f'), name: 'Epsilon', vcNumber: '00300097', dead: false, status: 'Booked', vcCheckedAt: undefined });
+    T('events').set('2026-j', { ...T('events').get('2026-f'), name: 'Zeta', vcNumber: '00300096', dead: false, status: 'Booked', vcCheckedAt: undefined });
+    r = await ec('--vc', vcFile, '--apply', '--date', '2026-10-01');
+    ok(r.code === 5 && !T('events').get('2026-g').vcCheckedAt, 'event-check: when the pull is missing the board\'s VC numbers, it refuses to write (exit 5)');
+    fs.writeFileSync(vcFile, JSON.stringify({ rows: rows.slice(0, 3) }));
+    r = await ec('--vc', vcFile, '--apply', '--date', '2026-10-01');
+    ok(r.code === 4, 'event-check: a VC pull too small to judge against exits 4 and writes nothing');
   }
 
   // ---- missing env is a loud failure

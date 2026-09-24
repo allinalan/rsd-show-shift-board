@@ -53,6 +53,11 @@ SAY = {
     "preflight": "run the board preflight",
     "booking-sweep": "run the board booking sweep",
     "event-check": "run the board event check",
+    "season-changeover": "set up the Jan-May changeover for the board",
+}
+# routines whose notice is not "open Claude on this repo and say ..."
+LINE = {
+    "freshmen-roster": "New freshmen: send Claude this season's training sign-in sheet link (any session), so they get added to the roster",
 }
 
 DRY = "--dry" in sys.argv
@@ -104,6 +109,26 @@ def slack(text):
         return False
 
 
+PING = 'tell application "Messages" to get id of (1st account whose service type = iMessage)'
+
+
+def messages_ready():
+    """Wake Messages with a cheap read before sending. A Messages that is not running yet needs far longer
+    than a normal send to answer its first Apple Event: the Mini rebooted at 23:26 on 2026-09-22, Messages
+    was not reopened, and the 07:00 tick's send timed out at 45 s while Messages started up (it answered in
+    0.2 s by 09:00). Give it 90 s, then one more try after a pause, then say so."""
+    for timeout, pause in ((90, 0), (45, 20)):
+        if pause:
+            time.sleep(pause)
+        try:
+            r = subprocess.run(["/usr/bin/osascript", "-e", PING], capture_output=True, text=True, timeout=timeout)
+            if r.returncode == 0:
+                return True
+        except subprocess.TimeoutExpired:
+            pass
+    return False
+
+
 def imessage_alan(text, env):
     """One iMessage to Alan, and only to Alan. Returns (sent, reason)."""
     to = env.get("BOARD_ALAN_IMESSAGE", "")
@@ -112,6 +137,8 @@ def imessage_alan(text, env):
     if DRY:
         print("WOULD iMESSAGE ALAN:\n  " + text.replace("\n", "\n  "))
         return True, "dry"
+    if not messages_ready():
+        return False, "Messages did not answer a wake-up read (90 s, then 45 s); it may need: killall Messages; open -a Messages"
     esc = lambda s: s.replace("\\", "\\\\").replace('"', '\\"')  # noqa: E731
     script = ('tell application "Messages" to send "%s" to participant "%s" of '
               '(1st account whose service type = iMessage)' % (esc(text), esc(to)))
@@ -237,7 +264,10 @@ def run():
     for d in due:
         name = d.get("routine", "?")
         when = " (meeting %s)" % d["meeting"] if d.get("meeting") else ""
-        lines.append('%s%s: open Claude on rsd-show-shift-board and say "%s"' % (name, when, SAY.get(name, "run the board " + name)))
+        if name in LINE:
+            lines.append(LINE[name] + when)
+        else:
+            lines.append('%s%s: open Claude on rsd-show-shift-board and say "%s"' % (name, when, SAY.get(name, "run the board " + name)))
     text = "Show Shift Board, %s. Due today, waiting on you:\n%s\n%s" % (tick.get("date"), "\n".join(lines), BOARD_URL)
     log("due: " + ", ".join(d.get("routine", "?") for d in due))
 

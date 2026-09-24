@@ -18,10 +18,31 @@ routines in `.claude/skills/` keep it true.
   (stage 1). `--verify` lines the parse up against `seed/events.json` field by field and exits
   non-zero if a structural field has drifted; `--diff` is the change report. Needs SheetJS from a
   sibling project, or `--grid` with a pre-dumped grid.
+- `scripts/sheet-sync.mjs` — the Sheet -> board sync (stage 2 of the roadmap, live 2026-09-23). Three-way:
+  the Sheet now vs the Sheet at the last sync (`state/sheet-baseline.json`, gitignored, 600) vs the board
+  now. Carries shifts added/removed/re-staffed, shift rows, new events and event details; never status
+  (VC's), never promoter contacts (edited on the board: the parser misreads spilled contact cells). VC
+  wins: a rep added to a VC-dead show, or a date moved away from a VC booking, is held; an event deleted or
+  moved on the Sheet is flagged, never deleted or duplicated. Board edits win ties (both changed = held,
+  named in the report). Stops on parser drift (exit 2) or an oversized change set (exit 3). Dry unless `--apply`.
+- `scripts/event-check.mjs` — the Wednesday Event Check against the board, unattended: matches every
+  staffed non-Mesa event to a VectorConnect My Events pull (`scripts/lib/match.mjs`: VC number first, then
+  name + shared distinctive word + date gate, aliases/rejects in `config/event-check.json`, Queen Creek by
+  exact date, placeholder 00092192 never books a date, duplicate-number audit) and writes vcStatus /
+  vcNumber / status / dead back (past events: vcStatus and vcNumber only). Refuses to write when the pull
+  is too small (exit 4) or lacks the board's own VC numbers (exit 5). Writes `out/event-check/latest.json`
+  (read by rsd-shift-picking's texts), the workbook and a summary under `out/reports/`.
+- Both run from rsd-shift-picking's Wednesday 08:00 job (`run-event-check.sh` there), which owns the VC
+  login (Playwright + Keychain; this repo has no node_modules) and all texting. `scripts/lib/board-api.mjs`
+  is their REST layer (same env file and changelog path as board.mjs).
 - `deploy/tick.py` — the launchd entry point (`com.allinalan.rsd-board-tick`, 07:00 daily on the
-  mini): decides what is due and notifies Alan. It does not run routines. `--dry`, `--status`.
+  mini): decides what is due and notifies Alan. It does not run routines. `--dry`, `--status`. Wednesday is
+  no longer "due" (the event check runs unattended). It reminds Alan to send the freshmen training sign-in
+  sheet two days after a January/August meeting (Jan 20 / Aug 15 when none is set) and about the Jan-May
+  changeover on Dec 28, and wakes Messages with a cheap read before texting (a cold Messages after the
+  2026-09-22 reboot timed out the 2026-09-23 notice).
 - `install.sh` — preflight + plist, disarmed by default; `--arm`, `--disarm`, `--check`.
-- `tests/run-all.mjs` — CLI, launcher and Sheet-parser tests against an in-memory fake database. Run before every commit.
+- `tests/run-all.mjs` — CLI, launcher, Sheet-parser, matcher, sync and event-check tests against an in-memory fake database. Run before every commit.
 - `docs/ROADMAP.md` — the staged plan to replace the Sheet by Fall 2027. `docs/HANDOFF.md` — go-live steps.
 - `.claude/skills/` — the routines: `board-tick` (daily), `board-preflight`, `board-booking-sweep`,
   `board-event-check`, `board-rollforward`. They lean on the account skills
@@ -53,8 +74,9 @@ keyed by series key. `editors` — who may write. `changelog` — every write.
 - **This repo is public.** No phone numbers, no promoter or rep e-mails, no contact fields in
   `seed/events.json`, nothing from `seed/private/`, no reports (`out/` is gitignored). The
   pre-commit hook enforces it; do not bypass it with `--no-verify`.
-- **Routines never send messages.** Only `deploy/tick.py` (rooted in `/usr/bin/python3`) talks to
-  Messages.app, and only to Alan. Rep texts are drafts in `out/reports/`. No Messages MCP tools.
+- **Nothing in this repo sends a text except `deploy/tick.py`**, rooted in `/usr/bin/python3`, and only
+  to Alan. The event check's texts (JP's list, rep updates) are built and sent by rsd-shift-picking's
+  approvals loop, after Alan's reply or the deadline printed in his preview. No Messages MCP tools.
 - **E-mail to coordinators goes through the mailroom, never the chat Gmail connector.** The
   connector rewrote the board link into a Google redirect in the go-live e-mail (2026-09-20,
   `docs/HANDOFF.md` section 8). The sanctioned path is hand-run from a session on the mini: write
@@ -74,8 +96,13 @@ keyed by series key. `editors` — who may write. `changelog` — every write.
   silent failure here: it writes a wrong seed and everyone then trusts it. `--verify` differing on
   one or two events is the team editing the Sheet; differing on most of them is the parser having
   drifted. Rep names are stored as `settings.roster` spells them, not as the Sheet does.
-- Headless `claude -p` on the mini cannot see the account skills the routines need, so routines
-  are hand-run from the desktop app until stage 2.
+- Headless `claude -p` on the mini cannot see the account skills the routines need, so preflight,
+  booking sweep and roll-forward are still hand-run from the desktop app. The event check no longer
+  needs them: it is scripts (above); `board-event-check` is its hand-run fallback.
+- **Nothing here writes the Sheet** (Alan, 2026-09-23: VC status lives on the board now; the Sheet's
+  Z/AA columns froze "as of 9/9"). The sync only reads it; the team keeps editing it until stage 3.
+- `state/` and `out/` hold private data (the baseline can carry promoter contacts; reports name reps).
+  Both are gitignored. Tests point `BOARD_STATE_DIR` / `BOARD_OUT_DIR` at temp dirs.
 
 ## Production
 

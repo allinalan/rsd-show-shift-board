@@ -384,10 +384,12 @@ export const parseAll = (grid, opts) => {
 /**
  * The board stores rep names as `settings.roster` spells them, not as the Sheet does. Case and
  * punctuation are normalised away, which covers "Matt A" / "Matt A." and "Jerry " / "Jerry"; these
- * three are the only tokens on the Sheet that normalisation cannot reach. Re-derive the list with
+ * are the only tokens on the Sheet that normalisation cannot reach. Re-derive the list with
  * `--verify`, which names any rep it cannot resolve.
+ * "Kendall G." is Kendall Gooch, whom the board has always spelled "Kendall": the Sheet started
+ * writing "Kendall G." in Sept 2026 when Kendall Harrison ("Kendall H." on the roster) joined.
  */
-export const REP_ALIASES = { cam: 'Cameron', jp: 'J. Parker', mattaragon: 'Matt A.' };
+export const REP_ALIASES = { cam: 'Cameron', jp: 'J. Parker', mattaragon: 'Matt A.', kendallg: 'Kendall' };
 const normRep = s => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
 export function makeRepResolver(roster) {
   const byNorm = new Map((roster || []).map(r => [normRep(r), r]));
@@ -500,12 +502,12 @@ export function diffShifts(live, seed, resolve) {
 
 // ---------- reading the workbook -------------------------------------------------------------
 // This repo carries no node_modules on purpose. SheetJS is vendored in the sibling projects.
-const XLSX_PATHS = [
+export const XLSX_PATHS = [
   '/Users/allinalan/automations/rsd-event-analyzer/node_modules/xlsx/xlsx.mjs',
   '/Users/allinalan/automations/rsd-events-intake/node_modules/xlsx/xlsx.mjs',
   '/Users/allinalan/automations/csp-autopilot/node_modules/xlsx/xlsx.mjs',
 ];
-async function readGrid(file, tab) {
+export async function readGrid(file, tab) {
   const found = XLSX_PATHS.find(p => fs.existsSync(p));
   if (!found) die(`no SheetJS on this machine. It is vendored in the sibling projects; none of these exist:\n  ${XLSX_PATHS.join('\n  ')}\nEither restore one of them, or dump the tab to JSON yourself and pass --grid <file.json>.`);
   const XLSX = await import(found);              // a namespace import: it has no default export

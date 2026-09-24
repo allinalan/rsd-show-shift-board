@@ -10,3 +10,5 @@ PAUSED
 # a Codex session's generated skill copies. AGENTS.md itself is a tracked pointer (keep it short).
 # Untracked files make the tree dirty, and deploy/tick.py never pulls over a dirty tree.
 .agents/
+# the Sheet -> board sync baseline (can carry promoter contacts; machine-local, mode 600)
+state/

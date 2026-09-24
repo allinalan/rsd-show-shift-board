@@ -13,7 +13,7 @@ effect of something else.
 | rsd-shift-picking | `lib/schedule.js`, `lib/roster.js`, `lib/reconcile.js`, `fetch-live.js` (RSD Picking Feed, Apps Script) | every scheduled shift, rep nicknames, season from the tab name, font colors |
 | rsd-event-analyzer | `lib/shifts.js`, `lib/upcoming.js`, `lib/categorize.js`, `lib/schedule-colors.js`, `tools/backfill.js`, 4 report templates | shifts per event, upcoming events, font colors via the Picking Feed |
 | sunny-bot | `mini/run_shift_sync.sh` (`com.allinalan.sunny.shiftsync`, 1st and 15th) | who is working which show, for SUNNY's answers |
-| skill: event-check | account skill | the Wednesday check, Sheet vs VectorConnect, writes status back to the Sheet |
+| ~~skill: event-check~~ | replaced 2026-09-23 | the Wednesday check now reads the board (`scripts/event-check.mjs`); the Sheet reaches it only through `scripts/sheet-sync.mjs`, and nothing writes the Sheet's Z/AA columns any more |
 | skill: show-shift-calendar-sync | account skill | reps' shifts to calendars |
 | skill: count-mesa-shifts | account skill | Mesa shift counts |
 | skill: events-picking-order | `~/ai-system/claude/skills` | picking order, through rsd-shift-picking |
@@ -32,6 +32,21 @@ coordinators still edit the Sheet. Vendor the account skills the routines need i
 `.claude/skills/` (or replace their VectorConnect half with a Playwright script like
 rsd-event-analyzer's), then let `deploy/tick.py` run `board-event-check` unattended with an explicit
 tool allow-list. Exit test: four unattended Wednesdays, each read back and matching VectorConnect.
+
+*Started early, 2026-09-23 (Alan's call, after the Cowork routine failed two Wednesdays running on
+Chrome and a logged-out session).* Built as scripts, not an unattended Claude: `scripts/sheet-sync.mjs`
+(the deterministic Sheet → board sync, Wednesdays only for now; daily is a schedule change once three
+Wednesdays come back clean) and `scripts/event-check.mjs` (VC via rsd-shift-picking's Keychain login and
+the JSON store behind My Events, no Chrome, no account skills), both run from rsd-shift-picking's
+Wednesday 08:00 job. The texts go through that repo's approvals loop (Alan replies approved / decline /
+edits in iMessage; silence by the printed deadline sends). Still open for stage 2: count the four clean
+Wednesdays from 2026-09-30.
+
+**Before the January 2027 meeting: the Jan-May book.** The board and the sync hold only the Sept-Feb tab.
+Add the Jan-May book to the sync (its own tab and column map, checked with `parse-sheet.mjs --verify`)
+before the team moves to it, or the Wednesday check silently goes blind from March. The tick reminds on
+Dec 28; the old Cowork "Jan-May Schedule Changeover Prep" task (bound to the MacBook) was written for the
+Sheet-based routine and should be deleted.
 
 **Stage 3 — the first meeting on the board (the May 2027 meeting).**
 Coordinators enter picks in plan mode. Direction flips: board → Sheet export (a script writes the

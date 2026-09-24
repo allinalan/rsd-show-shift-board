@@ -1,0 +1,54 @@
+{
+  "_about": "Settings for scripts/sheet-sync.mjs and scripts/event-check.mjs. Aliases and rejects are keyed by EVENT NAME, never by Sheet row (the Sheet is reordered constantly). Add an alias only when Alan confirms it. This repo is public: event names only, no contacts.",
+  "sheet": {
+    "fileId": "10p5Ro2WpeJ7mMOyS92OWIT3w3Nl-KGX4vBMkXJoOCTs",
+    "tab": "2026",
+    "label": "Sept-Feb",
+    "_changeover": "January: the team moves to the Jan-May book. The board holds only what this sync has read, so the Jan-May book must be added here (and parse-sheet's column map re-checked) before the January meeting. The board tick reminds on Dec 28."
+  },
+  "coordinator": "Matt Foss",
+  "scopeDaysBack": 60,
+  "scopeDaysAhead": 200,
+  "vcWindowPadDays": 30,
+  "dateSlackDays": 4,
+  "effectiveDateMaxDrift": 45,
+  "minScore": 0.5,
+  "mesaPattern": "mesa\\s*market|swap\\s*meet|swapmeet",
+  "qcfmPattern": "queen\\s*creek\\s*family\\s*market",
+  "placeholders": ["00092192"],
+  "aliases": [
+    { "board": "FallFest In the Park", "vc": "Prescott Fall Arts & Crafts Show", "confirmed": "Alan, 2026-08-26" },
+    { "board": "Fall Carefree Fine Art & Wine Festival", "vc": "Carefree Garden Art Experience", "confirmed": "Alan, 2026-08-26 (event renamed)" },
+    { "board": "Oro Valley Festival of the Arts", "vc": "Oro Valley Holiday Festival of the Arts", "confirmed": "2026-08-28" },
+    { "board": "united we cook chili festival & more", "vc": "United Way of Lea County Chili Fest", "confirmed": "Alan, 2026-08-28 (shares no words with the real name; only this alias will ever match it)" },
+    { "board": "Santa Cruz County Fair", "vc": "Santa Cruz County Fair & Rodeo - AZ", "confirmed": "2026-09-09" }
+  ],
+  "rejects": [
+    { "board": "Lake Havasu Sand & Water RV Show", "vc": "Lake Havasu Home & Garden Show", "why": "same town, different show (a one-off coincidence; families of names are handled by the scorer)" }
+  ],
+  "sync": {
+    "maxEventsTouched": 40,
+    "maxSlotChanges": 250,
+    "structuralDriftShare": 0.1
+  },
+  "checkWrite": {
+    "minVcRows": 20,
+    "minNumberFoundShare": 0.7,
+    "maxStatusChangeShare": 0.6
+  },
+  "vcStatuses": [
+    "Accepted - Awaiting Contract", "Booked", "Booked - Confirmed Event", "Booked - Needs Insurance", "Booked - Pending",
+    "Booked Own", "Booked Own Event - Confirmed", "Cancelled - Awaiting Credit/Refund", "Cancelled - Credited",
+    "Cancelled - No Charge", "Cancelled - Refunded", "Check Requested", "Closed", "Coordinator Declined",
+    "Declined - Recap Due", "Event Closed", "In Process", "Mall Lease Needed For Review - Approval",
+    "Mall Lease Review in Process", "Mall Payment Form (CC or W9) Needed", "Missed Event - No Response Coordinator",
+    "Missed Event - No Response Promoter", "No Show", "No Show - Credited", "Ok To Book", "Ok To Book - Need Contract",
+    "Olean Cancelled - Credited", "Pending CO - Approve New Dates", "Pending CO - Confirm Booth Details",
+    "Pending CO - Confirm Payment Details", "Pending CO - See Timeline Comments for Info",
+    "Pending Promoter - Acceptance into Event", "Pending Promotor - Fee Paid", "Pending Promoter - Form of Payment Needed",
+    "Pending Promoter - Need Contract", "Pending Promoter - See Timeline Comments for Info", "Pending Realtor Program Approval",
+    "Promoter Cancelled Event", "Promoter Declined", "Prospective", "Request to Book", "Self Booked", "Show Full",
+    "Show Full - On Waiting List", "Show Full - Refunded"
+  ],
+  "_vcStatusesSource": "VectorConnect > My Events > Status Definitions, read 2026-09-23. The definitions text itself lives in rsd-shift-picking (private)."
+}
