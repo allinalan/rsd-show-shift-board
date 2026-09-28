@@ -1,10 +1,12 @@
 #!/bin/bash
 #
-# Install the daily tick ON THE MAC MINI. Safe to re-run. Writes the job DISARMED by default.
+# Install the board's two jobs ON THE MAC MINI. Safe to re-run. Writes them DISARMED by default.
+#   com.allinalan.rsd-board-tick   07:00 daily: decides what is due, notifies Alan (deploy/tick.py)
+#   com.allinalan.rsd-board-sync   every 30 s: the board's "Sync from the Sheet" button (scripts/sync-requests.mjs)
 #
-#   ./install.sh            # preflight, install the pre-commit leak check, render the plist to out/ (NOT installed)
-#   ./install.sh --arm      # same, then load the job (07:00 daily). Refuses off the mini or on any FAIL.
-#   ./install.sh --disarm   # unload the job and remove its plist (kill switch); code and state untouched
+#   ./install.sh            # preflight, install the pre-commit leak check, render the plists to out/ (NOT installed)
+#   ./install.sh --arm      # same, then load both jobs. Refuses off the mini or on any FAIL.
+#   ./install.sh --disarm   # unload both jobs and remove their plists (kill switch); code and state untouched
 #
 # Disarmed means there is NO plist in ~/Library/LaunchAgents: launchd loads everything in that
 # folder at login, so a plist left there would arm itself on the next reboot.
@@ -12,9 +14,7 @@
 #
 set -u
 PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LABEL="com.allinalan.rsd-board-tick"
-PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-TEMPLATE="$PROJECT/launchd/$LABEL.plist"
+LABELS="com.allinalan.rsd-board-tick com.allinalan.rsd-board-sync"
 ENVF="$HOME/.rsd/board.env"
 ok()   { printf "  OK    %s\n" "$1"; }
 bad()  { printf "  FAIL  %s\n" "$1"; FAILED=1; }
@@ -22,8 +22,11 @@ warn() { printf "  WARN  %s\n" "$1"; }
 FAILED=0
 
 if [ "${1:-}" = "--disarm" ]; then
-  launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null && echo "unloaded $LABEL" || echo "$LABEL was not loaded"
-  [ -f "$PLIST" ] && rm -f "$PLIST" && echo "removed $PLIST (a plist left there would load itself at the next login)"
+  for LABEL in $LABELS; do
+    PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+    launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null && echo "unloaded $LABEL" || echo "$LABEL was not loaded"
+    [ -f "$PLIST" ] && rm -f "$PLIST" && echo "removed $PLIST (a plist left there would load itself at the next login)"
+  done
   exit 0
 fi
 
@@ -45,6 +48,12 @@ fi
 TZNAME="$(readlink /etc/localtime | sed 's|.*/zoneinfo/||')"; [ "$TZNAME" = "America/Phoenix" ] && ok "clock is $TZNAME" || bad "clock is $TZNAME, expected America/Phoenix"
 (cd "$PROJECT" && /usr/local/bin/node scripts/check-public.mjs >/dev/null 2>&1) && ok "public-repo leak check is clean" || bad "leak check found something (node scripts/check-public.mjs)"
 (cd "$PROJECT" && /usr/local/bin/node tests/run-all.mjs >/dev/null 2>&1) && ok "unit tests pass" || bad "unit tests fail (node tests/run-all.mjs)"
+# the Sync button's listener runs the Sheet sync, which reads the xlsx with a sibling project's SheetJS
+XLSX="$(cd "$PROJECT" && /usr/local/bin/node --input-type=module -e "import {XLSX_PATHS} from './scripts/parse-sheet.mjs'; import fs from 'fs'; console.log(XLSX_PATHS.find(p => fs.existsSync(p)) || '')" 2>/dev/null)"
+[ -n "$XLSX" ] && ok "SheetJS for the Sheet sync: $XLSX" || bad "no SheetJS in any sibling project (scripts/parse-sheet.mjs XLSX_PATHS): the Sheet sync cannot read the Sheet"
+# ...and the button's requests live in sheet_syncs (supabase/schema.sql, 2026-09-28). A read with the service key; writes nothing.
+SYNCS="$(cd "$PROJECT" && /usr/local/bin/node --input-type=module -e "import {boardApi} from './scripts/lib/board-api.mjs'; const r = await boardApi().syncs.open(); console.log('ok ' + r.length)" 2>&1 | tail -1)"
+case "$SYNCS" in "ok "*) ok "sheet_syncs table reachable (${SYNCS#ok } open request(s))";; *) bad "sheet_syncs not reachable: run supabase/schema.sql in the Supabase SQL editor (${SYNCS:0:160})";; esac
 # Coordinator e-mails from a board session go through the shared mailroom (CLAUDE.md). Its check sends
 # nothing. A WARN, never a FAIL: the daily tick does not e-mail, so this must not block arming.
 MAILROOM="$HOME/ai-system/lib/mailroom/gmail_send.py"
@@ -63,19 +72,27 @@ fi
 
 mkdir -p "$PROJECT/logs" "$PROJECT/out"
 if [ "${1:-}" != "--arm" ]; then
-  sed "s|__PROJECT__|$PROJECT|g" "$TEMPLATE" > "$PROJECT/out/$LABEL.plist"
-  plutil -lint "$PROJECT/out/$LABEL.plist" >/dev/null && ok "plist renders and lints (preview: out/$LABEL.plist)" || { bad "plist did not lint"; exit 1; }
-  launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && warn "$LABEL is currently LOADED; this run did not change that (./install.sh --disarm to stop it)"
-  [ -f "$PLIST" ] && ! launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && warn "$PLIST exists but is not loaded: it will load itself at the next login. Run ./install.sh --disarm to remove it."
+  for LABEL in $LABELS; do
+    PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+    sed "s|__PROJECT__|$PROJECT|g" "$PROJECT/launchd/$LABEL.plist" > "$PROJECT/out/$LABEL.plist"
+    plutil -lint "$PROJECT/out/$LABEL.plist" >/dev/null && ok "plist renders and lints (preview: out/$LABEL.plist)" || { bad "$LABEL plist did not lint"; exit 1; }
+    launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && warn "$LABEL is currently LOADED; this run did not change that (./install.sh --disarm to stop it)"
+    [ -f "$PLIST" ] && ! launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && warn "$PLIST exists but is not loaded: it will load itself at the next login. Run ./install.sh --disarm to remove it."
+  done
   echo; echo "NOT INSTALLED: nothing was written to ~/Library/LaunchAgents. Arm with: ./install.sh --arm"
   exit $FAILED
 fi
 if [ $FAILED -ne 0 ]; then echo; echo "Refusing to arm. Fix the FAIL lines, then re-run."; exit 1; fi
-sed "s|__PROJECT__|$PROJECT|g" "$TEMPLATE" > "$PLIST"
-plutil -lint "$PLIST" >/dev/null && ok "plist written to $PLIST" || { bad "plist did not lint"; exit 1; }
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null
-launchctl bootstrap "gui/$(id -u)" "$PLIST" && ok "loaded $LABEL (daily 07:00)" || bad "launchctl bootstrap failed"
-launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && ok "launchd knows $LABEL" || bad "$LABEL not registered"
+for LABEL in $LABELS; do
+  PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+  sed "s|__PROJECT__|$PROJECT|g" "$PROJECT/launchd/$LABEL.plist" > "$PLIST"
+  plutil -lint "$PLIST" >/dev/null && ok "plist written to $PLIST" || { bad "$LABEL plist did not lint"; exit 1; }
+  launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null
+  launchctl bootstrap "gui/$(id -u)" "$PLIST" && ok "loaded $LABEL" || bad "launchctl bootstrap failed for $LABEL"
+  launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && ok "launchd knows $LABEL" || bad "$LABEL not registered"
+done
 echo
-echo "Verify through launchd (never from a shell):  touch PAUSED; launchctl start $LABEL; tail logs/tick.log; rm PAUSED"
+echo "Verify through launchd (never from a shell):"
+echo "  tick:  touch PAUSED; launchctl start com.allinalan.rsd-board-tick; tail logs/tick.log; rm PAUSED"
+echo "  sync:  press Sync from the Sheet on the board (Plan mode), then tail logs/sync-requests.log"
 exit $FAILED

@@ -15,10 +15,31 @@ import { fileURLToPath } from 'url';
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const db = {};                                   // table -> Map(id -> data)
 const T = t => (db[t] = db[t] || new Map());
+const FLAT = new Set(['sheet_syncs']); let flatId = 0;
+const actors = new Set();                        // who merge_doc was told did the write (the changelog's actor)
+const pgMatch = (row, u) => {
+  for (const [k, v] of u.searchParams) {
+    if (['select', 'order', 'limit', 'on_conflict'].includes(k)) continue;
+    const m = v.match(/^(eq|in)\.(.*)$/); if (!m) continue;
+    const vals = m[1] === 'eq' ? [m[2]] : m[2].replace(/^\(|\)$/g, '').split(',');
+    if (!vals.includes(String(row[k]))) return false;
+  }
+  return true;
+};
 const server = http.createServer((req, res) => {
   let body = ''; req.on('data', c => body += c); req.on('end', () => {
     const u = new URL(req.url, 'http://x'); const p = u.pathname.replace('/rest/v1/', ''); const send = (code, v) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(v === undefined ? '' : JSON.stringify(v)); };
-    if (p === 'rpc/merge_doc') { const { tbl, doc_id, patch } = JSON.parse(body); const cur = T(tbl).get(doc_id) || {}; const next = { ...cur, ...patch }; T(tbl).set(doc_id, next); return send(200, next); }
+    if (FLAT.has(p)) {                           // a plain table (sheet_syncs): numbered rows, eq./in. filters, PATCH
+      const rows = [...T(p).values()];
+      if (req.method === 'GET') {
+        const [col, dir] = (u.searchParams.get('order') || 'id').split('.'), lim = +u.searchParams.get('limit');
+        const key = r => r[col] == null ? null : r[col], cmp = (a, b) => key(a) === key(b) ? 0 : key(a) === null ? 1 : key(b) === null ? -1 : (key(a) < key(b) ? -1 : 1) * (dir === 'desc' ? -1 : 1);
+        const out = rows.filter(r => pgMatch(r, u)).sort(cmp); return send(200, lim ? out.slice(0, lim) : out);
+      }
+      if (req.method === 'POST') { for (const r of JSON.parse(body)) { const id = ++flatId; T(p).set(id, { id, requested_at: new Date().toISOString(), requested_by: '', status: 'pending', started_at: null, finished_at: null, result: null, ...r }); } return send(201); }
+      if (req.method === 'PATCH') { const hit = rows.filter(r => pgMatch(r, u)); const patch = JSON.parse(body); hit.forEach(r => Object.assign(r, patch)); return send(200, hit); }
+    }
+    if (p === 'rpc/merge_doc') { const { tbl, doc_id, patch, actor } = JSON.parse(body); actors.add(actor); const cur = T(tbl).get(doc_id) || {}; const next = { ...cur, ...patch }; T(tbl).set(doc_id, next); return send(200, next); }
     const eq = u.searchParams.get('id'); const id = eq && eq.startsWith('eq.') ? decodeURIComponent(eq.slice(3)) : null;
     if (req.method === 'GET') { let r = [...T(p)].map(([i, data]) => ({ id: i, data, updated_at: 'now' })); if (id !== null) r = r.filter(x => x.id === id); r.sort((a, b) => a.id.localeCompare(b.id)); const lim = +u.searchParams.get('limit'); return send(200, lim ? r.slice(0, lim) : r); }
     if (req.method === 'POST') { for (const row of JSON.parse(body)) T(p).set(row.id, row.data); return send(201); }
@@ -432,6 +453,10 @@ sys.exit(tick.main())
     const again = JSON.parse(r.stdout);
     ok(r.code === 0 && again.eventsTouched === 0 && again.held.length === 1, 'sheet-sync: a second run changes nothing, and the held change comes back until someone decides');
     ok(fs.statSync(path.join(state, 'sheet-baseline.json')).mode % 0o1000 === 0o600, 'sheet-sync: the baseline (it can carry promoter contacts) is mode 600');
+    const runs = [...T('sheet_syncs').values()];
+    ok(runs.length === 2 && runs.every(x => x.status === 'done' && x.requested_by === 'service:sheet-sync' && x.finished_at) && runs[0].result.eventsTouched === 2 && runs[0].result.counts.held === 1,
+      'sheet-sync --apply: each run is on the record for the page (the dry run is not): ' + JSON.stringify(runs.map(x => [x.status, x.requested_by, x.result && x.result.eventsTouched])));
+    ok(!fs.existsSync(path.join(state, 'sheet-sync.lock')), 'sheet-sync --apply: the lock is released when the run ends');
   }
 
   // ---- tier rules (Alan, 2026-09-24: Maricopa is Elite, always, except the Maricopa County Fair)
@@ -462,6 +487,135 @@ sys.exit(tick.main())
     const made = [...T('events').values()];
     const mc = made.find(e => e.name === 'Maricopa County Home & Garden Show'), fair = made.find(e => e.name === 'Maricopa County Fair');
     ok(r.code === 0 && mc && mc.tier === 'Elite' && fair && fair.tier === 'Traditional', 'sheet-sync: a new Maricopa show is created Elite; the Maricopa County Fair is not: ' + JSON.stringify({ code: r.code, tiers: made.map(e => [e.name, e.tier]), err: r.stderr.slice(0, 200) }));
+  }
+
+  // ---- Sync from the Sheet (2026-09-28): the no-VC date hold, the lock, the record, the button's listener
+  {
+    const S = await import(path.join(REPO, 'scripts/sheet-sync.mjs'));
+    const PS = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
+    const resolve = PS.makeRepResolver(['Cameron', 'Sarah']);
+    const ev = (extra = {}) => ({ name: 'Corn Fest', weekend: '2026-09-04', startDate: '2026-09-05', endDate: '2026-09-06', days: ['Saturday', 'Sunday'], dates: ['2026-09-05', '2026-09-06'],
+      booths: [{ label: '', days: ['Saturday', 'Sunday'], dates: ['2026-09-05', '2026-09-06'], shifts: [{ label: 'Shift 1', slots: [{ rep: 'Cameron', ft: [] }, { rep: '', ft: [] }] }] }], ...extra });
+    const moved = ev({ startDate: '2026-09-06', endDate: '2026-09-06' });
+    let p = S.planEvent({ base: ev(), sheet: moved, board: ev({ vcNumber: '00300001', vcStatus: 'Booked' }), resolve, vcRow: null, today: '2026-08-01', noVcPull: true });
+    ok(!('startDate' in p.patch) && p.held.length === 1 && /no VC pull/.test(p.held[0]), 'sync, no VC pull: a date moved on a show VC has a record for is held for the Wednesday run');
+    p = S.planEvent({ base: ev(), sheet: moved, board: ev({ vcNumber: '', vcStatus: '' }), resolve, vcRow: null, today: '2026-08-01', noVcPull: true });
+    ok(p.patch.startDate === '2026-09-06' && !p.held.length, 'sync, no VC pull: a date move on a show VC has no record for is carried');
+    p = S.planEvent({ base: ev(), sheet: moved, board: ev({ vcNumber: '00092192', vcStatus: 'Booked' }), resolve, vcRow: null, today: '2026-08-01', noVcPull: true });
+    ok(p.patch.startDate === '2026-09-06', 'sync, no VC pull: the placeholder record holds no date');
+    const sum = S.syncSummary({ date: '2026-08-01', wrote: true, eventsTouched: 1, slotChanges: 1, applied: Array.from({ length: 50 }, (_, i) => ({ id: 'x' + i, name: 'E' + i, weekend: '2026-09-04', changes: ['a'] })),
+      created: [{ id: 'n', name: 'New', weekend: '2026-09-04', staffed: 2, status: 'Booking Request Needed', phone: '(928) 555-0100' }], held: [], conflicts: [], flagged: [], unresolved: [], duplicates: [] });
+    ok(sum.applied.length === 40 && sum.counts.applied === 50 && !JSON.stringify(sum).includes('555-0100') && !('id' in sum.created[0]), 'sync record: lists are capped (counts say how many), and nothing but names, weekends and changes goes on it');
+
+    // a small Sheet, a baseline, a board: then the listener, run the way launchd runs it, from a staged copy
+    const G = [], row = o => { const r = new Array(27).fill(null); for (const [i, v] of Object.entries(o)) r[+i] = v; G.push(r); };
+    const SER = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000);
+    row({ 2: 'Status', 4: 'header' });
+    row({ 1: 'Weekend 09-04' });
+    row({ 2: 'Booked', 4: 'Corn Fest', 5: 'Saturday', 6: 'Sunday', 12: '100', 13: SER('2026-09-05'), 14: SER('2026-09-06'), 15: 'Phoenix, AZ' });
+    row({ 4: 'Shift 1', 5: 'Cameron', 6: '' });
+    const { events: baseEvents } = PS.parseAll(JSON.parse(JSON.stringify(G)), { seasonYear: 2026 });
+    const baseline = [{ ...baseEvents[0], id: '2026-corn-fest-b1' }];
+    for (const t of Object.keys(db)) db[t].clear();
+    { const { id, ...d } = baseline[0]; T('events').set(id, { ...JSON.parse(JSON.stringify(d)), year: 2026, vcNumber: '', vcStatus: '' }); }
+    T('settings').set('division', { roster: ['Cameron', 'Sarah'] });
+    G[3][6] = 'Sarah';                                              // the team adds a rep on the Sheet
+    const state = path.join(home, 'btn-state'), outd = path.join(home, 'btn-out');
+    fs.mkdirSync(state, { recursive: true }); fs.writeFileSync(path.join(state, 'sheet-baseline.json'), JSON.stringify(baseline));
+    const gridFile = path.join(home, 'btn-grid.json'); fs.writeFileSync(gridFile, JSON.stringify(G));
+    const stage2 = path.join(home, 'stage-sync');
+    fs.cpSync(path.join(REPO, 'scripts'), path.join(stage2, 'scripts'), { recursive: true });
+    fs.cpSync(path.join(REPO, 'config'), path.join(stage2, 'config'), { recursive: true });
+    const stageCfg = path.join(stage2, 'config', 'event-check.json');
+    const setAuto = auto => { const c = JSON.parse(fs.readFileSync(stageCfg, 'utf8')); c.sync.auto = auto; fs.writeFileSync(stageCfg, JSON.stringify(c)); };
+    setAuto(null);                                                  // the button first; the hourly sync has its own tests below
+    const env = { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_STATE_DIR: state, BOARD_OUT_DIR: outd, BOARD_SYNC_LOCK_WAIT_MS: '0' };
+    const listen = (grid = gridFile) => new Promise(res => execFile(process.execPath, [path.join(stage2, 'scripts/sync-requests.mjs'), '--', '--grid', grid, '--date', '2026-08-01'],
+      { env }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    const ring = (extra = {}) => { const id = ++flatId; T('sheet_syncs').set(id, { id, requested_at: new Date().toISOString(), requested_by: 'matt@example.com', status: 'pending', started_at: null, finished_at: null, result: null, ...extra }); return id; };
+    const rowOf = id => T('sheet_syncs').get(id);
+
+    r = await listen();
+    ok(r.code === 0 && r.stdout === '' && r.stderr === '' && T('sheet_syncs').size === 0, 'listener: nobody pressed Sync, so it reads once, prints nothing, writes nothing: ' + r.stdout + r.stderr);
+
+    fs.writeFileSync(path.join(stage2, 'PAUSED'), '');
+    const a = ring();
+    r = await listen();
+    ok(r.code === 0 && rowOf(a).status === 'pending' && T('events').get('2026-corn-fest-b1').booths[0].shifts[0].slots[1].rep === '', 'listener: PAUSED leaves the request waiting and the board alone');
+    fs.rmSync(path.join(stage2, 'PAUSED'));
+
+    fs.writeFileSync(path.join(state, 'sheet-sync.lock'), JSON.stringify({ pid: process.pid, at: new Date().toISOString() }));
+    r = await listen();
+    ok(r.code === 0 && rowOf(a).status === 'pending' && rowOf(a).started_at === null && /another sync was running/.test(r.stdout), 'listener: while another sync holds the lock, the request goes back to waiting: ' + r.stdout + r.stderr);
+    fs.writeFileSync(path.join(state, 'sheet-sync.lock'), JSON.stringify({ pid: 999999, at: new Date().toISOString() }));   // a sync that died
+
+    const b = ring();
+    r = await listen();
+    const ra = rowOf(a), rb = rowOf(b);
+    ok(r.code === 0 && ra.status === 'done' && rb.status === 'done' && ra.result.eventsTouched === 1 && ra.result.slotChanges === 1 && ra.result.noVcPull === true,
+      'listener: two presses are one sync, and both rows get its result: ' + JSON.stringify([ra.status, rb.status, ra.result]) + r.stderr.slice(0, 300));
+    ok(T('events').get('2026-corn-fest-b1').booths[0].shifts[0].slots[1].rep === 'Sarah', 'listener: the Sheet\'s new rep is on the board');
+    ok(actors.has('service:sheet-sync:button'), 'listener: the changelog says the button did it: ' + [...actors].join(', '));
+    ok(T('sheet_syncs').size === 2 && fs.existsSync(path.join(outd, 'reports', `sheet-sync-2026-08-01-req${a}.json`)), 'listener: no extra record row, and the report is named for the request (the Wednesday report is not overwritten)');
+    ok(!fs.existsSync(path.join(state, 'sheet-sync.lock')), 'listener: a lock left by a dead sync is taken over, then released');
+    ok(new RegExp(`requests ${a},${b} \\(matt@example\\.com\\): written, 1 event\\(s\\), 1 shift change`).test(r.stdout), 'listener: one log line per sync, naming who asked: ' + r.stdout);
+
+    const c = ring();
+    r = await listen(path.join(home, 'no-such-grid.json'));
+    ok(r.code === 0 && rowOf(c).status === 'failed' && /no-such-grid/.test(rowOf(c).result.error), 'listener: a sync that fails marks the request failed, with the reason: ' + JSON.stringify(rowOf(c)));
+
+    const d = ring({ status: 'running', started_at: new Date(Date.now() - 20 * 60000).toISOString() });
+    r = await listen();
+    ok(r.code === 0 && rowOf(d).status === 'failed' && /interrupted/.test(rowOf(d).result.error), 'listener: a request left running by a restart is marked failed, not left spinning on the page');
+
+    const e1 = ring({ status: 'running', started_at: new Date().toISOString() }), e2 = ring();
+    r = await listen();
+    ok(r.code === 0 && rowOf(e2).status === 'pending', 'listener: while a sync is under way, a new press waits for the next look');
+    T('sheet_syncs').delete(e1);
+
+    r = await new Promise(res => execFile(process.execPath, [path.join(stage2, 'scripts/sync-requests.mjs')], { env: { ...env, BOARD_SUPABASE_URL: 'http://127.0.0.1:9' } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    const r2 = await new Promise(res => execFile(process.execPath, [path.join(stage2, 'scripts/sync-requests.mjs')], { env: { ...env, BOARD_SUPABASE_URL: 'http://127.0.0.1:9' } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    ok(r.code === 1 && /sync-requests:/.test(r.stderr) && r2.code === 1 && r2.stderr === '', 'listener: the board unreachable is said once, not every 30 seconds: ' + r.stderr + '|' + r2.stderr);
+    r = await listen();
+    ok(r.code === 0 && /reachable again/.test(r.stdout), 'listener: and it says when the board is back');
+
+    // ---- the hourly sync (Alan, 2026-09-28): on from config sync.auto.from, 7am-9pm Phoenix, an hour after the last run
+    const SR = await import(path.join(REPO, 'scripts/sync-requests.mjs'));
+    const AUTO = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8')).sync.auto;
+    ok(AUTO && AUTO.from === '2026-10-15' && AUTO.everyMinutes === 60 && JSON.stringify(AUTO.hours) === '[7,21]', 'hourly sync: configured to start 2026-10-15, hourly, 7am-9pm');
+    const at = s => Date.parse(s), ago = (s, min) => new Date(at(s) - min * 60000).toISOString();
+    ok(JSON.stringify(SR.phoenix(at('2026-10-20T14:30:00Z'))) === '{"date":"2026-10-20","hour":7}' && SR.phoenix(at('2026-10-16T03:30:00Z')).date === '2026-10-15', 'hourly sync: Phoenix date and hour (UTC-7, no daylight saving)');
+    const why = (now, last = null, auto = AUTO) => SR.autoWhyNot({ auto, last, now: at(now) });
+    ok(why('2026-10-14T20:00:00Z') === 'off until 2026-10-15' && why('2026-10-15T13:59:00Z') === 'outside hours' && why('2026-10-15T14:00:00Z') === '' && why('2026-10-16T04:00:00Z') === 'outside hours',
+      'hourly sync: nothing before the start date, nothing before 7am or from 9pm, due at 7am on the first day');
+    ok(why('2026-10-20T18:00:00Z', { status: 'done', finished_at: ago('2026-10-20T18:00:00Z', 30) }) === 'synced recently' && why('2026-10-20T18:00:00Z', { status: 'failed', finished_at: ago('2026-10-20T18:00:00Z', 61) }) === '',
+      'hourly sync: not within an hour of the last run (a button press counts), and a failed run is retried an hour later');
+    ok(/paused/.test(why('2026-10-20T18:00:00Z', { status: 'stopped', finished_at: ago('2026-10-20T18:00:00Z', 300) })) && why('2026-10-20T18:00:00Z', null, null) === 'off' && why('2026-10-20T18:00:00Z', null, { from: null }) === 'off',
+      'hourly sync: a run that stopped pauses it until a sync gets through; null turns it off');
+
+    T('sheet_syncs').clear();
+    setAuto({ from: '2000-01-01', everyMinutes: 60, hours: [0, 24] });   // any hour: the clock of the day the tests run must not matter
+    G[3][5] = '';                                                   // on the Sheet, Cameron comes off Saturday
+    fs.writeFileSync(gridFile, JSON.stringify(G));
+    r = await listen();
+    let autos = [...T('sheet_syncs').values()];
+    ok(r.code === 0 && autos.length === 1 && autos[0].requested_by === 'service:sheet-sync:auto' && autos[0].status === 'done' && autos[0].result.eventsTouched === 1 && /hourly sync: written, 1 event/.test(r.stdout),
+      'hourly sync: with nobody pressing, it runs by itself, records itself, and logs one line: ' + r.stdout + r.stderr.slice(0, 200) + JSON.stringify(autos.map(x => [x.requested_by, x.status])));
+    ok(T('events').get('2026-corn-fest-b1').booths[0].shifts[0].slots[0].rep === '' && actors.has('service:sheet-sync:auto'), 'hourly sync: the Sheet\'s change is on the board, and the changelog says the hourly sync did it');
+    r = await listen();
+    ok(r.code === 0 && r.stdout === '' && T('sheet_syncs').size === 1, 'hourly sync: not again within the hour');
+    autos[0].finished_at = new Date(Date.now() - 2 * 3600000).toISOString();
+    r = await listen();
+    autos = [...T('sheet_syncs').values()];
+    ok(r.code === 0 && autos.length === 2 && autos[1].status === 'done' && autos[1].result.eventsTouched === 0, 'hourly sync: an hour later it runs again (already up to date)');
+    autos[1].status = 'stopped'; autos[1].finished_at = new Date(Date.now() - 2 * 3600000).toISOString();
+    r = await listen();
+    ok(r.code === 0 && T('sheet_syncs').size === 2, 'hourly sync: after a run that stopped, it waits for a person');
+    const p1 = ring();
+    r = await listen();
+    ok(r.code === 0 && rowOf(p1).status === 'done' && T('sheet_syncs').size === 3, 'hourly sync: a press still goes through while it is paused, and that sync is the only run');
+    r = await listen();
+    ok(r.code === 0 && T('sheet_syncs').size === 3, 'hourly sync: the press counts as the latest sync, so the hour starts over');
   }
 
   // ---- event-check end to end: write-back rules, Mesa, the past, the placeholder, the safety refusal

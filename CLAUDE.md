@@ -30,7 +30,22 @@ routines in `.claude/skills/` keep it true.
   moved on the Sheet is flagged, never deleted or duplicated. Board edits win ties (both changed = held,
   named in the report). Two identical rows for one market on one day are one event (the extra row is reported,
   never added); a start date weeks away from the event's own banner-resolved days is a stale cell and is never
-  copied. Stops on parser drift (exit 2) or an oversized change set (exit 3). Dry unless `--apply`.
+  copied. Stops on parser drift (exit 2) or an oversized change set (exit 3). Dry unless `--apply`. `--apply`
+  takes `state/sheet-sync.lock` first (a second run waits up to 3 minutes, then exits 4) and records its outcome
+  in `sheet_syncs` for the page (best effort). With no VC pull (the button's and the hourly runs) a date moved on a
+  show VC has a record for is held for the Wednesday run. `--tag` names the report `sheet-sync-<date>-<tag>`, so
+  the Wednesday report the event check reads is never overwritten. `--via button|auto` makes the actor
+  `service:sheet-sync:button` / `:auto` in the changelog and the record.
+- `scripts/sync-requests.mjs` — the mini's half of the board's **Sync from the Sheet** button (Plan mode, editors
+  only; Alan, 2026-09-28: the team re-staffs on the Sheet and wants the board to show it now). launchd
+  `com.allinalan.rsd-board-sync`, every 30 s: reads `sheet_syncs` for pending rows (idle = one read, no output),
+  claims them all, runs `sheet-sync.mjs --apply --requests <ids>` once, and puts rows back to pending when the
+  lock is busy or marks them failed when the sync died. With nothing pressed it is also **the hourly sync**
+  (Alan, 2026-09-28): from config `sync.auto.from` (2026-10-15, the day after the third clean Wednesday), inside
+  `sync.auto.hours` (7am-9pm Phoenix), when the last finished run of any kind is over `everyMinutes` (60) old. A
+  run that stopped pauses it until a sync gets through; `from: null` turns it off. Kill switch: `PAUSED`
+  (requests wait, not lost). Log: `logs/sync-requests.log`, one line per sync; an outage is logged once, and
+  again when it clears.
 - `scripts/event-check.mjs` — the Wednesday Event Check against the board, unattended: matches every
   staffed non-Mesa event to a VectorConnect My Events pull (`scripts/lib/match.mjs`: VC number first, then
   name + shared distinctive word + date gate, aliases/rejects in `config/event-check.json`, Queen Creek by
@@ -80,7 +95,8 @@ routines in `.claude/skills/` keep it true.
   sheet two days after a January/August meeting (Jan 20 / Aug 15 when none is set) and about the Jan-May
   changeover on Dec 28, and wakes Messages with a cheap read before texting (a cold Messages after the
   2026-09-22 reboot timed out the 2026-09-23 notice).
-- `install.sh` — preflight + plist, disarmed by default; `--arm`, `--disarm`, `--check`.
+- `install.sh` — preflight + both plists (the tick and the sync listener), disarmed by default; `--arm`, `--disarm`,
+  `--check` act on both. The preflight also checks SheetJS and that `sheet_syncs` exists.
 - `tests/run-all.mjs` — CLI, launcher, Sheet-parser, matcher, sync and event-check tests against an in-memory fake database. Run before every commit.
 - `docs/ROADMAP.md` — the staged plan to replace the Sheet by Fall 2027. `docs/HANDOFF.md` — go-live steps.
 - `.claude/skills/` — the routines: `board-tick` (daily), `board-preflight` and `board-booking-sweep` (hand-run fallbacks),
@@ -99,7 +115,10 @@ page** (reps call promoters; Alan's call, 2026-09-19) but **never in git**: the 
 page's data layer and the CLI split those three fields out of every `events` write and merge them
 back on read, so everything else treats them as event fields. `history` — results by year per show base. `settings/division` — name, short, code, roster,
 `meetings` (ISO dates of shift-picking meetings). `never_work` — shows we never work again,
-keyed by series key. `editors` — who may write. `changelog` — every write.
+keyed by series key. `editors` — who may write. `changelog` — every write. `sheet_syncs` — a plain table (not
+`{id, data}`): one row per Sync press or `--apply` sync run (`status` pending → running → done | stopped | failed,
+`result` = counts and the changed/held/conflict lists, never contacts). Editors read and insert pending rows; only
+the service key moves them on.
 
 ## Rules that are easy to get wrong
 
@@ -158,11 +177,14 @@ keyed by series key. `editors` — who may write. `changelog` — every write.
 
 ## Production
 
-Mac mini, `~/automations/rsd-show-shift-board`, registry entry `rsd-show-shift-board`. Kill switch:
-a `PAUSED` file in the repo root, or `./install.sh --disarm`. Failures post to the shared Slack
-alert webhook (Keychain `csp-slack-webhook`). After changing `deploy/tick.py` or the plist: run
+Mac mini, `~/automations/rsd-show-shift-board`, registry entry `rsd-show-shift-board`. Two launchd jobs:
+`com.allinalan.rsd-board-tick` (07:00 daily) and `com.allinalan.rsd-board-sync` (every 30 s: the Sync button,
+and the hourly sync from 2026-10-15).
+Kill switch for both: a `PAUSED` file in the repo root, or `./install.sh --disarm`. Tick failures post to the
+shared Slack alert webhook (Keychain `csp-slack-webhook`); the sync listener's go to its log and onto the
+request, which the page shows. After changing `deploy/tick.py` or a plist: run
 `node tests/run-all.mjs`, `python3 deploy/tick.py --dry`, then `touch PAUSED; launchctl start
-com.allinalan.rsd-board-tick; tail logs/tick.log; rm PAUSED`. If how the job starts changes, update
+com.allinalan.rsd-board-tick; tail logs/tick.log; rm PAUSED`. If how a job starts changes, update
 `install.sh`, this file and `~/ai-system/REGISTRY.yaml` in the same change.
 
 The full spec and clarifications log lives in the RSD Events Team Cowork project
