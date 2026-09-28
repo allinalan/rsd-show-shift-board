@@ -36,10 +36,12 @@ Settings → Pages → Deploy from branch `main`, folder `/ (root)`. The page is
 
 ### 4. The Mac mini
 The production checkout is `~/automations/rsd-show-shift-board`. `./install.sh` runs the preflight
-and writes the launchd job disarmed; `./install.sh --arm` loads it. Full go-live steps:
+and writes the two launchd jobs disarmed; `./install.sh --arm` loads them. Full go-live steps:
 `docs/HANDOFF.md`. Every morning at 7:00 `deploy/tick.py` asks the board what's due and, if
 something is, tells Alan on Slack and iMessage what to say to Claude. It does not run routines by
-itself yet (`docs/ROADMAP.md`, stage 2).
+itself yet (`docs/ROADMAP.md`, stage 2). Every 30 seconds `scripts/sync-requests.mjs` checks whether
+an editor pressed **Sync from the Sheet** on the board and, if so, runs the Sheet -> board sync
+(`docs/HANDOFF.md` section 10).
 
 ## How it runs
 

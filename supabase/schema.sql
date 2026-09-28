@@ -132,6 +132,32 @@ create policy changelog_editor_read on changelog for select using (is_editor());
 drop policy if exists changelog_editor_insert on changelog;
 create policy changelog_editor_insert on changelog for insert with check (is_editor());
 
+-- ---------- the Sheet sync's doorbell (2026-09-28) ----------
+-- "Sync from the Sheet" on the page inserts a pending row. The mini's listener (scripts/sync-requests.mjs,
+-- launchd com.allinalan.rsd-board-sync, every 30 s) claims every pending row, runs scripts/sheet-sync.mjs
+-- --apply once for all of them, and the sync writes its result onto those rows. A sync run any other way
+-- with --apply (the Wednesday job) adds its own row, so "last synced" on the page is true either way.
+-- Editors read and ring; only the service key (the mini) moves a row past pending. The result carries
+-- event names, rep names and field changes the board already shows, never promoter contacts.
+create table if not exists sheet_syncs (
+  id            bigserial primary key,
+  requested_at  timestamptz not null default now(),
+  requested_by  text not null default lower(coalesce(auth.jwt()->>'email','')),
+  status        text not null default 'pending' check (status in ('pending','running','done','stopped','failed')),
+  started_at    timestamptz,
+  finished_at   timestamptz,
+  result        jsonb
+);
+create index if not exists sheet_syncs_open_idx on sheet_syncs (status) where status in ('pending','running');
+grant usage on sequence sheet_syncs_id_seq to authenticated;
+alter table sheet_syncs enable row level security;
+drop policy if exists sheet_syncs_editor_read on sheet_syncs;
+create policy sheet_syncs_editor_read on sheet_syncs for select using (is_editor());
+drop policy if exists sheet_syncs_editor_ring on sheet_syncs;
+create policy sheet_syncs_editor_ring on sheet_syncs for insert with check (
+  is_editor() and status = 'pending' and requested_by = lower(coalesce(auth.jwt()->>'email',''))
+  and started_at is null and finished_at is null and result is null);
+
 -- ---------- realtime ----------
 -- lets the page redraw the instant anyone saves (the shift-picking meeting depends on this)
 do $$ begin
@@ -141,6 +167,7 @@ do $$ begin
   begin execute 'alter publication supabase_realtime add table never_work'; exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table overrides';  exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table event_contacts'; exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table sheet_syncs';    exception when duplicate_object then null; end;
 end $$;
 
 -- ---------- first owner ----------

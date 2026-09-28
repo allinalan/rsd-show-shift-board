@@ -673,6 +673,14 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
 @media (max-width:640px){ .authbox{margin-left:0;width:100%} }
 #authPanel .form input{font-size:1rem}   /* 16px: iPhone zooms the page into any smaller field */
 #siCode{font-family:var(--f-mono);letter-spacing:.18em}
+/* Sync from the Sheet: the status line under the plan bar, and what the last sync did */
+.syncline{font-size:.76rem;color:var(--ink-3);align-items:baseline;gap:8px;flex-wrap:wrap;padding:0 2px}
+.syncline b{color:var(--ink-2);font-weight:600}
+.syncline.s-open{color:var(--info)}
+.syncline.s-slow,.syncline.s-stopped,.syncline.s-failed{color:var(--pend)}
+.syncsec{font-family:var(--f-disp);font-weight:600;font-size:.82rem;margin-top:2px}
+.synclist{margin:0;padding-left:18px;font-size:.8rem;color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
+.synclist ul{margin:2px 0 0;padding-left:16px;color:var(--ink-3);font-size:.76rem}
 @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 </style>
 
@@ -712,11 +720,19 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
   <p class="legend ctl-more" id="legend"></p>
   <div class="ctl-row plan-only" id="planBar">
    <a class="sheetlink" id="sheetTop" href="https://docs.google.com/spreadsheets/d/10p5Ro2WpeJ7mMOyS92OWIT3w3Nl-KGX4vBMkXJoOCTs/edit?gid=1119870878#gid=1119870878" target="_blank" rel="noopener">Open the Sheet &#8599;</a>
+   <button class="btn ghost" id="btnSync" hidden title="Carry the Sheet's latest changes onto the board now, the same sync the Wednesday job runs">Sync from the Sheet</button>
    <button class="btn ghost" id="btnQuickAdd" hidden>+ Add event</button>
    <button class="btn ghost" id="btnRoll" hidden>Roll forward</button>
    <button class="btn ghost" id="btnImport" hidden>Import results</button>
    <button class="btn ghost" id="btnSettings">Division settings</button>
    <span id="authBox" class="authbox"></span>
+  </div>
+  <div class="syncline plan-only" id="syncLine" hidden aria-live="polite"><span id="syncText"></span><button class="linkbtn" id="syncMore" hidden>what it did</button></div>
+  <div class="panel" id="syncPanel" hidden>
+   <div class="panel-h">The last sync from the Sheet</div>
+   <div id="syncBody"></div>
+   <p class="hint">A sync carries what changed on the Sheet since the last one: shifts added, removed and re-staffed, shift rows, new events, event details. Where the board was edited too, the board wins and the item is listed here. Booking status comes from VectorConnect and promoter contacts are edited on the board, so neither comes from the Sheet.</p>
+   <div class="panel-actions"><button class="btn ghost" id="syncClose">Close</button></div>
   </div>
   <div class="panel" id="authPanel" hidden>
    <div class="panel-h">Sign in to edit</div>
@@ -1099,7 +1115,7 @@ function renderHeader(){
   document.getElementById('btnImport').hidden=dbState!=='ready';
   const lg=document.getElementById('legend');
   if(lg) lg.textContent='No tag = Traditional. No access pill = that tier\'s usual level (Key → Varsity, Traditional → JV).';
-  document.getElementById('sheetTop').hidden=!nS;
+  document.getElementById('sheetTop').hidden=!(nS||(dbKind==='supabase'&&isEditor));
   { const ab=document.getElementById('authBox'); if(ab){
     ab.innerHTML=dbKind!=='supabase'?'':(authUser
       ?`<span class="who">${isEditor?'Editing as':'Signed in as'} <b>${esc(authUser.email)}</b>${isEditor?'':' — not on the editor list yet'}</span><button class="linkbtn" id="signOut" title="Signs out this device only">sign out</button>`
@@ -1714,7 +1730,7 @@ bindChips('stateChips',F.state); bindChips('tierChips',F.tier);
 
 /* panels */
 const P=id=>document.getElementById(id);
-function closePanels(){['rollPanel','addPanel','setPanel','impPanel','authPanel'].forEach(i=>P(i).hidden=true);}
+function closePanels(){['rollPanel','addPanel','setPanel','impPanel','authPanel','syncPanel'].forEach(i=>P(i).hidden=true);}
 function refreshRoll(){ const inc=P('rollDead').checked, {Y,todo,skipped,held}=rollPlan(inc); P('rollHeld').textContent=held?`${held} held back (skip-next or never-work).`:'';
   P('rollFrom').textContent=Y-1; P('rollTarget').textContent=Y; P('rollN').textContent=todo.length;
   P('rollDeadN').textContent=eventsIn(Y-1).filter(e=>e.dead).length;
@@ -1836,6 +1852,80 @@ P('siCode').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDef
 P('siEmail').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); P('siGo').click(); } });
 /* this device only: Supabase's default scope ends the sign-in on every device at once */
 document.addEventListener('click',async ev=>{ if(ev.target.closest('#signOut')&&db&&db.auth){ store.plan=false; P('planMode').checked=false; save(); await db.auth.signOut({scope:'local'}); } });
+/* ---- Sync from the Sheet (2026-09-28) ----
+   The button rings a doorbell: a pending row in sheet_syncs. The Mac mini looks every 30 seconds
+   (scripts/sync-requests.mjs), runs the same Sheet -> board sync the Wednesday job runs, and writes the
+   result onto the row. The board redraws by itself as the sync's writes land, as it does for any edit;
+   this only says how it went. Editors only: the table's RLS lets nobody else read it or ring. */
+let syncRows=null, syncReady=null, syncSub=false, syncAsk='';
+const SYNC_SLOW_MS=3*60e3;
+const syncOpen=()=>(syncRows||[]).find(r=>r.status==='pending'||r.status==='running')||null;
+const syncLast=()=>(syncRows||[]).find(r=>r.status==='done'||r.status==='stopped'||r.status==='failed')||null;
+function agoText(iso){ const t=Date.parse(iso); if(!t) return ''; const s=(Date.now()-t)/1e3, d=new Date(t);
+  if(s<50) return 'just now'; if(s<3600) return Math.round(s/60)+' min ago';
+  const time=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  if(d.toDateString()===new Date().toDateString()) return 'today '+time;
+  if(s<6*864e2) return d.toLocaleDateString('en-US',{weekday:'short'})+' '+time;
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+const wkShort=w=>{ const d=fromISO(w); return d?d.toLocaleDateString('en-US',{month:'short',day:'numeric'}):(w||''); };
+const whoAsked=r=>String(r.requested_by||'').startsWith('service:')?'on the mini':'asked by '+(r.requested_by||'someone');
+function syncSentence(r){
+  const x=r.result||{}, c=x.counts||{}, when=agoText(r.finished_at||r.requested_at), by=whoAsked(r);
+  if(r.status==='failed') return `<b>Last sync failed</b> ${esc(when)} (${esc(by)}): ${esc(x.error||'no reason given')}. Press Sync to try again.`;
+  if(r.status==='stopped') return `<b>Last sync stopped</b> ${esc(when)} (${esc(by)}) and changed nothing: ${/drift/.test(x.stopped||'')?'the Sheet\'s layout no longer matches what the sync reads (a column moved?)':'more changed on the Sheet at once than a sync carries by itself'}. Alan has the report.`;
+  const n=x.eventsTouched||0, sc=x.slotChanges||0, left=(c.held||0)+(c.conflicts||0)+(c.flagged||0);
+  const did=n||c.created?`${n} show${n===1?'':'s'} updated${sc?`, ${sc} shift change${sc===1?'':'s'}`:''}${c.created?`, ${c.created} new`:''}`:'already up to date';
+  return `<b>Synced from the Sheet</b> ${esc(when)} (${esc(by)}): ${did}.${left?` ${left} item${left===1?'':'s'} left for a person to decide.`:''}`; }
+function renderSync(){
+  const btn=P('btnSync'), line=P('syncLine'), more=P('syncMore'), editor=dbKind==='supabase'&&isEditor;
+  btn.hidden=!(editor&&syncReady===true);
+  if(!editor||syncReady===null){ line.hidden=true; return; }
+  if(syncReady===false){ line.hidden=!isOwner; line.className='syncline plan-only s-failed'; more.hidden=true;
+    P('syncText').innerHTML='<b>Sync from the Sheet is not set up yet.</b> Run supabase/schema.sql once in the Supabase SQL editor (it adds sheet_syncs), then arm the mini with ./install.sh --arm.'; return; }
+  const open=syncOpen(), last=syncLast();
+  btn.disabled=!!open; btn.textContent=open?'Syncing…':'Sync from the Sheet';
+  let txt, cls='';
+  if(open){ const waited=Date.now()-Date.parse(open.requested_at);
+    if(open.status==='running'){ txt='<b>Syncing from the Sheet now…</b> The board updates as it goes.'; cls='s-open'; }
+    else if(waited>SYNC_SLOW_MS){ txt=`<b>Still waiting for the Mac mini</b> after ${Math.round(waited/60e3)} min. It looks every 30 seconds, so it may be off, asleep or paused. The request stays and runs when the mini is back.`; cls='s-slow'; }
+    else { txt='<b>Asked the Mac mini to sync.</b> It looks every 30 seconds…'; cls='s-open'; } }
+  else if(last){ txt=syncSentence(last); cls=last.status==='done'?'':'s-'+last.status; }
+  else txt='No sync recorded yet. The Wednesday job syncs the Sheet every week; press the button to do it now.';
+  if(syncAsk){ txt=`<b>${esc(syncAsk)}</b> `+txt; cls='s-failed'; }
+  line.className='syncline plan-only'+(cls?' '+cls:''); line.hidden=false; P('syncText').innerHTML=txt;
+  const x=(last&&last.result)||{}; more.hidden=!!open||!last||!(x.stopped||x.error||(x.applied||[]).length||(x.created||[]).length||(x.held||[]).length||(x.conflicts||[]).length||(x.flagged||[]).length||(x.unresolved||[]).length);
+  if(!P('syncPanel').hidden&&last) renderSyncPanel(last); }
+function renderSyncPanel(r){
+  const x=r.result||{}, sec=(h,items,f)=>items&&items.length?`<div class="syncsec">${h}</div><ul class="synclist">${items.map(f).join('')}</ul>`:'';
+  const ev=i=>`<b>${esc(i.name)}</b> · ${esc(wkShort(i.weekend))}`;
+  const more=(k,shown)=>{ const all=(x.counts||{})[k]||0; return all>shown?`<p class="hint">…and ${all-shown} more (the full report is on the mini).</p>`:''; };
+  P('syncBody').innerHTML=`<p>${syncSentence(r)}</p>`
+    +(x.stopped?`<p class="hint">${esc(x.stopped)}</p>`:'')
+    +sec('Updated from the Sheet',x.applied,i=>`<li>${ev(i)}<ul>${(i.changes||[]).map(c=>`<li>${esc(c)}</li>`).join('')}</ul></li>`)+more('applied',(x.applied||[]).length)
+    +sec('New on the board',x.created,i=>`<li>${ev(i)} · ${i.staffed} shift${i.staffed===1?'':'s'} · ${esc(i.status||'')}</li>`)
+    +sec('Held: VectorConnect or a move says no, so a person decides',x.held,i=>`<li>${ev(i)}<ul><li>${esc(i.why)}</li></ul></li>`)
+    +sec('Changed on both the Sheet and the board: neither touched until they agree',x.conflicts,i=>`<li>${ev(i)}<ul><li>${esc(i.why)}</li></ul></li>`)
+    +sec('Flagged',x.flagged,f=>`<li>${esc(f)}</li>`)
+    +sec('Names the roster doesn\'t know (carried as written)',x.unresolved,u=>`<li>${esc(u)}</li>`); }
+async function loadSync(){
+  if(!(dbKind==='supabase'&&isEditor&&db&&db.client)){ renderSync(); return; }
+  try{ const {data,error}=await db.client.from('sheet_syncs').select('id,requested_at,requested_by,status,started_at,finished_at,result').order('id',{ascending:false}).limit(8);
+    if(error){ syncReady=false; syncRows=[]; } else { syncReady=true; syncRows=data||[]; } }catch(e){ /* offline: keep what we had */ }
+  renderSync(); }
+function syncInit(){
+  if(!(dbKind==='supabase'&&isEditor&&db&&db.client)){ renderSync(); return; }
+  if(!syncSub){ syncSub=true; db.client.channel('rt-sheet_syncs').on('postgres_changes',{event:'*',schema:'public',table:'sheet_syncs'},()=>loadSync()).subscribe(); }
+  loadSync(); }
+/* a slow net under realtime while a request is open, and "5 min ago" that keeps up */
+setInterval(()=>{ if(!isEditor||!syncReady) return; if(syncOpen()) loadSync(); else if(!P('syncLine').hidden) renderSync(); },15e3);
+P('btnSync').addEventListener('click',async()=>{
+  if(!isEditor||!db||!db.client) return;
+  P('btnSync').disabled=true; syncAsk='';
+  try{ const {error}=await db.client.from('sheet_syncs').insert({status:'pending'}); if(error) syncAsk='Couldn\'t ask for a sync: '+error.message+'.'; }
+  catch(e){ syncAsk='Couldn\'t ask for a sync: '+(e.message||e)+'.'; }
+  await loadSync(); });
+P('syncMore').addEventListener('click',()=>{ const last=syncLast(); if(!last) return; closePanels(); renderSyncPanel(last); P('syncPanel').hidden=false; P('syncPanel').scrollIntoView({behavior:'smooth',block:'nearest'}); });
+P('syncClose').addEventListener('click',closePanels);
 P('ctlToggle').addEventListener('click',()=>{ const on=document.body.classList.toggle('filters-open'); P('ctlToggle').setAttribute('aria-expanded',on); });
 addEventListener('scroll',()=>{ document.querySelector('.top').classList.toggle('scrolled',scrollY>4); },{passive:true});
 P('planMode').checked=plan();
@@ -1917,8 +2007,9 @@ async function checkEditor(){
     db.auth.onAuthStateChange((_ev,session)=>{ authUser=session?session.user:null;
       if(authUser&&store.signin){ delete store.signin; save(); codeStep(false); }
       // Supabase's own advice: never await a Supabase call inside this callback (it can deadlock the client)
-      setTimeout(async()=>{ await checkEditor(); if(isEditor) closePanels(); db.refresh(); build(); },0); });
+      setTimeout(async()=>{ await checkEditor(); if(isEditor) closePanels(); db.refresh(); build(); syncInit(); },0); });
     try{ const {data}=await db.auth.getSession(); authUser=data&&data.session?data.session.user:null; await checkEditor(); }catch(e){}
+    syncInit();
     if(store.plan&&!authUser) openSignin();   // plan mode left on while signed out (or a code on its way): ask again
   }
   db.collection('never_work').onSnapshot(snap=>{ neverList=snap.docs.map(d=>Object.assign({id:d.id},d.data()||{})); build(); },()=>{});

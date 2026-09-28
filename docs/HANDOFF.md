@@ -294,6 +294,36 @@ offline copy (`config.js` blank), the editing tools and the rep picker fit a 375
 code was requested: the first real code sign-in is Alan's, on his iPhone. JP and Matt were not told
 (Alan, 2026-09-23: no text or e-mail); they meet the code box the first time they sign in.
 
+## 10. Sync from the Sheet: a button on the board  (built 2026-09-28; three steps below turn it on)
+**Why.** The team re-staffs shows on the Sheet (stage 1: the Sheet is still the truth), and the board caught
+up only on Wednesdays. Alan asked for a refresh button.
+
+**How it works.** Plan mode, editors only: **Sync from the Sheet** sits next to "Open the Sheet". Pressing it
+adds a pending row to `sheet_syncs`. The mini's listener (`scripts/sync-requests.mjs`, launchd
+`com.allinalan.rsd-board-sync`, every 30 s) claims it and runs `scripts/sheet-sync.mjs --apply`, the Wednesday
+sync with all its guards. The board redraws as the writes land. The line under the button says what happened:
+waiting, syncing, "2 shows updated, 3 shift changes", or why it stopped. "what it did" lists every change, plus
+anything held or in conflict. Several presses are one sync. Button runs have no VC pull, so a date the Sheet
+moved on a show VC has a record for is held for Wednesday. Every `--apply` run (Wednesday's too) goes on the
+record, so the line always shows the real last sync.
+
+**Turning it on (the mini and Supabase; nothing here can be done from a cloud session):**
+1. **ALAN**: Supabase → SQL Editor → paste the whole `supabase/schema.sql` → Run. It is idempotent: the only
+   new things are the `sheet_syncs` table, its two policies and its realtime publication. Until this runs, the
+   button stays hidden and the owner sees a "not set up yet" line in Plan mode.
+2. On the mini: `git -C ~/automations/rsd-show-shift-board pull`, then `./install.sh --check`. Two new lines
+   should say OK: SheetJS found, and `sheet_syncs` reachable. Then `./install.sh --arm`, which reloads the tick
+   and loads the listener.
+3. Add `com.allinalan.rsd-board-sync` (every 30 s, `scripts/sync-requests.mjs`, log `logs/sync-requests.log`,
+   kill switch `PAUSED`) to `~/ai-system/REGISTRY.yaml` under `rsd-show-shift-board`.
+
+**Verify.** Change one rep on the Sheet, press Sync on the board, and watch the line go "Asked the Mac mini…",
+then "Syncing…", then "Synced … 1 show updated, 1 shift change". The shift changes on the board without a
+reload. `tail logs/sync-requests.log` shows one line for it. Then change it back on the Sheet and sync again.
+
+**Off switch.** `touch PAUSED` pauses both jobs: presses wait on the page ("Still waiting for the Mac mini")
+and run when it is removed. `./install.sh --disarm` unloads both.
+
 ## If something breaks later
 `touch PAUSED` stops the job. `node scripts/board.mjs export` before any big change (includes the
 private contacts; `backups/` is gitignored). `board changelog` says who did what.

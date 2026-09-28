@@ -42,6 +42,14 @@ Wednesday 08:00 job. The texts go through that repo's approvals loop (Alan repli
 edits in iMessage; silence by the printed deadline sends). Still open for stage 2: count the four clean
 Wednesdays from 2026-09-30.
 
+*On demand, 2026-09-28 (Alan: the team re-staffs shows on the Sheet and wants the board to show it now).* A
+**Sync from the Sheet** button in Plan mode rings the mini (`sheet_syncs`, `scripts/sync-requests.mjs`,
+`com.allinalan.rsd-board-sync` every 30 s), which runs the same sync with the same guards and reports back on the
+page. The Wednesday run is unchanged, and nothing syncs on a timer in between: only presses. Button runs have no
+VC pull, so they hold Sheet date moves on shows VC has a record for, and the Wednesday run decides those. Every
+`--apply` run is recorded, so the button's history doubles as the sync's track record for the clean-Wednesday
+count.
+
 The booking sweep went unattended the same night (Alan, 2026-09-23): `scripts/booking-sweep.mjs` plus
 rsd-shift-picking's `run-booking-sweep.sh` (com.rsd.bookingsweep, days 2-8 after a meeting), submitting VC
 Booking Requests by script after Alan's reply. Its first real run is two days after the January 13, 2027 meeting,

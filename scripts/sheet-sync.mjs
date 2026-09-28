@@ -22,12 +22,23 @@
 
   FAILS CLOSED. A parser that drifts (a structural field differs on more than a tenth of the matched
   events: a column inserted, a tab rebuilt) or a run that would touch an unusual amount writes nothing.
+  A run with no VC pull (the board's "Sync from the Sheet" button) holds a date the Sheet moved on any show
+  VectorConnect has a record for: it cannot check the move, so the Wednesday run, which has a pull, decides.
+
+  ONE AT A TIME. --apply takes state/sheet-sync.lock before it reads the baseline, so the Wednesday job and
+  a button press can never both write it; the second waits up to three minutes, then gives up (exit 4).
+
+  ON THE RECORD. Every --apply run writes its outcome to sheet_syncs (schema.sql), which the page reads for
+  "last synced". --requests <ids> (scripts/sync-requests.mjs, the button's listener) updates those rows;
+  otherwise it adds one. Best effort: a missing table is a warning, never a failed sync.
 
   Usage:
     sheet-sync.mjs [--apply] [--xlsx file] [--vc vc-my-events.json] [--force] [--date YYYY-MM-DD]
-  Dry by default: prints the plan and writes out/reports/sheet-sync-<date>.{md,json}; touches neither the
-  board nor the baseline. --apply writes the board, then the baseline.
+                   [--tag <t>] [--requests <id,id>]
+  Dry by default: prints the plan and writes out/reports/sheet-sync-<date>.{md,json} (sheet-sync-<date>-<tag>
+  with --tag); touches neither the board nor the baseline. --apply writes the board, then the baseline.
   Exit: 0 ok · 1 error · 2 parser drift · 3 over the change limits (read the plan, then --force)
+        · 4 another sync held the lock for three minutes (nothing read or written)
 */
 import fs from 'fs';
 import path from 'path';
@@ -41,6 +52,8 @@ const args = process.argv.slice(2);
 const flag = f => args.includes(f);
 const opt = (f, d = null) => { const i = args.indexOf(f); return i > -1 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : d; };
 const APPLY = flag('--apply'), FORCE = flag('--force');
+const TAG = (opt('--tag') || '').replace(/[^A-Za-z0-9_-]/g, '');
+const REQUESTS = (opt('--requests') || '').split(',').map(Number).filter(n => Number.isInteger(n) && n > 0);
 const CFG = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8'));
 // BOARD_STATE_DIR / BOARD_OUT_DIR point the tests at temp dirs; production uses the repo's state/ and out/.
 const STATE = process.env.BOARD_STATE_DIR || path.join(REPO, 'state'), BASELINE = path.join(STATE, 'sheet-baseline.json');
@@ -90,7 +103,7 @@ const where = (e, b, s, d) => {
   return [booth.label, shift.label, (booth.days || [])[d]].filter(x => t(x)).join(' / ');
 };
 
-export function planEvent({ base, sheet, board, resolve, vcRow, today }) {
+export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull = false }) {
   const slotKey = sl => repKey(sl && sl.rep, resolve) + '|' + ((sl && sl.ft) || []).map(x => repKey(x, resolve)).sort().join(',');
   const out = (raw) => { const s = t(raw); return !s || s === '__X__' ? s : resolve(s); };
   const outSlot = sl => ({ rep: out(sl && sl.rep), ft: ((sl && sl.ft) || []).map(out) });
@@ -124,6 +137,9 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today }) {
       const eff = effectiveDate({ weekend: sheet.weekend, startDate: sheet.startDate, dates: sheet.dates });
       if (vcRow && !deadByVc && statusCategory(vcRow.status) !== 'no-vc' && !inRun(eff, vcRow, CFG.dateSlackDays ?? 4)) {
         held.push(`dates: the Sheet moved it to ${sheet.startDate}..${sheet.endDate}, but VectorConnect has ${vcRow.eventNumber} on ${vcRow.startDate}..${vcRow.endDate} (${vcRow.status})`);
+        datesHeld = true;
+      } else if (!vcRow && noVcPull && t(board.vcNumber) && !(CFG.placeholders || []).includes(t(board.vcNumber)) && !deadByVc && statusCategory(board.vcStatus) !== 'no-vc') {
+        held.push(`dates: the Sheet moved it to ${sheet.startDate}..${sheet.endDate}; VectorConnect has a record for it (${t(board.vcNumber)}, ${t(board.vcStatus) || 'no status'}) and this run had no VC pull to check the move against, so the Wednesday sync decides`);
         datesHeld = true;
       } else if (staleStart) {
         patch.dates = sheet.dates || [];
@@ -195,9 +211,81 @@ function nextBase(base, sheet, keep) {
   return nb;
 }
 
+// ---------- one at a time -------------------------------------------------------------------------------
+const LOCK = path.join(STATE, 'sheet-sync.lock');
+const LOCK_WAIT_MS = Number(process.env.BOARD_SYNC_LOCK_WAIT_MS ?? 180000), LOCK_STALE_MS = 15 * 60000;
+const alive = pid => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+/** The lock, or null while another live sync holds it. A lock whose process is gone, or older than 15 minutes, is taken over. */
+function tryLock() {
+  fs.mkdirSync(STATE, { recursive: true });
+  const mine = JSON.stringify({ pid: process.pid, at: new Date().toISOString() });
+  try { fs.writeFileSync(LOCK, mine, { flag: 'wx', mode: 0o600 }); }
+  catch (e) {
+    if (e.code !== 'EEXIST') throw e;
+    let held = {}; try { held = JSON.parse(fs.readFileSync(LOCK, 'utf8')); } catch { /* half-written: judge by age */ }
+    let age = 0; try { age = Date.now() - fs.statSync(LOCK).mtimeMs; } catch { return tryLock(); }   // released between the two calls
+    if (age < LOCK_STALE_MS && (!held.pid || alive(held.pid))) return null;
+    fs.writeFileSync(LOCK, mine, { mode: 0o600 });
+    if (fs.readFileSync(LOCK, 'utf8') !== mine) return null;       // two runs took over the same stale lock: the last writer has it
+  }
+  return () => { try { if (JSON.parse(fs.readFileSync(LOCK, 'utf8')).pid === process.pid) fs.unlinkSync(LOCK); } catch { /* gone already */ } };
+}
+async function takeLock() {
+  const t0 = Date.now();
+  for (;;) {
+    const release = tryLock();
+    if (release || Date.now() - t0 >= LOCK_WAIT_MS) return release;
+    await new Promise(r => setTimeout(r, 2000));
+  }
+}
+
+// ---------- on the record ---------------------------------------------------------------------------------
+const cap = (a, n = 40) => (a || []).slice(0, n);
+/** What the page shows about a run: counts and the lists, capped. Never promoter contacts (SCALARS has none). */
+export const syncSummary = r => ({
+  date: r.date, wrote: !!r.wrote, stopped: r.stopped || null, error: r.error || null,
+  parsed: r.parsed ?? null, eventsTouched: r.eventsTouched ?? 0, slotChanges: r.slotChanges ?? 0, noVcPull: !!r.noVcPull,
+  counts: Object.fromEntries(['applied', 'created', 'held', 'conflicts', 'flagged', 'duplicates', 'unresolved'].map(k => [k, (r[k] || []).length])),
+  applied: cap(r.applied).map(a => ({ name: a.name, weekend: a.weekend, changes: cap(a.changes, 20) })),
+  created: cap(r.created).map(c => ({ name: c.name, weekend: c.weekend, staffed: c.staffed, status: c.status })),
+  held: cap(r.held).map(h => ({ name: h.name, weekend: h.weekend, why: h.why })),
+  conflicts: cap(r.conflicts).map(c => ({ name: c.name, weekend: c.weekend, why: c.why })),
+  flagged: cap(r.flagged), unresolved: cap(r.unresolved),
+});
+async function record(api, startedAt, r) {
+  const status = r.wrote ? 'done' : r.stopped ? 'stopped' : 'failed';
+  const row = { status, finished_at: new Date().toISOString(), result: syncSummary(r) };
+  try {
+    if (REQUESTS.length) {
+      const moved = await api.syncs.move(REQUESTS, 'running', row);
+      if (!moved || !moved.length) console.error(`sheet-sync: requests ${REQUESTS.join(',')} were no longer running; the result is in the report only`);
+    } else await api.syncs.add({ requested_by: api.actor, started_at: startedAt, ...row });
+  } catch (e) {
+    // no sheet_syncs yet (schema.sql not re-run since 2026-09-28): the Wednesday job stays exactly as quiet as before
+    if (/\b404\b|PGRST205|42P01/.test(e.message)) return;
+    console.error(`sheet-sync: the run is not on the page's record (sheet_syncs: ${e.message.slice(0, 160)}). The sync itself ${r.wrote ? 'wrote the board' : 'is unaffected'}.`);
+  }
+}
+
 // ---------- the run -----------------------------------------------------------------------------------
 async function main() {
   const api = boardApi({ actor: 'service:sheet-sync' });
+  const startedAt = new Date().toISOString();
+  let release = null;
+  if (APPLY) {
+    release = await takeLock();
+    if (!release) {
+      let held = ''; try { held = fs.readFileSync(LOCK, 'utf8'); } catch { /* released just now */ }
+      console.error(`sheet-sync: another sync still held ${LOCK} after ${Math.round(LOCK_WAIT_MS / 1000)} s (${held}). Nothing read or written.`);
+      return 4;
+    }
+  }
+  try { return await run(api, startedAt); }
+  catch (e) { if (APPLY) await record(api, startedAt, { date: TODAY, error: String(e.message || e).slice(0, 400) }); throw e; }
+  finally { if (release) release(); }
+}
+
+async function run(api, startedAt) {
   // --grid <json>: a pre-dumped grid (tests; this repo is public, so no real Sheet data lives in it)
   const file = opt('--grid') ? opt('--grid') : await sheetFile();
   const [boardEvents, settings] = await Promise.all([api.events(), api.settings()]);
@@ -209,6 +297,7 @@ async function main() {
   const boardById = new Map(boardEvents.map(e => [e.id, e]));
   const boardByKey = new Map(boardEvents.map(e => [`${normName(e.name)}|${e.weekend || ''}`, e]));
   const vc = opt('--vc') && fs.existsSync(opt('--vc')) ? JSON.parse(fs.readFileSync(opt('--vc'), 'utf8')) : null;
+  const noVcPull = !vc;
   const vcByNumber = new Map(((vc && vc.rows) || []).map(r => [String(r.eventNumber), r]));
 
   const { pairs, liveOnly, seedOnly } = matchToSeed(sheetEvents, baseEvents);
@@ -269,7 +358,7 @@ async function main() {
     }
     // a placeholder record (00092192) books no particular date, so it can neither hold nor bless a date change
     const vcRow = board.vcNumber && !(CFG.placeholders || []).includes(String(board.vcNumber)) ? vcByNumber.get(String(board.vcNumber)) || null : null;
-    const r = planEvent({ base, sheet, board, resolve, vcRow, today: TODAY });
+    const r = planEvent({ base, sheet, board, resolve, vcRow, today: TODAY, noVcPull });
     if (Object.keys(r.patch).length) { eventsTouched++; slotChanges += r.slotChanges; writes.push({ id: board.id, patch: r.patch }); plan.applied.push({ id: board.id, name: board.name, weekend: board.weekend, changes: r.changes }); }
     for (const h of r.held) plan.held.push({ id: board.id, name: board.name, weekend: board.weekend, why: h });
     for (const c of r.conflicts) plan.conflicts.push({ id: board.id, name: board.name, weekend: board.weekend, why: c });
@@ -292,7 +381,7 @@ async function main() {
     const existing = boardByKey.get(`${normName(sheet.name)}|${sheet.weekend || ''}`);
     if (existing) {
       // added on both sides independently: carry only what fills a blank on the board
-      const r = planEvent({ base: { booths: (existing.booths || []).map(b => ({ ...b, shifts: b.shifts.map(s => ({ ...s, slots: s.slots.map(() => ({ rep: '', ft: [] })) })) })) }, sheet, board: existing, resolve, vcRow: existing.vcNumber ? vcByNumber.get(String(existing.vcNumber)) : null, today: TODAY });
+      const r = planEvent({ base: { booths: (existing.booths || []).map(b => ({ ...b, shifts: b.shifts.map(s => ({ ...s, slots: s.slots.map(() => ({ rep: '', ft: [] })) })) })) }, sheet, board: existing, resolve, vcRow: existing.vcNumber ? vcByNumber.get(String(existing.vcNumber)) : null, today: TODAY, noVcPull });
       if (Object.keys(r.patch).length) { eventsTouched++; slotChanges += r.slotChanges; writes.push({ id: existing.id, patch: r.patch }); plan.applied.push({ id: existing.id, name: existing.name, weekend: existing.weekend, changes: r.changes }); }
       for (const c of r.conflicts) plan.conflicts.push({ id: existing.id, name: existing.name, weekend: existing.weekend, why: c });
       newBaseline.push({ ...nextBase({ ...sheet, booths: existing.booths }, sheet, r.keepBase), id: existing.id });
@@ -335,7 +424,7 @@ async function main() {
   if (slotChanges > (CFG.sync.maxSlotChanges ?? 250)) over.push(`${slotChanges} shift changes (limit ${CFG.sync.maxSlotChanges})`);
 
   const result = {
-    date: TODAY, mode: APPLY ? 'apply' : 'dry', baseline: baseSource, sheetFile: path.basename(file),
+    date: TODAY, mode: APPLY ? 'apply' : 'dry', baseline: baseSource, sheetFile: path.basename(file), noVcPull,
     parsed: sheetEvents.length, matched: pairs.length, renames: renames.length, moves: moves.length,
     eventsTouched, slotChanges, drift, over, ...plan, wrote: false,
   };
@@ -357,7 +446,7 @@ async function main() {
   // the report
   const md = [];
   md.push(`# Sheet -> board sync, ${TODAY} (${result.mode}${result.wrote ? ', written' : ', nothing written'})`, '');
-  md.push(`Parsed ${result.parsed} events from the Sheet (${CFG.sheet.label}, tab ${CFG.sheet.tab}); baseline: ${baseSource}.`);
+  md.push(`Parsed ${result.parsed} events from the Sheet (${CFG.sheet.label}, tab ${CFG.sheet.tab}); baseline: ${baseSource}.${noVcPull ? ' No VC pull on this run: date moves on shows VC has a record for are held.' : ''}`);
   md.push(`${eventsTouched} event(s) changed, ${slotChanges} shift change(s); ${plan.created.length} new; ${plan.held.length} held; ${plan.conflicts.length} conflict(s); ${plan.flagged.length} flagged.`);
   if (result.stopped) md.push('', `**STOPPED:** ${result.stopped}`);
   if (plan.held.length) { md.push('', '## Held (VectorConnect or a move says no; comes back next run until decided)'); for (const h of plan.held) md.push(`- ${h.weekend} ${h.name}: ${h.why}`); }
@@ -369,8 +458,10 @@ async function main() {
   if (plan.unresolved.length) md.push('', `Names the roster cannot place (carried as written): ${plan.unresolved.join(', ')}`);
   if (warnings.length) md.push('', `Parser warnings: ${warnings.join('; ')}`);
   fs.mkdirSync(OUT, { recursive: true });
-  fs.writeFileSync(path.join(OUT, `sheet-sync-${TODAY}.md`), md.join('\n') + '\n');
-  fs.writeFileSync(path.join(OUT, `sheet-sync-${TODAY}.json`), JSON.stringify(result, null, 1));
+  const stem = `sheet-sync-${TODAY}${TAG ? '-' + TAG : ''}`;
+  fs.writeFileSync(path.join(OUT, `${stem}.md`), md.join('\n') + '\n');
+  fs.writeFileSync(path.join(OUT, `${stem}.json`), JSON.stringify(result, null, 1));
+  if (APPLY) await record(api, startedAt, result);
   if (flag('--json')) console.log(JSON.stringify(result, null, 1)); else console.log(md.join('\n'));
   return code;
 }

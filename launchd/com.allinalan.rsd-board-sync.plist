@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.allinalan.rsd-board-sync</string>
+    <!--
+      Template: install.sh replaces __PROJECT__ and writes this to ~/Library/LaunchAgents.
+      The listener behind the board's "Sync from the Sheet" button (scripts/sync-requests.mjs): every
+      30 seconds it asks the board whether anyone pressed it, and runs the Sheet -> board sync if so.
+      Idle, it is one small read and prints nothing. launchd never starts a second copy while one runs.
+      Kill switch: a PAUSED file in the project root, or ./install.sh --disarm.
+    -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/node</string>
+        <string>__PROJECT__/scripts/sync-requests.mjs</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>__PROJECT__</string>
+    <key>StartInterval</key>
+    <integer>30</integer>
+    <key>StandardOutPath</key>
+    <string>__PROJECT__/logs/sync-requests.log</string>
+    <key>StandardErrorPath</key>
+    <string>__PROJECT__/logs/sync-requests.log</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
