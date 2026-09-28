@@ -30,11 +30,12 @@
 
   ON THE RECORD. Every --apply run writes its outcome to sheet_syncs (schema.sql), which the page reads for
   "last synced". --requests <ids> (scripts/sync-requests.mjs, the button's listener) updates those rows;
-  otherwise it adds one. Best effort: a missing table is a warning, never a failed sync.
+  otherwise it adds one. Best effort: a missing table is a warning, never a failed sync. --via names what
+  started the run in the changelog and the record: service:sheet-sync:button or :auto (the hourly sync).
 
   Usage:
     sheet-sync.mjs [--apply] [--xlsx file] [--vc vc-my-events.json] [--force] [--date YYYY-MM-DD]
-                   [--tag <t>] [--requests <id,id>]
+                   [--tag <t>] [--requests <id,id>] [--via button|auto]
   Dry by default: prints the plan and writes out/reports/sheet-sync-<date>.{md,json} (sheet-sync-<date>-<tag>
   with --tag); touches neither the board nor the baseline. --apply writes the board, then the baseline.
   Exit: 0 ok · 1 error · 2 parser drift · 3 over the change limits (read the plan, then --force)
@@ -54,6 +55,7 @@ const opt = (f, d = null) => { const i = args.indexOf(f); return i > -1 && args[
 const APPLY = flag('--apply'), FORCE = flag('--force');
 const TAG = (opt('--tag') || '').replace(/[^A-Za-z0-9_-]/g, '');
 const REQUESTS = (opt('--requests') || '').split(',').map(Number).filter(n => Number.isInteger(n) && n > 0);
+const VIA = (opt('--via') || '').replace(/[^a-z]/g, '');
 const CFG = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8'));
 // BOARD_STATE_DIR / BOARD_OUT_DIR point the tests at temp dirs; production uses the repo's state/ and out/.
 const STATE = process.env.BOARD_STATE_DIR || path.join(REPO, 'state'), BASELINE = path.join(STATE, 'sheet-baseline.json');
@@ -269,7 +271,7 @@ async function record(api, startedAt, r) {
 
 // ---------- the run -----------------------------------------------------------------------------------
 async function main() {
-  const api = boardApi({ actor: 'service:sheet-sync' });
+  const api = boardApi({ actor: 'service:sheet-sync' + (VIA ? ':' + VIA : '') });
   const startedAt = new Date().toISOString();
   let release = null;
   if (APPLY) {

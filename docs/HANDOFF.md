@@ -294,9 +294,10 @@ offline copy (`config.js` blank), the editing tools and the rep picker fit a 375
 code was requested: the first real code sign-in is Alan's, on his iPhone. JP and Matt were not told
 (Alan, 2026-09-23: no text or e-mail); they meet the code box the first time they sign in.
 
-## 10. Sync from the Sheet: a button on the board  (built 2026-09-28; three steps below turn it on)
+## 10. Sync from the Sheet: a button on the board, and an hourly sync  (built 2026-09-28; three steps below turn it on)
 **Why.** The team re-staffs shows on the Sheet (stage 1: the Sheet is still the truth), and the board caught
-up only on Wednesdays. Alan asked for a refresh button.
+up only on Wednesdays. Alan asked for a refresh button, then for the board to keep itself current, so that Matt
+and JP find it matching the Sheet whenever they start looking (`docs/ROADMAP.md`, "Who switches, and when").
 
 **How it works.** Plan mode, editors only: **Sync from the Sheet** sits next to "Open the Sheet". Pressing it
 adds a pending row to `sheet_syncs`. The mini's listener (`scripts/sync-requests.mjs`, launchd
@@ -306,6 +307,15 @@ waiting, syncing, "2 shows updated, 3 shift changes", or why it stopped. "what i
 anything held or in conflict. Several presses are one sync. Button runs have no VC pull, so a date the Sheet
 moved on a show VC has a record for is held for Wednesday. Every `--apply` run (Wednesday's too) goes on the
 record, so the line always shows the real last sync.
+
+**The hourly sync.** From **2026-10-15** (config `sync.auto.from`, the day after the third clean Wednesday:
+9/30, 10/7, 10/14) the same listener runs the sync by itself when nobody has pressed, every hour from 7am to 9pm
+Phoenix, counting from the last run of any kind (a press resets the hour). The page shows those runs as
+"hourly". If a Wednesday isn't clean, move `from` in `config/event-check.json` past the next clean one; set it to
+`null` to turn the hourly sync off (the button keeps working). A run that stops (the parser drifted, or more
+changed at once than a sync carries by itself) pauses the hourly sync until a sync gets through, so a problem
+that needs a person isn't repeated every hour; the page says "Last sync stopped". The mini pulls the repo every
+morning (the tick), so a changed date reaches it the next day.
 
 **Turning it on (the mini and Supabase; nothing here can be done from a cloud session):**
 1. **ALAN**: Supabase → SQL Editor → paste the whole `supabase/schema.sql` → Run. It is idempotent: the only

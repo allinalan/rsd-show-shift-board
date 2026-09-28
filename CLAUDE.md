@@ -32,15 +32,20 @@ routines in `.claude/skills/` keep it true.
   never added); a start date weeks away from the event's own banner-resolved days is a stale cell and is never
   copied. Stops on parser drift (exit 2) or an oversized change set (exit 3). Dry unless `--apply`. `--apply`
   takes `state/sheet-sync.lock` first (a second run waits up to 3 minutes, then exits 4) and records its outcome
-  in `sheet_syncs` for the page (best effort). With no VC pull (the button's runs) a date moved on a show VC has
-  a record for is held for the Wednesday run. `--tag` names the report `sheet-sync-<date>-<tag>`, so the
-  Wednesday report the event check reads is never overwritten.
+  in `sheet_syncs` for the page (best effort). With no VC pull (the button's and the hourly runs) a date moved on a
+  show VC has a record for is held for the Wednesday run. `--tag` names the report `sheet-sync-<date>-<tag>`, so
+  the Wednesday report the event check reads is never overwritten. `--via button|auto` makes the actor
+  `service:sheet-sync:button` / `:auto` in the changelog and the record.
 - `scripts/sync-requests.mjs` — the mini's half of the board's **Sync from the Sheet** button (Plan mode, editors
   only; Alan, 2026-09-28: the team re-staffs on the Sheet and wants the board to show it now). launchd
   `com.allinalan.rsd-board-sync`, every 30 s: reads `sheet_syncs` for pending rows (idle = one read, no output),
   claims them all, runs `sheet-sync.mjs --apply --requests <ids>` once, and puts rows back to pending when the
-  lock is busy or marks them failed when the sync died. Kill switch: `PAUSED` (requests wait, not lost).
-  Log: `logs/sync-requests.log`, one line per sync; an outage is logged once, and again when it clears.
+  lock is busy or marks them failed when the sync died. With nothing pressed it is also **the hourly sync**
+  (Alan, 2026-09-28): from config `sync.auto.from` (2026-10-15, the day after the third clean Wednesday), inside
+  `sync.auto.hours` (7am-9pm Phoenix), when the last finished run of any kind is over `everyMinutes` (60) old. A
+  run that stopped pauses it until a sync gets through; `from: null` turns it off. Kill switch: `PAUSED`
+  (requests wait, not lost). Log: `logs/sync-requests.log`, one line per sync; an outage is logged once, and
+  again when it clears.
 - `scripts/event-check.mjs` — the Wednesday Event Check against the board, unattended: matches every
   staffed non-Mesa event to a VectorConnect My Events pull (`scripts/lib/match.mjs`: VC number first, then
   name + shared distinctive word + date gate, aliases/rejects in `config/event-check.json`, Queen Creek by
@@ -173,7 +178,8 @@ the service key moves them on.
 ## Production
 
 Mac mini, `~/automations/rsd-show-shift-board`, registry entry `rsd-show-shift-board`. Two launchd jobs:
-`com.allinalan.rsd-board-tick` (07:00 daily) and `com.allinalan.rsd-board-sync` (every 30 s, the Sync button).
+`com.allinalan.rsd-board-tick` (07:00 daily) and `com.allinalan.rsd-board-sync` (every 30 s: the Sync button,
+and the hourly sync from 2026-10-15).
 Kill switch for both: a `PAUSED` file in the repo root, or `./install.sh --disarm`. Tick failures post to the
 shared Slack alert webhook (Keychain `csp-slack-webhook`); the sync listener's go to its log and onto the
 request, which the page shows. After changing `deploy/tick.py` or a plist: run

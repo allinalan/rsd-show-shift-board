@@ -35,20 +35,21 @@ tool allow-list. Exit test: four unattended Wednesdays, each read back and match
 
 *Started early, 2026-09-23 (Alan's call, after the Cowork routine failed two Wednesdays running on
 Chrome and a logged-out session).* Built as scripts, not an unattended Claude: `scripts/sheet-sync.mjs`
-(the deterministic Sheet → board sync, Wednesdays only for now; daily is a schedule change once three
-Wednesdays come back clean) and `scripts/event-check.mjs` (VC via rsd-shift-picking's Keychain login and
+(the deterministic Sheet → board sync, Wednesdays only at first; hourly from 2026-10-15, once three
+Wednesdays come back clean, below) and `scripts/event-check.mjs` (VC via rsd-shift-picking's Keychain login and
 the JSON store behind My Events, no Chrome, no account skills), both run from rsd-shift-picking's
 Wednesday 08:00 job. The texts go through that repo's approvals loop (Alan replies approved / decline /
 edits in iMessage; silence by the printed deadline sends). Still open for stage 2: count the four clean
 Wednesdays from 2026-09-30.
 
-*On demand, 2026-09-28 (Alan: the team re-staffs shows on the Sheet and wants the board to show it now).* A
-**Sync from the Sheet** button in Plan mode rings the mini (`sheet_syncs`, `scripts/sync-requests.mjs`,
+*On demand and hourly, 2026-09-28 (Alan: the team re-staffs shows on the Sheet and wants the board to show it
+now).* A **Sync from the Sheet** button in Plan mode rings the mini (`sheet_syncs`, `scripts/sync-requests.mjs`,
 `com.allinalan.rsd-board-sync` every 30 s), which runs the same sync with the same guards and reports back on the
-page. The Wednesday run is unchanged, and nothing syncs on a timer in between: only presses. Button runs have no
-VC pull, so they hold Sheet date moves on shows VC has a record for, and the Wednesday run decides those. Every
-`--apply` run is recorded, so the button's history doubles as the sync's track record for the clean-Wednesday
-count.
+page. From 2026-10-15 (config `sync.auto.from`, the day after the third clean Wednesday: 9/30, 10/7, 10/14) the
+same listener also syncs by itself every hour, 7am-9pm Phoenix; a Wednesday that isn't clean moves the date. A
+run that stops (parser drift, over the limits) pauses the hourly sync until one gets through. These runs have no
+VC pull, so they hold Sheet date moves on shows VC has a record for, and the Wednesday run, which is unchanged,
+decides those. Every `--apply` run is recorded, so the page's sync line doubles as the sync's track record.
 
 The booking sweep went unattended the same night (Alan, 2026-09-23): `scripts/booking-sweep.mjs` plus
 rsd-shift-picking's `run-booking-sweep.sh` (com.rsd.bookingsweep, days 2-8 after a meeting), submitting VC
@@ -70,7 +71,7 @@ Coordinators enter picks in plan mode. Direction flips: board → Sheet export (
 Sheet from the board), so every reader above keeps working off a Sheet that is now a mirror.
 Exit test: the mirror matches the board cell for cell after the meeting and after the sweep.
 
-**Stage 4 — move the readers, one at a time (May → Aug 2027).**
+**Stage 4 — move the readers, one at a time (May → Aug 2027; the small ones start early, below).**
 Order by blast radius, smallest first: sunny shift sync → count-mesa-shifts → show-shift-calendar-sync
 → rsd-event-analyzer → rsd-shift-picking (last: it texts reps). For each: add a board adapter that
 returns exactly the shape the Sheet parser returns today, run both for a full cycle, diff the
@@ -82,7 +83,33 @@ explicit fields, not colors), field-training markers, and stable rep ids instead
 Stop the mirror, make the Sheet read-only with a banner pointing at the board, remove the Sheet
 paths and the Picking Feed's schedule half, update `REGISTRY.yaml` for every system above.
 
+## Who switches, and when (Alan, 2026-09-28)
+
+As of 2026-09-28 Alan is the only person who opens the board; Matt and JP work in the Sheet. The goal stands
+(the Sheet retired by Fall 2027), so the critical path is people, not scripts: stage 3 has Matt and JP enter
+picks on the board in May, and nothing after it happens if they don't. A board that lags the Sheet looks wrong to
+anyone who checks it, which is why it has to be current (hourly) before they start looking. Stage 4's side-by-side
+runs need no flip: the board already mirrors the Sheet, so a reader's board adapter can be diffed against its
+Sheet path now.
+
+| by | who | what | done when |
+|---|---|---|---|
+| Oct 15, 2026 | the mini | Hourly sync on (above). | the page's sync line reads "hourly" through a normal week |
+| end of Oct 2026 | Matt, JP | Sign in once, on the device they would use at a meeting (on iPhone, the Home Screen icon). Use the board for the one question the Sheet can no longer answer: is this show booked? VC status lives only on the board; the Sheet's Z/AA columns froze on 9/9. | both have signed in; booking questions get answered from the board |
+| Nov 2026 | Alan + Claude | SUNNY's shift sync (smallest reader) gets a board adapter; both paths run on the 1st and 15th and the outputs are diffed. | two clean diffs in a row, then switch |
+| Nov–Dec 2026 | Alan + Claude | The board → Sheet mirror (stage 3's script), writing to a **copy** of the Sheet, never the Sheet itself, and diffed against the real Sheet after each sync. The fields rsd-shift-picking and the analyzer need (font-color meanings, field-training markers, stable rep ids) go on the board. | the copy matches the Sheet cell for cell for two weeks |
+| Jan 6, 2027 | Alan + Claude | The Jan-May book on the sync (above), before the date research's first real run: it can only research shows the board has. | `parse-sheet.mjs --verify` clean on the new tab |
+| Jan 13, 2027 meeting | all three | Dress rehearsal: Matt and JP run the meeting on the Sheet as usual; Alan enters the same picks on the board live. Afterwards the two are compared, and whatever was slow or missing on the board is the list to fix before May. | the gap list is fixed |
+| Feb–Apr 2027 | Alan + Claude | count-mesa-shifts and show-shift-calendar-sync: board adapters, both paths, diffed. The mirror keeps running against its copy. | clean diffs, then switch |
+| May 2027 meeting | Matt, JP | Stage 3: picks go on the board, and the mirror starts writing the real Sheet. The flip is all at once: the Sheet → board sync stops the day the mirror starts (both directions at once is a two-way sync). From then on nobody edits the Sheet. | the mirror matches the board after the meeting and after the sweep |
+| May–Aug 2027 | Alan + Claude | rsd-event-analyzer, then rsd-shift-picking (last: it texts reps). | each switched on a clean diff |
+| after the Aug 2027 meeting | Alan | Stage 5: the Sheet goes read-only. | the Sheet shows the banner |
+
 ## Not decided yet
 
 - Rep identity on the board: nicknames today; the readers in stage 4 want roster ids.
 - Whether the rep-text step of the event check ever sends on its own. Today: drafts only.
+- Whether rsd-shift-picking's `run-booking-sweep.sh` runs the Sheet sync before it sorts staffed shows (checked
+  from this repo it can't be). If not, the sweep judges picks made on the Sheet from a board synced by the
+  hourly run (07:00 at the latest, for a 07:30 sweep), which is fine unless the hourly sync is paused or off.
+  Worth a look before the sweep's first real run on January 15, 2027.

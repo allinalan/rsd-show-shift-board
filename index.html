@@ -1855,8 +1855,10 @@ document.addEventListener('click',async ev=>{ if(ev.target.closest('#signOut')&&
 /* ---- Sync from the Sheet (2026-09-28) ----
    The button rings a doorbell: a pending row in sheet_syncs. The Mac mini looks every 30 seconds
    (scripts/sync-requests.mjs), runs the same Sheet -> board sync the Wednesday job runs, and writes the
-   result onto the row. The board redraws by itself as the sync's writes land, as it does for any edit;
-   this only says how it went. Editors only: the table's RLS lets nobody else read it or ring. */
+   result onto the row. From config sync.auto.from it also syncs by itself hourly, 7am-9pm, and those runs
+   land in the same table, so the line under the button is always the last sync of any kind. The board
+   redraws by itself as the sync's writes land, as it does for any edit; this only says how it went.
+   Editors only: the table's RLS lets nobody else read it or ring. */
 let syncRows=null, syncReady=null, syncSub=false, syncAsk='';
 const SYNC_SLOW_MS=3*60e3;
 const syncOpen=()=>(syncRows||[]).find(r=>r.status==='pending'||r.status==='running')||null;
@@ -1868,7 +1870,7 @@ function agoText(iso){ const t=Date.parse(iso); if(!t) return ''; const s=(Date.
   if(s<6*864e2) return d.toLocaleDateString('en-US',{weekday:'short'})+' '+time;
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
 const wkShort=w=>{ const d=fromISO(w); return d?d.toLocaleDateString('en-US',{month:'short',day:'numeric'}):(w||''); };
-const whoAsked=r=>String(r.requested_by||'').startsWith('service:')?'on the mini':'asked by '+(r.requested_by||'someone');
+const whoAsked=r=>{ const w=String(r.requested_by||''); return /:auto$/.test(w)?'hourly':w.startsWith('service:')?'on the mini':'asked by '+(w||'someone'); };
 function syncSentence(r){
   const x=r.result||{}, c=x.counts||{}, when=agoText(r.finished_at||r.requested_at), by=whoAsked(r);
   if(r.status==='failed') return `<b>Last sync failed</b> ${esc(when)} (${esc(by)}): ${esc(x.error||'no reason given')}. Press Sync to try again.`;
@@ -1890,7 +1892,7 @@ function renderSync(){
     else if(waited>SYNC_SLOW_MS){ txt=`<b>Still waiting for the Mac mini</b> after ${Math.round(waited/60e3)} min. It looks every 30 seconds, so it may be off, asleep or paused. The request stays and runs when the mini is back.`; cls='s-slow'; }
     else { txt='<b>Asked the Mac mini to sync.</b> It looks every 30 seconds…'; cls='s-open'; } }
   else if(last){ txt=syncSentence(last); cls=last.status==='done'?'':'s-'+last.status; }
-  else txt='No sync recorded yet. The Wednesday job syncs the Sheet every week; press the button to do it now.';
+  else txt='No sync recorded yet. Press the button to sync the board with the Sheet now.';
   if(syncAsk){ txt=`<b>${esc(syncAsk)}</b> `+txt; cls='s-failed'; }
   line.className='syncline plan-only'+(cls?' '+cls:''); line.hidden=false; P('syncText').innerHTML=txt;
   const x=(last&&last.result)||{}; more.hidden=!!open||!last||!(x.stopped||x.error||(x.applied||[]).length||(x.created||[]).length||(x.held||[]).length||(x.conflicts||[]).length||(x.flagged||[]).length||(x.unresolved||[]).length);

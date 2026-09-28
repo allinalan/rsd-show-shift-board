@@ -77,6 +77,8 @@ export function boardApi({ actor } = {}) {
     syncs: {
       open: () => rest('GET', 'sheet_syncs?select=id,requested_by,requested_at,status,started_at&status=in.(pending,running)&order=id'),
       byIds: ids => rest('GET', `sheet_syncs?select=id,status&id=in.(${ids.join(',')})&order=id`),
+      /** The run that finished last, whatever started it (the button, the hourly sync, Wednesday's). */
+      last: async () => (await rest('GET', 'sheet_syncs?select=id,status,finished_at,requested_by&status=in.(done,stopped,failed)&order=finished_at.desc.nullslast&limit=1'))[0] || null,
       add: row => rest('POST', 'sheet_syncs', [row], { Prefer: 'return=minimal' }),
       /** Update the rows with these ids that are still in `from`; returns the rows it changed. */
       move: (ids, from, patch) => rest('PATCH', `sheet_syncs?id=in.(${ids.join(',')})&status=eq.${from}`, patch, { Prefer: 'return=representation' }),
