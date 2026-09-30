@@ -141,8 +141,16 @@ the service key moves them on.
 - **This repo is public.** No phone numbers, no promoter or rep e-mails, no contact fields in
   `seed/events.json`, nothing from `seed/private/`, no reports (`out/` is gitignored). The
   pre-commit hook enforces it; do not bypass it with `--no-verify`.
-- **Nothing in this repo sends a text except `deploy/tick.py`**, rooted in `/usr/bin/python3`, and only
-  to Alan. The event check's texts (JP's list, rep updates) are built and sent by rsd-shift-picking's
+- **Nothing in this repo sends a text except `deploy/tick.py`**, rooted in the pinned interpreter, and only
+  to Alan. **The Messages identity (2026-09-30, `~/ai-system/claude/shared/messages-tcc.md`):** the plist
+  starts the tick from `__PY__`, which `install.sh` fills from `~/ai-system/lib/messages/INTERPRETER` (the
+  Command Line Tools' own python3.9: one file, one name) and also writes as `MESSAGES_PY`, refusing unless
+  `~/ai-system/lib/messages/check.sh` passes. Never `/usr/bin/python3`: it is one of ~78 hard links to the
+  xcode-select shim and TCC judged a texting job as `/usr/bin/git`; a name with no grant raises a dialog
+  nobody answers and jams Messages. Before its wake-up read and its send, `tick.py` asks the shared guard
+  (`~/ai-system/lib/messages/guard.py`); a refusal sends nothing and reaches Slack with the reason. With
+  PAUSED on, a launchd run logs a second line, `PAUSED, identity ok ...` (or `REFUSED ...`): the no-send
+  proof. Rollback without file edits: `MESSAGES_PY=/usr/bin/python3 MESSAGES_ROLLBACK=1 ./install.sh --arm`. The event check's texts (JP's list, rep updates) are built and sent by rsd-shift-picking's
   approvals loop, after Alan's reply or the deadline printed in his preview. No Messages MCP tools.
 - **E-mail to coordinators goes through the mailroom, never the chat Gmail connector.** The
   connector rewrote the board link into a Google redirect in the go-live e-mail (2026-09-20,

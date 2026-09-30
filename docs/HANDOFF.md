@@ -205,6 +205,11 @@ then 45 s after a pause) before sending, and says so when it cannot. The iMessag
 unproven end to end; the next due notice is the freshmen reminder or a meeting routine. Optionally add
 Messages to the Mini's Login Items so it is open after any reboot (Alan's setting to change).
 
+**2026-09-30.** "The same python3 identity" turned out to be unreliable: `/usr/bin/python3` is a 78-name
+shim that TCC judged as `/usr/bin/git` for another job. The tick moves to the pinned interpreter and asks the
+shared Messages guard before scripting (CLAUDE.md, "The Messages identity"; `~/ai-system/docs/
+messages-identity-plan-2026-09-30.md`).
+
 - **Arm and `touch PAUSED` in either order** (fixed 2026-09-20, later the same night). Three
   `tick.py --dry` tests used to run against the real repo root, so with `PAUSED` present they
   failed and `install.sh` refused to arm: failed closed, but it read as broken tests. The tests

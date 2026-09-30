@@ -198,6 +198,61 @@ sys.exit(tick.main())
   ok(r.code === 0 && /PAUSED file present: doing nothing/.test(r.log) && count(r.log, /\n/g) === 1 && r.stdout === '', 'tick.py: PAUSED present logs one line, exits 0, sends no notices: ' + r.stderr + r.stdout);
   r = await tickpy('--date', '2027-01-08');
   ok(r.code === 0 && /PAUSED file present: doing nothing/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: PAUSED present means no notices either');
+
+  // ---- the Messages identity (2026-09-30, ~/ai-system/claude/shared/messages-tcc.md): the plist starts the tick from
+  // __PY__ (the pinned interpreter, never /usr/bin/python3, which TCC can judge as git), install.sh fills it in, and
+  // tick.py asks the shared Messages guard before its wake-up read and its send. The guard here is a stand-in.
+  const tickPlist = fs.readFileSync(path.join(REPO, 'launchd', 'com.allinalan.rsd-board-tick.plist'), 'utf8');
+  ok(/<string>__PY__<\/string>\s*<string>__PROJECT__\/deploy\/tick\.py<\/string>/.test(tickPlist) && /<key>MESSAGES_PY<\/key><string>__PY__<\/string>/.test(tickPlist)
+    && !/<string>\/usr\/bin\/python3<\/string>/.test(tickPlist), 'plist: the tick starts from __PY__ and names it as MESSAGES_PY, never /usr/bin/python3');
+  const renderFn = (fs.readFileSync(path.join(REPO, 'install.sh'), 'utf8').match(/^render\(\) \{[\s\S]*?^\}$/m) || [''])[0];
+  const renderPlist = rollback => new Promise(res => execFile('/bin/bash', ['-c', `${renderFn}\nrender com.allinalan.rsd-board-tick | /usr/bin/python3 -c 'import json,plistlib,sys; print(json.dumps(plistlib.loads(sys.stdin.buffer.read())))'`],
+    { env: { PATH: process.env.PATH, PROJECT: REPO, PY: rollback ? '/usr/bin/python3' : '/pinned/python3.9', ROLLBACK_ENV: rollback ? '<key>MESSAGES_ROLLBACK</key><string>1</string>' : '' } },
+    (err, stdout, stderr) => res(err ? { err: stderr } : JSON.parse(stdout))));
+  let pl = await renderPlist(false);
+  ok(pl.ProgramArguments && pl.ProgramArguments[0] === '/pinned/python3.9' && pl.ProgramArguments[1] === path.join(REPO, 'deploy/tick.py') && pl.EnvironmentVariables.MESSAGES_PY === '/pinned/python3.9'
+    && !('MESSAGES_ROLLBACK' in pl.EnvironmentVariables), 'install.sh render(): fills __PY__ and __PROJECT__: ' + JSON.stringify(pl));
+  pl = await renderPlist(true);
+  ok(pl.ProgramArguments && pl.ProgramArguments[0] === '/usr/bin/python3' && pl.EnvironmentVariables.MESSAGES_ROLLBACK === '1', 'install.sh render(): a rollback renders the shim plus MESSAGES_ROLLBACK: ' + JSON.stringify(pl));
+  const glib = path.join(home, 'fake-messages-guard'), noGuard = path.join(home, 'no-messages-guard');
+  fs.mkdirSync(glib, { recursive: true }); fs.mkdirSync(noGuard, { recursive: true });
+  fs.writeFileSync(path.join(glib, 'guard.py'), `import os
+MESSAGES = "com.apple.MobileSMS"
+class Refused(Exception):
+    pass
+def ensure(targets):
+    if os.environ.get("FAKE_REFUSE"):
+        raise Refused(os.environ["FAKE_REFUSE"])
+    return "identity ok: com.allinalan.rsd-board-tick rooted in /pinned/python3.9; Messages allowed"
+def report(targets):
+    return os.environ.get("FAKE_REFUSE") or "identity ok: com.allinalan.rsd-board-tick rooted in /pinned/python3.9; Messages allowed"
+`);
+  const GUARDED = `import subprocess, sys
+sys.path.insert(0, ${JSON.stringify(path.join(stage, 'deploy'))})
+real_run = subprocess.run
+def guarded(cmd, *a, **k):
+    assert cmd[0] not in ('/usr/bin/osascript', '/usr/bin/security'), 'a test reached for Messages or the Keychain'
+    return real_run(cmd, *a, **k)
+subprocess.run = guarded
+import tick
+tick.slack = lambda text: print('SLACK: ' + text) or True
+if sys.argv[1] == 'send':
+    print('RESULT: %r' % (tick.imessage_alan('test', {'BOARD_ALAN_IMESSAGE': '+15555550100'}),))
+else:
+    sys.exit(tick.main())
+`;
+  const asJob = extra => ({ PATH: process.env.PATH, HOME: home, XPC_SERVICE_NAME: 'com.allinalan.rsd-board-tick', MESSAGES_PY: '/pinned/python3.9', MESSAGES_LIB: glib, ...extra });
+  const tickJob = (args, env) => new Promise(res => { fs.rmSync(tickLog, { force: true }); execFile('/usr/bin/python3', ['-B', '-c', GUARDED, ...args], { env },
+    (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr, log: fs.existsSync(tickLog) ? fs.readFileSync(tickLog, 'utf8') : '' })); });
+  r = await tickJob(['main', '--date', '2027-01-08'], asJob({}));
+  ok(r.code === 0 && /PAUSED file present: doing nothing/.test(r.log) && /PAUSED, identity ok: com\.allinalan\.rsd-board-tick/.test(r.log) && count(r.log, /\n/g) === 2 && r.stdout === '',
+    'tick.py under launchd with PAUSED: one more log line, the guard\'s verdict, nothing scripted: ' + r.log + r.stderr);
+  r = await tickJob(['send'], asJob({ FAKE_REFUSE: 'REFUSED com.allinalan.rsd-board-tick: Messages would need consent' }));
+  ok(r.code === 0 && /RESULT: \(False, 'nothing scripted, the Messages guard refused: REFUSED com\.allinalan\.rsd-board-tick: Messages would need consent'\)/.test(r.stdout),
+    'tick.py: a refusing guard means no wake-up read and no send, and says why: ' + r.stdout + r.stderr);
+  r = await tickJob(['send'], asJob({ MESSAGES_LIB: noGuard }));
+  ok(r.code === 0 && /RESULT: \(False, ["']nothing scripted, the Messages guard refused: the Messages guard is missing or broken/.test(r.stdout),
+    'tick.py: a plist under the rule with no guard to import sends nothing: ' + r.stdout + r.stderr);
   fs.rmSync(path.join(stage, 'PAUSED'));
 
   // the pull: a skipped or failed one means stale code on the mini, so it alerts; the two harmless skips do not

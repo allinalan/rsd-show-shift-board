@@ -35,7 +35,26 @@ echo "project: $PROJECT"
 [ "$(hostname)" = "Alans-Mac-mini.local" ] && ok "host is the Mac mini" || bad "host is $(hostname), not the Mac mini. Scheduled jobs run only there."
 case "$PROJECT" in "$HOME"/Documents/*|"$HOME"/Desktop/*|"$HOME"/Downloads/*) bad "project is inside a folder launchd cannot read";; *) ok "outside Documents/Desktop/Downloads";; esac
 [ -x /usr/local/bin/node ] && ok "node $(/usr/local/bin/node -v) at /usr/local/bin/node" || bad "/usr/local/bin/node missing"
-[ -x /usr/bin/python3 ] && ok "/usr/bin/python3 present (the Messages identity)" || bad "/usr/bin/python3 missing"
+[ -x /usr/bin/python3 ] && ok "/usr/bin/python3 present (the mailroom check)" || bad "/usr/bin/python3 missing"
+# The tick starts from the pinned interpreter (__PY__ in its plist): one file with one name, so macOS privacy
+# (TCC) cannot judge it as git or make the way it judged /usr/bin/python3 on 2026-09-30
+# (~/ai-system/claude/shared/messages-tcc.md). Rollback, no file edits:
+#   MESSAGES_PY=/usr/bin/python3 MESSAGES_ROLLBACK=1 ./install.sh --arm
+MSG_LIB="$HOME/ai-system/lib/messages"
+PY="${MESSAGES_PY:-$(head -1 "$MSG_LIB/INTERPRETER" 2>/dev/null)}"
+ROLLBACK_ENV=""
+if [ "${MESSAGES_ROLLBACK:-}" = 1 ]; then
+  if [ -x "$PY" ]; then
+    ROLLBACK_ENV="<key>MESSAGES_ROLLBACK</key><string>1</string>"
+    warn "ROLLBACK: the tick will start from $PY without the interpreter check (undo: re-run without MESSAGES_ROLLBACK)"
+  else bad "rollback interpreter '$PY' is not executable"; fi
+elif [ ! -f "$MSG_LIB/check.sh" ]; then
+  bad "$MSG_LIB is missing: git -C ~/ai-system pull"
+elif MSG_CHECK="$(bash "$MSG_LIB/check.sh" "$PY")"; then
+  ok "the tick's interpreter (the Messages identity): $MSG_CHECK"
+else
+  bad "$MSG_CHECK"
+fi
 /usr/bin/security find-generic-password -s csp-slack-webhook -a csp-autopilot >/dev/null 2>&1 && ok "Keychain csp-slack-webhook / csp-autopilot" || bad "Keychain item csp-slack-webhook / csp-autopilot missing (failure alerts need it)"
 if [ -f "$ENVF" ]; then
   [ "$(stat -f %Lp "$ENVF")" = "600" ] && ok "$ENVF is mode 600" || bad "$ENVF must be mode 600 (chmod 600 $ENVF)"
@@ -71,10 +90,14 @@ if [ -d "$PROJECT/.git" ]; then
 fi
 
 mkdir -p "$PROJECT/logs" "$PROJECT/out"
+render() {   # the plist template with __PROJECT__, __PY__ and (rolling back) MESSAGES_ROLLBACK filled in
+  sed -e "s|<key>MESSAGES_PY</key><string>__PY__</string>|&$ROLLBACK_ENV|" -e "s|__PROJECT__|$PROJECT|g" \
+      -e "s|__PY__|$PY|g" "$PROJECT/launchd/$1.plist"
+}
 if [ "${1:-}" != "--arm" ]; then
   for LABEL in $LABELS; do
     PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-    sed "s|__PROJECT__|$PROJECT|g" "$PROJECT/launchd/$LABEL.plist" > "$PROJECT/out/$LABEL.plist"
+    render "$LABEL" > "$PROJECT/out/$LABEL.plist"
     plutil -lint "$PROJECT/out/$LABEL.plist" >/dev/null && ok "plist renders and lints (preview: out/$LABEL.plist)" || { bad "$LABEL plist did not lint"; exit 1; }
     launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && warn "$LABEL is currently LOADED; this run did not change that (./install.sh --disarm to stop it)"
     [ -f "$PLIST" ] && ! launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && warn "$PLIST exists but is not loaded: it will load itself at the next login. Run ./install.sh --disarm to remove it."
@@ -85,7 +108,7 @@ fi
 if [ $FAILED -ne 0 ]; then echo; echo "Refusing to arm. Fix the FAIL lines, then re-run."; exit 1; fi
 for LABEL in $LABELS; do
   PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-  sed "s|__PROJECT__|$PROJECT|g" "$PROJECT/launchd/$LABEL.plist" > "$PLIST"
+  render "$LABEL" > "$PLIST"
   plutil -lint "$PLIST" >/dev/null && ok "plist written to $PLIST" || { bad "$LABEL plist did not lint"; exit 1; }
   launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null
   launchctl bootstrap "gui/$(id -u)" "$PLIST" && ok "loaded $LABEL" || bad "launchctl bootstrap failed for $LABEL"

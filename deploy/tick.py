@@ -2,14 +2,15 @@
 """
 launchd entry point for the RSD Show Shift Board's daily tick on the Mac mini.
 
-    /usr/bin/python3 deploy/tick.py            # the real run (what launchd calls)
+    <pinned python> deploy/tick.py            # the real run (what launchd calls; the plist names the file)
     /usr/bin/python3 deploy/tick.py --dry      # decide and print; send nothing, pull nothing
     /usr/bin/python3 deploy/tick.py --status   # is it paused, configured, loaded; last run
     ... --date 2027-01-08                      # pretend today is that day (with --dry, for testing)
 
 WHAT IT DOES (stage 1: decide and notify, nothing else)
 -------------------------------------------------------
-  1. PAUSED file in the repo root -> log one line, exit 0. That file is the kill switch.
+  1. PAUSED file in the repo root -> log one line, exit 0. That file is the kill switch. Under launchd a
+     second line says what the Messages guard would decide (no Apple Event): the no-send identity proof.
   2. git pull --ff-only when the tree is clean (the mini holds no unique code). A dirty tree or a
      failed pull -> Slack alert naming the repo and the reason, then carry on: stale, not fatal.
   3. node scripts/board.mjs tick --json   -> which routines are due today. Deterministic.
@@ -25,12 +26,16 @@ WHAT IT DOES (stage 1: decide and notify, nothing else)
   6. Any failure -> Slack alert with the reason and the log path, exit 1. Never silent. That includes
      an exception nobody planned for: main() catches it, names the function and line, alerts the same.
 
-WHY PYTHON
-----------
-On this mini the only identity allowed to control Messages.app is /usr/bin/python3
-(~/ai-system/claude/shared/messages-tcc.md). This process sends the one iMessage itself, with
-the account resolved inline. It never texts a rep: the only recipient it knows is
-BOARD_ALAN_IMESSAGE from ~/.rsd/board.env. No business logic lives here.
+WHY PYTHON, AND WHICH ONE
+-------------------------
+A launchd job may control Messages.app only from the one identity granted it: the pinned
+interpreter, ~/ai-system/lib/messages/INTERPRETER, not /usr/bin/python3, which macOS privacy can
+judge as git (a 78-name shim; ~/ai-system/claude/shared/messages-tcc.md). Before its wake-up read
+and before the send it asks the shared Messages guard (~/ai-system/lib/messages/guard.py): started
+from that file, and macOS says allowed WITHOUT a prompt; otherwise it sends nothing and says why
+(Slack). This process sends the one iMessage itself, with the account resolved inline. It never
+texts a rep: the only recipient it knows is BOARD_ALAN_IMESSAGE from ~/.rsd/board.env. No business
+logic lives here.
 
 Python 3.9 (Xcode Command Line Tools) is enough. No dependencies.
 """
@@ -115,6 +120,43 @@ def slack(text):
 PING = 'tell application "Messages" to get id of (1st account whose service type = iMessage)'
 
 
+def _messages_guard():
+    """~/ai-system/lib/messages/guard.py (MESSAGES_LIB points elsewhere in the tests)."""
+    d = os.environ.get("MESSAGES_LIB") or os.path.expanduser("~/ai-system/lib/messages")
+    if d not in sys.path:
+        sys.path.insert(0, d)
+    import guard
+    return guard
+
+
+def messages_refusal():
+    """None = this run may script Messages now. Otherwise why not, in words for the log and Slack.
+    A plist from before the identity rule (no MESSAGES_PY) with no guard to import behaves as before."""
+    try:
+        g = _messages_guard()
+    except Exception as e:  # noqa: BLE001
+        if not os.environ.get("MESSAGES_PY"):
+            return None
+        return "the Messages guard is missing or broken (%s: %s); git -C ~/ai-system pull" % (type(e).__name__, e)
+    try:
+        line = g.ensure([g.MESSAGES])
+        if line:
+            log(line)
+        return None
+    except g.Refused as e:
+        return str(e)
+    except Exception as e:  # noqa: BLE001  (a guard bug must stop the send, not wave it through)
+        return "the Messages guard failed (%s: %s)" % (type(e).__name__, e)
+
+
+def messages_report():
+    """PAUSED under launchd: what the guard would decide, scripting nothing. None when there is nothing to say."""
+    try:
+        return _messages_guard().report(["com.apple.MobileSMS"])
+    except Exception as e:  # noqa: BLE001
+        return ("the Messages guard is missing or broken (%s)" % e) if os.environ.get("MESSAGES_PY") else None
+
+
 def messages_ready():
     """Wake Messages with a cheap read before sending. A Messages that is not running yet needs far longer
     than a normal send to answer its first Apple Event: the Mini rebooted at 23:26 on 2026-09-22, Messages
@@ -140,8 +182,14 @@ def imessage_alan(text, env):
     if DRY:
         print("WOULD iMESSAGE ALAN:\n  " + text.replace("\n", "\n  "))
         return True, "dry"
+    why = messages_refusal()
+    if why:
+        return False, "nothing scripted, the Messages guard refused: " + why
     if not messages_ready():
         return False, "Messages did not answer a wake-up read (90 s, then 45 s); it may need: killall Messages; open -a Messages"
+    why = messages_refusal()          # again right before the send (free when the job is pinned: cached)
+    if why:
+        return False, "nothing sent, the Messages guard refused: " + why
     esc = lambda s: s.replace("\\", "\\\\").replace('"', '\\"')  # noqa: E731
     script = ('tell application "Messages" to send "%s" to participant "%s" of '
               '(1st account whose service type = iMessage)' % (esc(text), esc(to)))
@@ -235,6 +283,9 @@ def main():
 def run():
     if os.path.exists(os.path.join(REPO, "PAUSED")):
         log("PAUSED file present: doing nothing")
+        line = None if DRY else messages_report()
+        if line:
+            log("PAUSED, " + line)
         return 0
     if not DRY:
         pulled = git_pull()
