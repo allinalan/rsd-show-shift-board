@@ -162,9 +162,12 @@ the service key moves them on.
   `seed/private/go-live.md` at run time; never write one into this repo. `./install.sh --check`
   says whether the mailroom is ready. Routines and the tick still never e-mail. The rule in full:
   `@~/ai-system/claude/shared/email-sending.md`.
-- **The Sheet is still the truth (stage 1).** rsd-shift-picking, rsd-event-analyzer, SUNNY's shift
-  sync and three skills read it. Nothing here may retire, rename or restructure the Sheet. Read
+- **The Sheet is still the truth (stage 1).** rsd-shift-picking, rsd-event-analyzer and three skills read it. Nothing here may retire, rename or restructure the Sheet. Read
   `docs/ROADMAP.md` before any change that touches another system.
+- **SUNNY reads this board live (since 2026-10-03).** sunny-bot's `lib/board.js` reads `events`, `event_contacts` and
+  `settings` with the public anon key on every rep question (10-minute cache). It depends on the event shape
+  (`booths[].shifts[].slots[]`, `days`/`dates`, `status`, `vcNumber`, `costNum`, `costBasis`, `dead`, `cityState`). After
+  changing any of those, run `node scripts/board-audit/test-board.js` in sunny-bot.
 - **Re-syncing from the Sheet goes through `parse-sheet.mjs --verify` first.** A misparse is the
   silent failure here: it writes a wrong seed and everyone then trusts it. `--verify` differing on
   one or two events is the team editing the Sheet; differing on most of them is the parser having

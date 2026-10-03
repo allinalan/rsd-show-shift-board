@@ -12,7 +12,7 @@ effect of something else.
 |---|---|---|
 | rsd-shift-picking | `lib/schedule.js`, `lib/roster.js`, `lib/reconcile.js`, `fetch-live.js` (RSD Picking Feed, Apps Script) | every scheduled shift, rep nicknames, season from the tab name, font colors |
 | rsd-event-analyzer | `lib/shifts.js`, `lib/upcoming.js`, `lib/categorize.js`, `lib/schedule-colors.js`, `tools/backfill.js`, 4 report templates | shifts per event, upcoming events, font colors via the Picking Feed |
-| sunny-bot | `mini/run_shift_sync.sh` (`com.allinalan.sunny.shiftsync`, 1st and 15th) | who is working which show, for SUNNY's answers |
+| ~~sunny-bot~~ | switched 2026-10-03 | SUNNY now reads the board live (`lib/board.js` in sunny-bot: the public anon key, 10-minute cache): what is booked, costs, promoter contacts, who is working. Its two Mac mini jobs (`com.allinalan.sunny.refresh`, `com.allinalan.sunny.shiftsync`) are retired. SUNNY still sends reps to the Sheet to check for themselves, not the board link, until stage 3 |
 | ~~skill: event-check~~ | replaced 2026-09-23 | the Wednesday check now reads the board (`scripts/event-check.mjs`); the Sheet reaches it only through `scripts/sheet-sync.mjs`, and nothing writes the Sheet's Z/AA columns any more |
 | skill: show-shift-calendar-sync | account skill | reps' shifts to calendars |
 | skill: count-mesa-shifts | account skill | Mesa shift counts |
@@ -72,7 +72,7 @@ Sheet from the board), so every reader above keeps working off a Sheet that is n
 Exit test: the mirror matches the board cell for cell after the meeting and after the sweep.
 
 **Stage 4 — move the readers, one at a time (May → Aug 2027; the small ones start early, below).**
-Order by blast radius, smallest first: sunny shift sync → count-mesa-shifts → show-shift-calendar-sync
+Order by blast radius, smallest first: ~~sunny shift sync~~ (done 2026-10-03, see below) → count-mesa-shifts → show-shift-calendar-sync
 → rsd-event-analyzer → rsd-shift-picking (last: it texts reps). For each: add a board adapter that
 returns exactly the shape the Sheet parser returns today, run both for a full cycle, diff the
 outputs, switch only on a clean diff, keep the Sheet path one release as the fallback. What the
@@ -96,7 +96,7 @@ Sheet path now.
 |---|---|---|---|
 | Oct 15, 2026 | the mini | Hourly sync on (above). | the page's sync line reads "hourly" through a normal week |
 | end of Oct 2026 | Matt, JP | Sign in once, on the device they would use at a meeting (on iPhone, the Home Screen icon). Use the board for the one question the Sheet can no longer answer: is this show booked? VC status lives only on the board; the Sheet's Z/AA columns froze on 9/9. | both have signed in; booking questions get answered from the board |
-| Nov 2026 | Alan + Claude | SUNNY's shift sync (smallest reader) gets a board adapter; both paths run on the 1st and 15th and the outputs are diffed. | two clean diffs in a row, then switch |
+| ~~Nov 2026~~ done 2026-10-03 | Alan + Claude | SUNNY reads the board directly instead of a twice-a-month copy (Alan, 2026-10-03). There was no side-by-side run: both of SUNNY's old copies had stopped updating (Aug 28 and Sep 6), so there was nothing current to diff. Checked instead with sunny-bot's `scripts/board-audit/test-board.js` against the live board. **SUNNY is now a reader of the board: a change to the `events` / `event_contacts` shape (`booths[].shifts[].slots[]`, `days`/`dates`, `status`, `vcNumber`, `costNum`, `dead`) needs that test run.** | the board test passes; SUNNY's answers match the board page |
 | Nov–Dec 2026 | Alan + Claude | The board → Sheet mirror (stage 3's script), writing to a **copy** of the Sheet, never the Sheet itself, and diffed against the real Sheet after each sync. The fields rsd-shift-picking and the analyzer need (font-color meanings, field-training markers, stable rep ids) go on the board. | the copy matches the Sheet cell for cell for two weeks |
 | Jan 6, 2027 | Alan + Claude | The Jan-May book on the sync (above), before the date research's first real run: it can only research shows the board has. | `parse-sheet.mjs --verify` clean on the new tab |
 | Jan 13, 2027 meeting | all three | Dress rehearsal: Matt and JP run the meeting on the Sheet as usual; Alan enters the same picks on the board live. Afterwards the two are compared, and whatever was slow or missing on the board is the list to fix before May. | the gap list is fixed |
