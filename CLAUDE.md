@@ -110,8 +110,14 @@ follows the show. Fields the routines care about: `name, year, weekend (Friday I
 endDate, datesEstimated, datesNote, datesSource, datesMoved, status, vcNumber, vcStatus, tier, access, cityState, location, address,
 setting, promoter, contact, phone, email, website, cost, costBasis, applyUrl, applyBy, notes,
 booths[{label,days,dates,shifts[{label,slots[{rep,ft[]}]}]}], dead, skipNext, neverWork`.
-`event_contacts` — promoter `contact, phone, email` per event id. **Visible to everyone on the live
-page** (reps call promoters; Alan's call, 2026-09-19) but **never in git**: the public seed stays stripped. The
+`event_contacts` — promoter `contact, phone, email` per event id. **Public on purpose, not just to
+people with the link**: the select policy is open, so anyone with the anon key in `config.js` can read
+every row straight from the API, signed in or not, and follow changes over realtime (Alan's call,
+2026-09-19: reps call promoters; re-confirmed 2026-10-02 with that scope in view). The Show Shift
+Schedule Sheet carries the same columns and exports without sign-in from "Open the Sheet"; also known
+and accepted. **Never in git**: the public seed stays stripped. Locking it is one policy line
+(`using (is_editor())`, `supabase/schema.sql`; not `authenticated`, sign-ups are open); the page already
+handles that (editors get contacts after sign-in, everyone else gets no rows). The
 page's data layer and the CLI split those three fields out of every `events` write and merge them
 back on read, so everything else treats them as event fields. `history` — results by year per show base. `settings/division` — name, short, code, roster,
 `meetings` (ISO dates of shift-picking meetings). `never_work` — shows we never work again,

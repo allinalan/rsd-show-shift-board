@@ -5,10 +5,13 @@
 -- Model: one table per collection, each row = { id, data jsonb }. The page and the CLI treat
 -- `data` as the document. Reps read anonymously; only emails in `editors` can write.
 -- `event_contacts` (promoter contact name, phone, email per event id) is its own table so those
--- three fields never sit in the public git repo's seed. Reps need them to call a promoter, so the
--- live page reads them like everything else (Alan, 2026-09-19). The page and the CLI split them out
--- of `events` on every write and merge them back on read; nothing else knows the table exists.
--- To lock contacts to editors later, change event_contacts_read to `using (is_editor())`.
+-- three fields never sit in the public git repo's seed. It is NOT private: the open read policy lets
+-- anyone with the anon key in config.js read every row from the API, page or no page, and follow
+-- changes over realtime. Reps need them to call a promoter (Alan, 2026-09-19; re-confirmed 2026-10-02
+-- knowing that scope). The page and the CLI split them out of `events` on every write and merge
+-- them back on read; nothing else knows the table exists.
+-- To lock contacts to editors later, change event_contacts_read to `using (is_editor())` — not to
+-- `auth.role() = 'authenticated'`: sign-ups are open, so anyone can get a login.
 
 create extension if not exists pgcrypto;
 
@@ -113,7 +116,8 @@ do $$ declare t text; begin
   end loop;
 end $$;
 
--- promoter contacts: anyone with the link can read (reps call promoters); only editors write.
+-- promoter contacts: anyone can read, through the page or the API (reps call promoters; public on
+-- purpose, Alan 2026-10-02); only editors write.
 alter table event_contacts enable row level security;
 drop policy if exists event_contacts_read on event_contacts;
 create policy event_contacts_read on event_contacts for select using (true);

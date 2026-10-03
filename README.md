@@ -67,8 +67,10 @@ editor list you'll be told. Owners add editors in the SQL editor or with
 
 ## What is private
 The repo is public, so promoter contact names, phones and e-mails are never committed: they live
-in the `event_contacts` table and in `seed/private/` on the mini. The live page shows them to
-anyone with the link, because reps need to call promoters; only editors can change them. `scripts/check-public.mjs` (the pre-commit hook) refuses a commit that would
+in the `event_contacts` table and in `seed/private/` on the mini. They are not secret, though: anyone
+can read them, through the page or straight from the database API with the public key in `config.js`,
+because reps need to call promoters (Alan's call, re-confirmed 2026-10-02 with that in view). Only
+editors can change them. `scripts/check-public.mjs` (the pre-commit hook) refuses a commit that would
 publish one.
 
 ## Backups
