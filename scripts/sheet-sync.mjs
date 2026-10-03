@@ -157,8 +157,14 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull 
 
   // shifts
   let slotChanges = 0;
+  const slotsOf = e => JSON.stringify((e.booths || []).map(b => b.shifts.map(s => s.slots.map(slotKey))));
   const sameShape = sig(base) === sig(sheet) && sig(sheet) === sig(board);
-  if (sameShape) {
+  // The Sheet already has the board's rows and reps (a row removed on the board, then on the Sheet too): settled,
+  // and the baseline moves on to it. Without this the old shape stayed the baseline and the show never synced again.
+  const agreed = !sameShape && sig(sheet) === sig(board) && slotsOf(sheet) === slotsOf(board);
+  if (agreed) {
+    // nothing to carry and nothing held
+  } else if (sameShape) {
     const booths = clone(board.booths || []); let touched = false;
     (sheet.booths || []).forEach((sb, b) => {
       const bb = base.booths[b], db = booths[b];
@@ -182,8 +188,7 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull 
     if (touched) patch.booths = booths;
   } else if (sig(sheet) !== sig(base)) {
     // The Sheet added or removed shift rows, booths or days. Safe only if the board still matches the old shape.
-    const boardAsBase = sig(board) === sig(base) && JSON.stringify((board.booths || []).map(b => b.shifts.map(s => s.slots.map(slotKey)))) ===
-                                                     JSON.stringify((base.booths || []).map(b => b.shifts.map(s => s.slots.map(slotKey))));
+    const boardAsBase = sig(board) === sig(base) && slotsOf(board) === slotsOf(base);
     const addsReps = (sheet.booths || []).some(b => b.shifts.some(s => s.slots.some(sl => isRep(sl.rep))));
     if (!boardAsBase) { conflicts.push('the Sheet changed the shift rows, and the board\'s shifts were edited too'); keepBase.whole = true; }
     else if (deadByVc && addsReps) { held.push(`the Sheet rebuilt the shift rows with reps on them, but VectorConnect says ${vcStatus}`); keepBase.whole = true; }
@@ -196,8 +201,7 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull 
       changes.push(`shift rows rebuilt: ${sig(base)} -> ${sig(sheet)}`);
     }
   } else {
-    const sheetAsBase = JSON.stringify((sheet.booths || []).map(b => b.shifts.map(s => s.slots.map(slotKey)))) ===
-                        JSON.stringify((base.booths || []).map(b => b.shifts.map(s => s.slots.map(slotKey))));
+    const sheetAsBase = slotsOf(sheet) === slotsOf(base);
     if (!sheetAsBase) { conflicts.push('the board\'s shift rows were edited, and the Sheet changed shifts too'); keepBase.whole = true; }
   }
   if (keepBase.whole) { delete patch.booths; delete patch.days; delete patch.dates; }

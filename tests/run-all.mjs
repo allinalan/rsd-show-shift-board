@@ -407,6 +407,14 @@ sys.exit(tick.main())
     ok(p.patch.booths && p.patch.booths[0].shifts.length === 2, 'sync: a shift row added on the Sheet is carried when the board still has the old shape');
     p = S.planEvent({ base: ev(['Cameron', '']), sheet: two(['Cameron', '', 'Eli', 'Eli']), board: ev(['Sarah', '']), resolve, vcRow: null, today: '2026-08-01' });
     ok(!p.patch.booths && p.keepBase.whole && p.conflicts.length === 1, 'sync: a Sheet row change on top of a board edit is held whole');
+    p = S.planEvent({ base: two(['Cameron', '', 'Eli', 'Eli']), sheet: ev(['Cameron', '']), board: ev(['Cameron', '']), resolve, vcRow: null, today: '2026-08-01' });
+    ok(!p.patch.booths && !p.conflicts.length && !p.keepBase.whole, 'sync: a row removed on the board and then on the Sheet too is settled, not a conflict, and the baseline moves on');
+    p = S.planEvent({ base: ev(['Cameron', '']), sheet: two(['Cameron', '', 'Eli', 'Eli']), board: two(['Cameron', '', 'Eli', 'Eli']), resolve, vcRow: null, today: '2026-08-01' });
+    ok(!p.patch.booths && !p.conflicts.length && !p.keepBase.whole, 'sync: a row added on the board and then on the Sheet with the same reps is settled');
+    p = S.planEvent({ base: two(['Cameron', '', 'Eli', 'Eli']), sheet: ev(['Sarah', '']), board: ev(['Cameron', '']), resolve, vcRow: null, today: '2026-08-01' });
+    ok(!p.patch.booths && p.keepBase.whole && p.conflicts.length === 1, 'sync: the same row removed on both, but different reps on what is left, is still held whole');
+    p = S.planEvent({ base: two(['Cameron', '', 'Eli', 'Eli']), sheet: two(['Sarah', '', 'Eli', 'Eli']), board: ev(['Cameron', '']), resolve, vcRow: null, today: '2026-08-01' });
+    ok(!p.patch.booths && p.keepBase.whole && p.conflicts.length === 1, 'sync: a Sheet re-staff on top of a row removed on the board is held whole');
   }
 
   // ---- sheet-sync end to end: the fake database, a synthetic grid, a baseline file, --apply twice

@@ -421,9 +421,11 @@ table.wgrid .slotbox.filled{background:var(--surface);border-color:var(--steel)}
 .pickrow.on{background:var(--navy);color:var(--on-accent)}
 .pickrow.on b{color:var(--on-accent);background:rgba(255,255,255,.22)}
 .pickrow.cur::after{content:"✓";float:right;opacity:.6;font-weight:700}
-.pickrow.util{color:var(--ink-3);font-size:.8rem}
+.pickrow.util{color:var(--ink-3);font-size:.8rem;white-space:normal}
 .pickrow.use{color:var(--key);font-weight:600}
-.picksep{height:1px;background:var(--line);margin:4px 2px}
+/* Clear / No shift sit under the scroller, not at the end of it: below 40-odd names nobody found them */
+#pickutil{flex:none;display:flex;flex-direction:column;gap:1px;border-top:1px solid var(--line);padding-top:5px}
+#pickutil:empty{display:none}
 .pickempty{font-size:.8rem;color:var(--ink-3);padding:10px}
 .inflbl{color:var(--warn);font-weight:700;margin-left:2px;cursor:help}
 .legend{margin:2px 0 0;font-size:.7rem;line-height:1.45;color:var(--ink-3);opacity:.8;max-width:72ch}
@@ -433,6 +435,11 @@ table.wgrid .slotbox.filled{background:var(--surface);border-color:var(--steel)}
 .addshift{margin-top:8px;border:1px dashed var(--line);background:none;color:var(--ink-3);
   border-radius:7px;padding:5px 10px;font-size:.74rem;cursor:pointer}
 .addshift:hover{border-color:var(--steel);color:var(--ink-2)}
+/* the way back from "+ Add shift row": an x on the row's label, plan mode, two taps like a booth */
+.rowdel{background:none;border:0;color:var(--ink-3);font:inherit;font-size:.86rem;line-height:1;cursor:pointer;
+  padding:1px 5px 3px;margin-left:3px;border-radius:4px;vertical-align:baseline}
+.rowdel:hover{color:var(--pend);background:var(--pend-bg)}
+.rowdel.arm{color:var(--pend);background:var(--pend-bg);font-size:.66rem;font-weight:600;padding:3px 6px}
 
 .detail{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px 16px;
   margin-top:16px;padding-top:13px;border-top:1px solid var(--line-soft)}
@@ -832,6 +839,7 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
 <div id="pickpop" role="dialog" aria-label="Assign this shift" hidden>
  <input id="pickq" type="text" placeholder="Type a name…" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Type to filter names">
  <div id="picklist" role="listbox"></div>
+ <div id="pickutil" role="listbox" aria-label="Other choices"></div>
 </div>
 
 <script>window.__RSD__={"season": "Sept–Feb 2026", "tab": "2026", "roster": ["Adam C", "Adam J", "Alan", "Alec", "Cameron", "Carlton", "Charity", "Craig", "Eli", "Foss", "J. Parker", "Jason", "Jeremy", "Jerry", "Kendall", "Matt A.", "Nathaniel", "Rob", "Roman", "Sarah", "Sean", "Zach"], "events": [], "meta": {"sheetAsOf": "9/13", "vcAsOf": "9/9", "nextCheck": "Wed 9/16"}};</script>
@@ -1390,12 +1398,13 @@ function resultsLine(e){
   return `<span class="resline">${parts.join('')}</span>`;
 }
 function grid(e,b,bi,ps,P){
+  const B=e.source==='board', multi=e.booths.length>1, canDel=P&&B&&b.shifts.length>1;
   const head=`<tr><th class="rowlbl"></th>${b.days.map((d,i)=>{ const se=isSE(d);
     return `<th${se?` class="se-col" title="${SETIP}"`:''}>${esc(d.replace(/\s*\(?\bSE\b\)?/i,'').trim()||'SE')}${se?'<span class="setag">SE</span>':''}<span class="d">${fdate(b.dates[i])||'&nbsp;'}</span></th>`;}).join('')}</tr>`;
-  const rows=b.shifts.map((s,si)=>`<tr><th${s.labelInferred?' title="No label for this shift row on the Sheet — the board numbered it."':''}>${esc(s.label)}${s.labelInferred?'<span class="inflbl">*</span>':''}</th>`+s.slots.map((sl,di)=>
+  const rows=b.shifts.map((s,si)=>`<tr><th${s.labelInferred?' title="No label for this shift row on the Sheet — the board numbered it."':''}>${esc(s.label)}${s.labelInferred?'<span class="inflbl">*</span>':''}`+
+    (canDel?`<button class="rowdel" data-del-shift="${bi}:${si}" title="Remove this shift row" aria-label="Remove ${esc(s.label)}">&times;</button>`:'')+`</th>`+s.slots.map((sl,di)=>
     `<td class="slot${isSE(b.days[di])?' se-col':''}">${cellFor(e,b,bi,s,si,di,ps,P,true)}</td>`
   ).join('')+`</tr>`).join('');
-  const B=e.source==='board', multi=e.booths.length>1;
   let bh='';
   if(P&&B&&(multi||b.label)){
     bh=`<div class="boothh edit"><input type="text" data-booth-label="${bi}" value="${esc(b.label)}" placeholder="Booth #${bi+1}" aria-label="Booth name">`+
@@ -1583,6 +1592,21 @@ board.addEventListener('click',async ev=>{
     const booths=withBooths(e,bs=>{bs.splice(bi,1); if(bs.length===1&&/^Booth #\d+$/.test(bs[0].label||'')) bs[0].label='';});
     await patchEvent(id,{booths}); return;
   }
+  const dsh=ev.target.closest('[data-del-shift]');
+  if(dsh&&e.source==='board'){
+    const [bi,si]=dsh.dataset.delShift.split(':').map(Number), row=e.booths[bi]&&e.booths[bi].shifts[si];
+    if(!row||e.booths[bi].shifts.length<2) return;
+    if(dsh.dataset.confirm!=='1'){
+      const days=e.booths[bi].days||[]; let on=0, sharp=0;
+      (row.slots||[]).forEach((sl,di)=>{ if(!sl||!sl.rep||sl.rep==='__X__') return; if(isSE(days[di])) sharp++; else on++; });
+      const lose=[on?`${on} staffed shift${on>1?'s':''}`:'', sharp?`${sharp} sharpening day${sharp>1?'s':''}`:''].filter(Boolean);
+      dsh.dataset.confirm='1'; dsh.classList.add('arm');
+      dsh.textContent=lose.length?`tap again: removes ${lose.join(' + ')}`:'tap again to remove'; return;
+    }
+    /* "Shift 3" after Shift 2 is gone would be a second Shift 3 on the next add: plain numbers close up */
+    const booths=withBooths(e,bs=>{ const sh=bs[bi].shifts; sh.splice(si,1); sh.forEach((x,k)=>{ if(/^Shift \d+$/.test(x.label||'')) x.label='Shift '+(k+1); }); });
+    await patchEvent(id,{booths}); return;
+  }
   const ha=ev.target.closest('[data-hist-add]');
   if(ha){ const w=ha.closest('.hist'); const y=w.querySelector('[data-hist-newyear]').value.trim(), c=w.querySelector('[data-hist-newcpo]').value, o=w.querySelector('[data-hist-neworders]').value;
     if(!/^20\d\d$/.test(y)){toast('Enter a 4-digit year');return;}
@@ -1646,7 +1670,7 @@ async function setSlot(e,B,bi,si,di,val){
    A native <select> can't filter, and on a phone it opens a wheel you can't type into. This is a
    combobox in a fixed-position popup so the grid's horizontal scroller can't clip it. */
 let pickCtx=null;
-const pop=document.getElementById('pickpop'), popQ=document.getElementById('pickq'), popList=document.getElementById('picklist');
+const pop=document.getElementById('pickpop'), popQ=document.getElementById('pickq'), popList=document.getElementById('picklist'), popUtil=document.getElementById('pickutil');
 function pickIndex(){
   const idx=ROSTER().map(n=>({name:n,keys:[n.toLowerCase().replace(/\.$/,'')]}));
   Object.keys(ALIAS).forEach(k=>{ const t=idx.find(x=>x.name===ALIAS[k]); if(t&&t.keys.indexOf(k)<0) t.keys.push(k); });
@@ -1668,10 +1692,15 @@ function renderPickList(){
   const typed=q.trim();
   if(typed&&!names.some(n=>n.toLowerCase().replace(/\.$/,'')===typed.toLowerCase())) h+=`<button class="pickrow use" data-v="__USE__" role="option">Use “${esc(typed)}”</button>`;
   if(!names.length&&!typed) h='<div class="pickempty">No one on the roster yet — add reps in Division settings.</div>';
-  h+=`<div class="picksep"></div><button class="pickrow util" data-v="" role="option">${pickCtx&&pickCtx.se?'Nobody':'Clear — leave it open'}</button>`+
-     `<button class="pickrow util" data-v="__X__" role="option">No shift this day</button>`;
   popList.innerHTML=h;
-  const first=popList.querySelector('.pickrow:not(.util)')||popList.querySelector('.pickrow');
+  /* taking a rep off is the clear row, named for who comes off; it says nothing on a day already open */
+  const rep=pickCtx?pickCtx.rep:'', se=!!(pickCtx&&pickCtx.se);
+  let u='';
+  if(rep==='__X__') u+=`<button class="pickrow util" data-v="" role="option">${se?'Nobody':'Open this day back up'}</button>`;
+  else if(rep) u+=`<button class="pickrow util" data-v="" role="option">Remove ${esc(rep)}${se?'':' — leave it open'}</button>`;
+  if(rep!=='__X__') u+=`<button class="pickrow util" data-v="__X__" role="option">No shift this day</button>`;
+  popUtil.innerHTML=u;
+  const first=popList.querySelector('.pickrow:not(.util)')||pop.querySelector('.pickrow');
   if(first) first.classList.add('on');
   placePop();
 }
@@ -1686,8 +1715,8 @@ function placePop(){
 function openPick(btn){
   const art=btn.closest('[data-id]'); const e=cur().find(x=>x.id===art.dataset.id); if(!e)return;
   const bi=+btn.dataset.b, si=+btn.dataset.s, di=+btn.dataset.d;
-  const b=boothsOf(e)[bi];
-  pickCtx={id:e.id,bi,si,di,btn,v:btn.textContent.trim(),se:isSE(b&&b.days[di])};
+  const b=boothsOf(e)[bi], sl=(b&&b.shifts[si]&&b.shifts[si].slots[di])||{rep:''};
+  pickCtx={id:e.id,bi,si,di,btn,v:btn.textContent.trim(),rep:val(e,bi,si,di,sl.rep)||'',se:isSE(b&&b.days[di])};
   btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus();
 }
 function closePick(){ pop.hidden=true; const b=pickCtx&&pickCtx.btn; pickCtx=null; if(b){ b.classList.remove('picking'); if(document.contains(b)) b.focus(); } }
@@ -1703,10 +1732,10 @@ async function applyPick(v){
   await setSlot(e,B,bi,si,di,val);
 }
 popQ.addEventListener('input',renderPickList);
-popList.addEventListener('click',ev=>{ const r=ev.target.closest('.pickrow'); if(r) applyPick(r.dataset.v); });
+pop.addEventListener('click',ev=>{ const r=ev.target.closest('.pickrow'); if(r) applyPick(r.dataset.v); });
 pop.addEventListener('keydown',ev=>{
   if(ev.key==='Escape'){ ev.preventDefault(); closePick(); return; }
-  const rows=[...popList.querySelectorAll('.pickrow')]; if(!rows.length) return;
+  const rows=[...pop.querySelectorAll('.pickrow')]; if(!rows.length) return;
   let i=rows.findIndex(r=>r.classList.contains('on'));
   if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){
     ev.preventDefault(); if(i<0) i=0; else rows[i].classList.remove('on');

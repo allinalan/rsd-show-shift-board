@@ -28,7 +28,7 @@ routines in `.claude/skills/` keep it true.
   (VC's), never promoter contacts (edited on the board: the parser misreads spilled contact cells). VC
   wins: a rep added to a VC-dead show, or a date moved away from a VC booking, is held; an event deleted or
   moved on the Sheet is flagged, never deleted or duplicated. Board edits win ties (both changed = held,
-  named in the report). Two identical rows for one market on one day are one event (the extra row is reported,
+  named in the report; both changed to the same thing, shift rows included, = settled). Two identical rows for one market on one day are one event (the extra row is reported,
   never added); a start date weeks away from the event's own banner-resolved days is a stale cell and is never
   copied. Stops on parser drift (exit 2) or an oversized change set (exit 3). Dry unless `--apply`. `--apply`
   takes `state/sheet-sync.lock` first (a second run waits up to 3 minutes, then exits 4) and records its outcome
