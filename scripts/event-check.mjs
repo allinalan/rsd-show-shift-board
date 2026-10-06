@@ -119,6 +119,7 @@ async function main() {
   // ---- judge every checked event
   const out = [];
   const patches = [];
+  const costChanges = [];
   const statusesSeen = new Map();
   for (const r of rows) statusesSeen.set(r.status, (statusesSeen.get(r.status) || 0) + 1);
   for (const f of toMatch) {
@@ -167,6 +168,19 @@ async function main() {
     if (row) {
       if (t(e.vcNumber) !== row.eventNumber) patch.vcNumber = row.eventNumber;
       if (t(e.vcStatus) !== vcStatus) patch.vcStatus = vcStatus;
+      // Cost: VectorConnect's Event Cost always wins (Alan, 2026-10-06: "Rule is to ALWAYS go off of VC"). Written for
+      // past and upcoming shows alike, in the board's whole-dollar form, and marked costSource VC so the Sheet sync
+      // stops carrying the Sheet's cost cell over it. Not when VC has no cost yet, not on a per-month cost (Mesa is
+      // never matched here anyway), and not when several board rows share the one VC record (its cost is the whole run's).
+      const vcCost = Math.round(Number(row.eventCost) || 0);
+      const soleClaim = (claims.get(row.eventNumber) || []).length <= 1;
+      if (vcCost > 0 && soleClaim && (t(e.costBasis) || 'date') === 'date') {
+        if (Number(e.costNum) !== vcCost) {
+          patch.cost = `$${vcCost.toLocaleString('en-US')}`; patch.costNum = vcCost; patch.costSource = 'VC';
+          if (t(e.costSource) !== 'VC') patch.costWas = t(e.cost);
+          costChanges.push({ id: e.id, name: e.name, weekend: e.weekend, from: t(e.cost) || 'none', to: patch.cost });
+        } else if (t(e.costSource) !== 'VC') patch.costSource = 'VC';
+      }
       if (f.upcoming) {
         const bs = boardStatus(vcStatus, '', rec.shifts);
         if (t(e.status) !== bs.status) patch.status = bs.status;
@@ -199,6 +213,16 @@ async function main() {
   if (foundShare < (CFG.checkWrite.minNumberFoundShare ?? 0.7)) refuse.push(`only ${found} of ${numbered.length} VC numbers already on the board are in this pull; the pull looks incomplete`);
   if (matchedUpcoming >= 10 && statusChanges > matchedUpcoming * (CFG.checkWrite.maxStatusChangeShare ?? 0.6)) refuse.push(`${statusChanges} status changes against ${matchedUpcoming} matched upcoming shows is implausible`);
   result.checks = { numbered: numbered.length, found, foundShare: +foundShare.toFixed(3), statusChanges, matchedUpcoming };
+
+  // more cost changes at once than is believable: none is written (statuses still are), and the report says so
+  const maxCost = CFG.checkWrite.maxCostChanges ?? 80;
+  let costHeld = null;
+  if (costChanges.length > maxCost) {
+    costHeld = `${costChanges.length} board costs differ from VectorConnect's at once (limit ${maxCost}); no cost was changed`;
+    for (const p of patches) for (const k of ['cost', 'costNum', 'costSource', 'costWas']) delete p.patch[k];
+    for (let i = patches.length - 1; i >= 0; i--) if (!Object.keys(patches[i].patch).filter(k => k !== 'vcCheckedAt').length) patches.splice(i, 1);
+  }
+  result.costs = { changed: costHeld ? [] : costChanges, held: costHeld, wouldChange: costHeld ? costChanges : [] };
 
   let code = 0;
   if (refuse.length) { result.stopped = refuse.join('; ') + '. Nothing written.'; code = 5; }
@@ -269,6 +293,9 @@ export function summaryMd(r) {
     md.push(`Resolved ${r.delta.resolved.length}, newly flagged ${r.delta.newlyFlagged.length}, status moved on ${r.delta.statusMoved.length}.`);
     for (const x of r.delta.resolved) md.push(`- resolved: ${x.weekend} ${x.name} (${x.from} -> ${x.to})`);
     for (const x of r.delta.newlyFlagged) md.push(`- newly flagged: ${x.weekend} ${x.name} (${x.from} -> ${x.to})`);
+    const cc = r.costs || { changed: [] };
+    if (cc.held) md.push('', `**Costs not changed:** ${cc.held}.`);
+    if (cc.changed.length) { md.push('', `## Costs set from VectorConnect (${cc.changed.length})`); for (const x of cc.changed) md.push(`- ${x.weekend} ${x.name}: ${x.from} -> ${x.to}`); }
     const cats = Object.entries(r.byCategory).filter(([k, n]) => n && k !== 'booked');
     if (cats.length) { md.push('', '## Not fully booked, by what unblocks it'); for (const [k, n] of cats) md.push(`- ${CATEGORY_LABEL[k]}: ${n}`); }
     const f = r.flags;

@@ -393,6 +393,10 @@ sys.exit(tick.main())
     p = S.planEvent({ base: ev(['Cameron', '']), sheet: ev(['Sarah', '']), board: ev(['Eli', '']), resolve, vcRow: null, today: '2026-08-01' });
     ok(!p.patch.booths && p.conflicts.length === 1 && p.keepBase.slots.has('0.0.0'), 'sync: when the Sheet and the board both changed a shift, neither wins and it is held');
     const dead = { eventNumber: '9', status: 'Promoter Cancelled Event', startDate: '2026-09-05', endDate: '2026-09-06' };
+    p = S.planEvent({ base: ev(['Cameron', ''], { cost: '$300', costNum: 300 }), sheet: ev(['Cameron', ''], { cost: '$350', costNum: 350 }), board: ev(['Cameron', ''], { cost: '$450', costNum: 450, costSource: 'VC' }), resolve, vcRow: null, today: '2026-08-01' });
+    ok(!('cost' in p.patch) && !p.conflicts.some(c => /cost/.test(c)), 'sheet-sync: a cost the event check took from VC is not overwritten by the Sheet and is not a conflict');
+    p = S.planEvent({ base: ev(['Cameron', ''], { cost: '$300', costNum: 300 }), sheet: ev(['Cameron', ''], { cost: '$350', costNum: 350 }), board: ev(['Cameron', ''], { cost: '$300', costNum: 300 }), resolve, vcRow: null, today: '2026-08-01' });
+    ok(p.patch.cost === '$350', 'sheet-sync: without a VC cost the Sheet\'s cost still carries');
     p = S.planEvent({ base: ev(['Cameron', '']), sheet: ev(['', 'Sarah']), board: ev(['Cameron', '']), resolve, vcRow: dead, today: '2026-08-01' });
     ok(p.patch.booths && p.patch.booths[0].shifts[0].slots[0].rep === '' && p.patch.booths[0].shifts[0].slots[1].rep === '' && p.held.length === 1, 'sync: on a show VC calls dead, a removal applies but a new rep is held');
     const booked = { eventNumber: '8', status: 'Booked', startDate: '2026-09-05', endDate: '2026-09-06' };
@@ -631,7 +635,7 @@ sys.exit(tick.main())
     for (const t of Object.keys(db)) db[t].clear();
     const e = (id, name, weekend, reps, extra = {}) => T('events').set(id, { year: 2026, name, weekend, startDate: weekend, endDate: weekend, days: ['Friday'], dates: [weekend],
       booths: [{ label: '', days: ['Friday'], dates: [weekend], shifts: [{ label: 'Shift 1', slots: reps.map(r => ({ rep: r, ft: [] })) }] }], status: 'Booked', ...extra });
-    e('2026-a', 'Alpha Days', '2026-10-09', ['Eli'], { vcNumber: '00300001', vcStatus: 'OK to Book - Need Contract', status: 'OK to Book - Need Contract' });
+    e('2026-a', 'Alpha Days', '2026-10-09', ['Eli'], { vcNumber: '00300001', vcStatus: 'OK to Book - Need Contract', status: 'OK to Book - Need Contract', cost: '$300', costNum: 300, costBasis: 'date' });
     e('2026-b', 'Graham County Fair', '2026-10-09', ['Sarah'], { status: 'Prospective' });
     e('2026-c', 'Mesa Market Place Swapmeet', '2026-10-09', ['Reed']);
     e('2026-d', 'Past Show', '2026-09-11', ['Eli'], { vcNumber: '00300004', vcStatus: 'Booked', status: 'Booked' });
@@ -642,9 +646,9 @@ sys.exit(tick.main())
     e('2026-m', 'Mu Pageant', '2026-11-27', ['Sarah'], { status: 'Booking Request Submitted', vcRequestedAt: '2026-09-01' });
     const filler = Array.from({ length: 22 }, (_, i) => ({ eventNumber: String(310000 + i), name: `Filler Show ${String.fromCharCode(65 + i)}`, status: 'Booked', startDate: '2026-12-0' + (1 + (i % 9)), endDate: '2026-12-0' + (1 + (i % 9)) }));
     const rows = [
-      { eventNumber: '00300001', name: 'Alpha Days', status: 'Booked', startDate: '2026-10-09', endDate: '2026-10-11' },
+      { eventNumber: '00300001', name: 'Alpha Days', status: 'Booked', startDate: '2026-10-09', endDate: '2026-10-11', eventCost: 450.4 },
       { eventNumber: '00300002', name: 'Graham County Fair', status: 'Pending Promoter - Acceptance into Event', startDate: '2026-10-08', endDate: '2026-10-11' },
-      { eventNumber: '00300004', name: 'Past Show', status: 'Closed', startDate: '2026-09-11', endDate: '2026-09-13' },
+      { eventNumber: '00300004', name: 'Past Show', status: 'Closed', startDate: '2026-09-11', endDate: '2026-09-13', eventCost: 200 },
       { eventNumber: '00092192', name: 'Queen Creek Family Market 11/1', status: 'Booked', startDate: '2026-11-01', endDate: '2026-11-30' },
       { eventNumber: '00300006', name: 'Beta Fest', status: 'Promoter Cancelled Event', startDate: '2026-10-16', endDate: '2026-10-18' },
       { eventNumber: '00300011', name: 'Cochise County Fair', status: 'OK to Book - Need Contract', startDate: '2026-10-01', endDate: '2026-10-04' },
@@ -665,6 +669,9 @@ sys.exit(tick.main())
     ok(A.vcStatus === 'Booked' && A.status === 'Booked' && A.vcCheckedAt === '2026-10-01', 'event-check: a status change is written in VC\'s words and the board\'s');
     ok(B.vcNumber === '00300002' && B.status === 'Pending Promoter Acceptance', 'event-check: a name match gets its VC number and status');
     ok(!C.vcCheckedAt && C.status === 'Booked', 'event-check: Mesa is never touched');
+    ok(A.cost === '$450' && A.costNum === 450 && A.costSource === 'VC' && A.costWas === '$300', 'event-check: VC\'s Event Cost replaces the board\'s, in whole dollars, and the old one is kept beside it');
+    ok(D.cost === '$200' && D.costNum === 200 && D.costSource === 'VC', 'event-check: a finished show gets VC\'s cost too');
+    ok(B.cost === undefined && F.cost === undefined, 'event-check: a VC record with no cost yet leaves the board\'s cost alone');
     ok(D.vcStatus === 'Closed' && D.status === 'Booked' && !D.dead, 'event-check: a finished show VC has closed out stays Booked, not Cancelled');
     ok(!E.vcCheckedAt && E.status === 'Booked', 'event-check: a placeholder-only date is not written either way');
     ok(F.dead === true && F.status === 'Cancelled', 'event-check: a show VC cancelled is marked dead');
@@ -673,6 +680,7 @@ sys.exit(tick.main())
     ok(A.status === 'Booked' && !A.dead, 'event-check: a rep-scoped ruling never kills the show');
     const latest = JSON.parse(fs.readFileSync(path.join(outd, 'event-check', 'latest.json'), 'utf8'));
     ok(latest.headline.deadWithReps === 2 && latest.headline.openQuestions === 1 && latest.written, 'event-check: the headline counts the dead shows and the open question');
+    ok(latest.costs.changed.length === 2 && latest.costs.changed.some(x => x.name === 'Alpha Days' && x.from === '$300' && x.to === '$450') && /Costs set from VectorConnect \(2\)/.test(fs.readFileSync(path.join(outd, 'reports', 'event-check-2026-10-01.md'), 'utf8')), 'event-check: the report lists every cost it set from VC');
     ok(latest.flags.ruledOff.length === 1 && latest.events.find(x => x.id === '2026-k').ruling.reason === "we couldn't get in", 'event-check: the ruling travels to the texts with its reason');
     ok(!JSON.stringify(latest).includes('555-'), 'event-check: the result carries no contact data');
     ok(T('events').get('2026-l').status === 'Booking Request Submitted' && latest.events.find(x => x.id === '2026-l').requestPending === true, 'event-check: a booking request inside 14 days keeps "Booking Request Submitted" (it is with Olean)');

@@ -40,8 +40,10 @@
   "checkWrite": {
     "minVcRows": 20,
     "minNumberFoundShare": 0.7,
-    "maxStatusChangeShare": 0.6
+    "maxStatusChangeShare": 0.6,
+    "maxCostChanges": 80
   },
+  "_maxCostChanges": "The event check sets a matched show's cost to VectorConnect's Event Cost (Alan, 2026-10-06: always go off of VC). More differences than this in one run changes none and says so (a broken pull must not rewrite every cost); the first run had 59.",
   "vcStatuses": [
     "Accepted - Awaiting Contract", "Booked", "Booked - Confirmed Event", "Booked - Needs Insurance", "Booked - Pending",
     "Booked Own", "Booked Own Event - Confirmed", "Cancelled - Awaiting Credit/Refund", "Cancelled - Credited",

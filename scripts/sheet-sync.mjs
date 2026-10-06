@@ -11,7 +11,8 @@
 
   WHAT IT CARRIES (Alan, 2026-09-23: "mainly if we add shifts, remove shifts or change names on the
   shifts"): shifts added, removed and re-staffed, trainees, shift rows and booths, day labels, new events,
-  and the event's own details (name, place, promoter, cost, dates, column C as sheetStatus). Not promoter
+  and the event's own details (name, place, promoter, cost, dates, column C as sheetStatus; the cost only until
+  the event check has taken VectorConnect's, which then stands: costSource VC). Not promoter
   contacts: those are edited on the board (see SCALARS for why).
 
   VECTORCONNECT WINS. Status never comes from the Sheet: column C is the team's free text (kept as
@@ -116,6 +117,9 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull 
 
   // scalar fields
   for (const f of SCALARS) {
+    // a cost the event check took from VectorConnect is VC's (Alan, 2026-10-06): the Sheet's cost cell is not carried
+    // over it and is never a conflict, the way column C never overrules VC's status
+    if ((f === 'cost' || f === 'costNum') && t(board.costSource) === 'VC') continue;
     const s = t(sheet[f]), b0 = t(base[f]), bd = t(board[f]);
     if (s === b0 || bd === s) continue;
     if (bd === b0) { patch[f] = sheet[f] ?? ''; changes.push(`${f}: ${JSON.stringify(b0)} -> ${JSON.stringify(s)}`); }
