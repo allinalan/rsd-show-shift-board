@@ -327,8 +327,9 @@ morning (the tick), so a changed date reaches it the next day.
 3. Add `com.allinalan.rsd-board-sync` (every 30 s, `scripts/sync-requests.mjs`, log `logs/sync-requests.log`,
    kill switch `PAUSED`) to `~/ai-system/REGISTRY.yaml` under `rsd-show-shift-board`.
 
-**Where this stands, 2026-10-06.** Step 1 is done: `sheet_syncs` exists and the button shows. Steps 2 and 3 are
-not: `./install.sh` has not been run on the mini since 2026-09-20 (the pre-commit hook it rewrites every time still
+**Where this stands, 2026-10-06.** Step 1 is done: `sheet_syncs` exists and the button shows. Step 3's registry
+entry exists as PREPARED (2026-10-06), to be changed when the job is armed. Step 2 is
+not done: `./install.sh` has not been run on the mini since 2026-09-20 (the pre-commit hook it rewrites every time still
 carries that date, and the tick's plist in `~/Library/LaunchAgents` too), so the listener was never loaded, never
 disarmed, and has no log. One press is waiting on the page (request 1, Alan, Saturday 2026-10-03, 10:52am). The
 board still follows the Sheet on the runs that sync it anyway: Wednesday 08:00 and Tuesday 07:00 (the shift cost
