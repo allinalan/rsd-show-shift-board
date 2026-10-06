@@ -13,7 +13,7 @@
   wins. When nothing online confirms it, go with VC's date and put a note on the board. A show whose board days
   sit inside VC's run (VC often carries a set-up day) is not a disagreement.
 
-    board-research.mjs targets --mode dates|full|mismatches --check <out/event-check/latest.json> [--exclude-file <json>] [--skip-tiers Elite,...]
+    board-research.mjs targets --mode dates|full|mismatches --check <out/event-check/latest.json> [--exclude-file <json>] [--skip-tiers Elite,...] [--skip-names golf,builder]
                                [--out <file>] [--date YYYY-MM-DD]
     board-research.mjs apply --targets <file> --research <file> --mode dates|full [--label date-research|preflight|booking-sweep]
                              [--apply] [--max-date-changes N] [--date YYYY-MM-DD]
@@ -76,6 +76,8 @@ async function targets() {
   const excl = opt('--exclude-file') && fs.existsSync(opt('--exclude-file')) ? (JSON.parse(fs.readFileSync(opt('--exclude-file'), 'utf8')).exclude || []) : [];
   const exclude = new Set(excl.map(normName));
   const skipTiers = new Set(String(opt('--skip-tiers') || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean));
+  // name words never looked up (Alan, 2026-10-06: no search money on golf tournaments or builder expos)
+  const skipNames = String(opt('--skip-names') || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
   const skipped = [];
   const recById = new Map((check.events || []).map(r => [r.id, r]));
   // one VC record claimed by several shows = a multi-week show: researched, never moved
@@ -89,6 +91,8 @@ async function targets() {
     if (!end || end < TODAY || e.dead || e.neverWork || MESA.test(e.name || '') || exclude.has(normName(e.name))) continue;
     const tier = t(tierOf(e, CFG.tierRules));                          // a tier rule (Maricopa = Elite) wins over the tag
     if (skipTiers.has(tier.toLowerCase())) { skipped.push({ id: e.id, name: t(e.name), tier }); continue; }
+    const word = skipNames.find(p => t(e.name).toLowerCase().includes(p));
+    if (word) { skipped.push({ id: e.id, name: t(e.name), tier: `"${word}" shows` }); continue; }
     const r = recById.get(e.id);
     const vc = r && r.vcStart && r.category !== 'no-vc' ? { number: r.vcNumber, name: r.vcName, status: r.vcStatus, start: r.vcStart, end: r.vcEnd || r.vcStart } : null;
     const mismatch = !!(vc && run && !within(run, { start: vc.start, end: vc.end }));

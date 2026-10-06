@@ -43,6 +43,8 @@
     "maxStatusChangeShare": 0.6,
     "maxCostChanges": 80
   },
+  "fillDates": { "maxAtOnce": 60 },
+  "_fillDates": "scripts/fill-dates.mjs: a show with no Start Date gets one from its own day columns, then VectorConnect, then a page online (Alan, 2026-10-06). More fills than this in one run writes none (the first run had 31).",
   "_maxCostChanges": "The event check sets a matched show's cost to VectorConnect's Event Cost (Alan, 2026-10-06: always go off of VC). More differences than this in one run changes none and says so (a broken pull must not rewrite every cost); the first run had 59.",
   "vcStatuses": [
     "Accepted - Awaiting Contract", "Booked", "Booked - Confirmed Event", "Booked - Needs Insurance", "Booked - Pending",

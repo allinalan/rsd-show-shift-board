@@ -746,6 +746,46 @@ sys.exit(tick.main())
     ok(r.code === 4, 'event-check: a VC pull too small to judge against exits 4 and writes nothing');
   });
 
+  // ---- fill-dates: a blank Start Date comes from the show's own days, then VC, then a page online (Alan, 2026-10-06)
+  {
+    for (const t of Object.keys(db)) db[t].clear();
+    const ev = (id, name, weekend, dates, extra = {}) => T('events').set(id, { year: 2026, name, weekend, startDate: '', endDate: '', days: dates.map(() => 'Saturday'), dates,
+      booths: [{ label: '', days: dates.map(() => 'Saturday'), dates, shifts: [{ label: 'Shift 1', slots: dates.map(() => ({ rep: 'Eli', ft: [] })) }] }], status: 'Booked', ...extra });
+    ev('2026-days', 'Own Days Fair', '2026-10-09', ['2026-10-09', '2026-10-10']);
+    ev('2026-vc', 'VC Only Fest', '2026-10-16', [], { vcNumber: '00400001' });
+    ev('2026-web', 'Search Me Harvest Fest', '2026-10-23', []);
+    ev('2026-golf', 'Fall Golf Tournament', '2026-10-23', []);
+    ev('2026-x', 'x', '2026-10-23', []);
+    ev('2026-elite', 'Maricopa County Something', '2026-10-30', []);
+    ev('2026-has', 'Already Dated', '2026-10-09', ['2026-10-09'], { startDate: '2026-10-09', endDate: '2026-10-09' });
+    const vcFile = path.join(home, 'fd-vc.json'); fs.writeFileSync(vcFile, JSON.stringify({ rows: [{ eventNumber: '00400001', name: 'VC Only Fest', status: 'Booked', startDate: '2026-10-16', endDate: '2026-10-18' }] }));
+    const outd = path.join(home, 'fd-out'), tgt = path.join(home, 'fd-targets.json');
+    const fd = (...a) => new Promise(res => execFile(process.execPath, [path.join(REPO, 'scripts/fill-dates.mjs'), '--vc', vcFile, '--date', '2026-10-06', '--skip-names', 'golf,builder', '--skip-tiers', 'Elite', ...a],
+      { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_OUT_DIR: outd } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    r = await fd('--targets-out', tgt);
+    ok(r.code === 0 && T('events').get('2026-days').startDate === '', 'fill-dates: a dry run writes nothing: ' + r.stderr.slice(0, 200));
+    r = await fd('--apply', '--targets-out', tgt);
+    const D = id => T('events').get(id);
+    ok(r.code === 0 && D('2026-days').startDate === '2026-10-09' && D('2026-days').endDate === '2026-10-10' && D('2026-days').startDateSource === 'sheet-days' && !D('2026-days').datesNote, 'fill-dates: the show\'s own day columns fill a blank Start Date, with no "checked" note');
+    ok(D('2026-vc').startDate === '2026-10-16' && D('2026-vc').endDate === '2026-10-18' && D('2026-vc').datesSource.basis === 'vc', 'fill-dates: no days on the row, so VC\'s dates, marked as VC dates');
+    const targets = JSON.parse(fs.readFileSync(tgt, 'utf8'));
+    ok(targets.count === 1 && targets.targets[0].id === '2026-web' && targets.mode === 'dates', 'fill-dates: only the show nothing answers goes to the search');
+    const latest = JSON.parse(fs.readFileSync(path.join(outd, 'fill-dates', 'latest.json'), 'utf8'));
+    ok(latest.skipped.some(x => x.id === '2026-golf' && /golf/.test(x.why)) && latest.skipped.some(x => x.id === '2026-x') && latest.skipped.some(x => x.id === '2026-elite' && /Elite/.test(x.why)) && D('2026-golf').startDate === '',
+      'fill-dates: golf, a junk row name and an Elite show are never searched, and stay blank');
+    ok(D('2026-has').startDateSource === undefined, 'fill-dates: a show that has its dates is not touched');
+    const resFile = path.join(home, 'fd-res.json');
+    fs.writeFileSync(resFile, JSON.stringify({ cost: 0.5, results: { '2026-web': { ok: true, result: { dates: { found: true, start: '2026-10-24', end: '2026-10-25', confidence: 'official', sourceUrl: 'https://searchmefest.example/dates', evidence: 'October 24-25, 2026' } } } } }));
+    r = await fd('--apply', '--research', resFile);
+    ok(r.code === 0 && D('2026-web').startDate === '2026-10-24' && D('2026-web').endDate === '2026-10-25' && D('2026-web').datesSource.basis === 'researched' && /searchmefest\.example/.test(D('2026-web').datesNote), 'fill-dates: a date a page states fills it, with the page named');
+    T('events').get('2026-web').startDate = ''; T('events').get('2026-web').endDate = '';
+    fs.writeFileSync(resFile, JSON.stringify({ results: { '2026-web': { ok: true, result: { dates: { found: false } } } } }));
+    r = await fd('--apply', '--research', resFile);
+    ok(D('2026-web').startDate === '' && JSON.parse(fs.readFileSync(path.join(outd, 'fill-dates', 'latest.json'), 'utf8')).unfound.length === 1, 'fill-dates: a show no page dates stays blank and is listed');
+    const FDm = await import(path.join(REPO, 'scripts/fill-dates.mjs'));
+    ok(FDm.webRun({ ok: true, result: { dates: { found: true, start: '2026-10-24', end: '2026-10-25', confidence: 'official', sourceUrl: '', evidence: 'x' } } }, '2026-10-23') === null, 'fill-dates: a found date without a source page is not used');
+  }
+
   // ---- booking-sweep end to end: the buckets, the only write (whole-week date moves), and its refusals
   await section('booking-sweep end to end', async () => {
     for (const t of Object.keys(db)) db[t].clear();

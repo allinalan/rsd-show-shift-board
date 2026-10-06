@@ -59,6 +59,15 @@ routines in `.claude/skills/` keep it true.
   status is kept beside it, and the rep text uses the ruling's repReason. Refuses to write when the pull
   is too small (exit 4) or lacks the board's own VC numbers (exit 5). Writes `out/event-check/latest.json`
   (read by rsd-shift-picking's texts), the workbook and a summary under `out/reports/`.
+- `scripts/fill-dates.mjs` — a show with no Start Date gets one (Alan, 2026-10-06), run by rsd-shift-picking's
+  `run-event-check.sh` right after the event check (stage 3b). In order: the show's own day columns (the Sheet's weekend
+  header, already on the board as booth dates), then VectorConnect's dates for its record, then a page online
+  (`--research`, rsd-shift-picking's research-events.js; at most $3 a week there, each show looked up once). Writes
+  `startDate` / `endDate` with `startDateSource` (sheet-days | vc | web); a VC or web date also gets the usual `datesNote` /
+  `datesSource` ("VC dates" / "checked" on the page). Never searched: golf and builder shows (`--skip-names`), Elite
+  (`--skip-tiers`), a junk row name; those stay blank and are listed. The day columns are never touched and the Sheet is
+  never written. More than `fillDates.maxAtOnce` (60) fills at once writes none (exit 5). Output
+  `out/fill-dates/latest.json` and `out/reports/fill-dates-<date>.md`.
 - `scripts/booking-sweep.mjs` — the board's half of the post-meeting booking sweep (2026-09-23), run by
   rsd-shift-picking's `run-booking-sweep.sh` (launchd com.rsd.bookingsweep, days 2-8 after a meeting) right after
   a fresh event check and the date research on every VC disagreement (below). Sorts every staffed upcoming show:
@@ -74,7 +83,8 @@ routines in `.claude/skills/` keep it true.
 - `scripts/board-research.mjs` + `scripts/lib/dates.mjs` — researching shows on the web (Alan, 2026-09-24), the
   board's half; rsd-shift-picking owns the Claude API calls (web search), the texts and the email. `targets`
   lists what to research (`--mode dates|full|mismatches`: every upcoming live non-Mesa show, or only the ones whose
-  board days are not inside VC's run; `--skip-tiers Elite` leaves out, and counts, the tiers the team handles itself);
+  board days are not inside VC's run; `--skip-tiers Elite` leaves out, and counts, the tiers the team handles itself; `--skip-names golf,builder` the shows Alan
+  spends no search money on, 2026-10-06);
   `apply` takes the findings and writes the board. Alan's date rule: the date
   a page states for this edition wins (quote and URL kept); nothing found online and VC disagrees = VC's dates,
   with `datesNote` on the board saying so; a failed lookup changes nothing; a cancellation is reported, never
