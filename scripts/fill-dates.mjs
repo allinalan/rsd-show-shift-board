@@ -52,7 +52,10 @@ export function webRun(res, weekend) {
   const d = res && res.ok && res.result && res.result.dates;
   if (!d || !d.found || !ISO.test(d.start || '') || !ISO.test(d.end || '') || d.start > d.end || dayDiff(d.end, d.start) > 21) return null;
   if (d.confidence === 'none' || !/^https?:\/\//i.test(t(d.sourceUrl)) || !t(d.evidence)) return null;
-  if (weekend && Math.abs(dayDiff(d.start, weekend)) > 150) return null;
+  // The row's weekend is the anchor. A show that runs several times a year (a gun show, a home show) is found
+  // online at its NEXT date, which is another row's: the Tucson Expo Gun Show row for Feb 19 2027 was given the
+  // October 2026 show's dates on the first run (2026-10-06). A date more than a week from the weekend is not this row's.
+  if (weekend && Math.abs(dayDiff(d.start, weekend)) > 7) return { otherEdition: true, start: d.start, end: d.end, source: d.sourceUrl };
   return { start: d.start, end: d.end, source: d.sourceUrl };
 }
 
@@ -67,7 +70,8 @@ export function decide(e, { vcRow, res, skipNames = [], skipTiers = [], research
   if (own.length) return { kind: 'skip', why: `its day columns (${[...new Set(own)].sort().join(', ')}) do not sit with its weekend ${t(e.weekend) || '(none)'}; fix the row` };
   if (vcRow && ISO.test(vcRow.startDate || '')) return { kind: 'fill', start: vcRow.startDate, end: ISO.test(vcRow.endDate || '') ? vcRow.endDate : vcRow.startDate, source: 'vc' };
   const web = webRun(res, e.weekend);
-  if (web) return { kind: 'fill', start: web.start, end: web.end, source: 'web', url: web.source };
+  if (web && !web.otherEdition) return { kind: 'fill', start: web.start, end: web.end, source: 'web', url: web.source };
+  if (web && web.otherEdition) return { kind: 'unfound', why: `the page found (${host(web.source)}) dates it ${fmt(web.start, web.end)}, ${web.start.slice(0, 4)}, which is not this row's weekend; is the row on the right weekend, or is this date not announced yet?` };
   if (junkName(e.name)) return { kind: 'skip', why: 'not a real show name (clean the row up)' };
   if (MESA.test(t(e.name))) return { kind: 'skip', why: 'Mesa has no days on this row' };
   const hit = skipNames.find(p => t(e.name).toLowerCase().includes(p));

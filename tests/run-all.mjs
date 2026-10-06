@@ -782,6 +782,9 @@ sys.exit(tick.main())
     fs.writeFileSync(resFile, JSON.stringify({ results: { '2026-web': { ok: true, result: { dates: { found: false } } } } }));
     r = await fd('--apply', '--research', resFile);
     ok(D('2026-web').startDate === '' && JSON.parse(fs.readFileSync(path.join(outd, 'fill-dates', 'latest.json'), 'utf8')).unfound.length === 1, 'fill-dates: a show no page dates stays blank and is listed');
+    fs.writeFileSync(resFile, JSON.stringify({ results: { '2026-web': { ok: true, result: { dates: { found: true, start: '2027-02-20', end: '2027-02-21', confidence: 'official', sourceUrl: 'https://searchmefest.example/next', evidence: 'February 20-21, 2027' } } } } }));
+    r = await fd('--apply', '--research', resFile);
+    ok(D('2026-web').startDate === '' && /not this row's weekend/.test(JSON.parse(fs.readFileSync(path.join(outd, 'fill-dates', 'latest.json'), 'utf8')).unfound[0].why), 'fill-dates: a page that dates ANOTHER edition of the show (months from the row\'s weekend) is never written');
     const FDm = await import(path.join(REPO, 'scripts/fill-dates.mjs'));
     ok(FDm.webRun({ ok: true, result: { dates: { found: true, start: '2026-10-24', end: '2026-10-25', confidence: 'official', sourceUrl: '', evidence: 'x' } } }, '2026-10-23') === null, 'fill-dates: a found date without a source page is not used');
   }
