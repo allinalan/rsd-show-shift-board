@@ -327,6 +327,24 @@ morning (the tick), so a changed date reaches it the next day.
 3. Add `com.allinalan.rsd-board-sync` (every 30 s, `scripts/sync-requests.mjs`, log `logs/sync-requests.log`,
    kill switch `PAUSED`) to `~/ai-system/REGISTRY.yaml` under `rsd-show-shift-board`.
 
+**Where this stands, 2026-10-06.** Step 1 is done: `sheet_syncs` exists and the button shows. Steps 2 and 3 are
+not: `./install.sh` has not been run on the mini since 2026-09-20 (the pre-commit hook it rewrites every time still
+carries that date, and the tick's plist in `~/Library/LaunchAgents` too), so the listener was never loaded, never
+disarmed, and has no log. One press is waiting on the page (request 1, Alan, Saturday 2026-10-03, 10:52am). The
+board still follows the Sheet on the runs that sync it anyway: Wednesday 08:00 and Tuesday 07:00 (the shift cost
+agent's refresh), and the booking sweep and research days.
+`./install.sh --arm` would also have refused: the listener's tests failed on any Mac from the day the hourly sync
+landed (0c1b455) because a script started from the tests' staged copy in the temp folder never ran its `main()`
+(`scripts/lib/is-main.mjs` says why). Fixed 2026-10-06; `./install.sh --check` is all OK again.
+**Arming does three things**: reloads the tick (same plist, nothing changes), loads the listener, and within 30
+seconds the listener runs the waiting press as a real `sheet-sync.mjs --apply` (no VC pull: whatever the Sheet has
+changed since the last sync goes onto the board, dates on shows VC has a record for are held). From 2026-10-15 it
+then syncs every hour, 7am-9pm. A dry run on 2026-10-06 (`node scripts/sheet-sync.mjs --tag preview`, which writes
+only its report) said the waiting press would carry one show and two shift changes, with one conflict held. To arm
+without running the old press, mark it failed first (the page then reads "Last sync failed ... Press Sync to try
+again" until the next sync), or `touch PAUSED` before arming and decide later (PAUSED holds the tick's 07:00 notice
+too while it is there).
+
 **Verify.** Change one rep on the Sheet, press Sync on the board, and watch the line go "Asked the Mac mini…",
 then "Syncing…", then "Synced … 1 show updated, 1 shift change". The shift changes on the board without a
 reload. `tail logs/sync-requests.log` shows one line for it. Then change it back on the Sheet and sync again.

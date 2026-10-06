@@ -46,6 +46,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
+import { isMain } from './lib/is-main.mjs';
 import { normName, dayDiff, tierOf } from './lib/match.mjs';
 import { sellingRun, within, sameRun, planMove, runDays, isSE } from './lib/dates.mjs';
 
@@ -285,7 +286,7 @@ export function summaryMd(r) {
   return L.join('\n');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const run = { targets, apply }[cmd];
   if (!run) { console.error('usage: board-research.mjs targets|apply ... (see the header)'); process.exit(64); }
   run().then(c => process.exit(c)).catch(e => { console.error('board-research: ' + (e.stack || e.message)); process.exit(1); });

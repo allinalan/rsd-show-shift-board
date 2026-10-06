@@ -45,6 +45,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
+import { isMain } from './lib/is-main.mjs';
 import { nameScore, dayDiff, normName, tierOf } from './lib/match.mjs';
 import { sellingRun, within, sameRun } from './lib/dates.mjs';
 export { sellingRun, within };                     // lib/booking-sweep-exec.js in rsd-shift-picking reads them from here
@@ -213,6 +214,6 @@ async function write(result) {
   fs.writeFileSync(path.join(OUT_R, `booking-sweep-${result.date}.md`), summaryMd(result) + '\n');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main().then(c => process.exit(c)).catch(e => { console.error('booking-sweep: ' + (e.stack || e.message)); process.exit(1); });
 }

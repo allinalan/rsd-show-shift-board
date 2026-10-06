@@ -4,6 +4,8 @@
   No network, no real database, no ~/.rsd/board.env (HOME points at a temp dir).
       node tests/run-all.mjs
   The point of most of these: promoter contact/phone/email must never land in `events` (public).
+  Every block is a section(): one that throws is one named failure, the rest still run, and the last line is
+  always the count. Exit 1 on any failure (install.sh --check and --arm read that).
 */
 import http from 'http';
 import fs from 'fs';
@@ -15,7 +17,7 @@ import { fileURLToPath } from 'url';
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const db = {};                                   // table -> Map(id -> data)
 const T = t => (db[t] = db[t] || new Map());
-const FLAT = new Set(['sheet_syncs']); let flatId = 0;
+const FLAT = new Set(['sheet_syncs']); let flatId = 0, flatReads = 0;   // flatReads: GETs on a plain table (did the listener ask at all?)
 const actors = new Set();                        // who merge_doc was told did the write (the changelog's actor)
 const pgMatch = (row, u) => {
   for (const [k, v] of u.searchParams) {
@@ -32,6 +34,7 @@ const server = http.createServer((req, res) => {
     if (FLAT.has(p)) {                           // a plain table (sheet_syncs): numbered rows, eq./in. filters, PATCH
       const rows = [...T(p).values()];
       if (req.method === 'GET') {
+        flatReads++;
         const [col, dir] = (u.searchParams.get('order') || 'id').split('.'), lim = +u.searchParams.get('limit');
         const key = r => r[col] == null ? null : r[col], cmp = (a, b) => key(a) === key(b) ? 0 : key(a) === null ? 1 : key(b) === null ? -1 : (key(a) < key(b) ? -1 : 1) * (dir === 'desc' ? -1 : 1);
         const out = rows.filter(r => pgMatch(r, u)).sort(cmp); return send(200, lim ? out.slice(0, lim) : out);
@@ -50,10 +53,22 @@ const server = http.createServer((req, res) => {
 
 let pass = 0, failN = 0;
 const ok = (cond, name) => { if (cond) pass++; else { failN++; console.error('  FAIL  ' + name); } };
+// One block of tests. A check that fails is usually followed by code that leaned on it (autos[0] of an empty list),
+// and that throw used to end the run on the spot, with no count and every later block unrun: on 2026-10-06 a
+// listener failure hid the event-check and booking-sweep tests. A throw is now one more failure, named, with the
+// line it came from, and the blocks after it still run.
+const section = async (name, fn) => {
+  try { await fn(); } catch (e) {
+    failN++; console.error(`  FAIL  ${name}: threw, so the rest of this block did not run\n        ${String((e && e.stack) || e).split('\n').slice(0, 2).map(l => l.trim()).join('\n        ')}`);
+  }
+};
+let r;                                           // the last command's result; every block reuses it
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'board-test-'));
 let base = '';
 const board = (args, env = {}) => new Promise(r => execFile(process.execPath, [path.join(REPO, 'scripts/board.mjs'), ...args],
   { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', ...env } }, (err, stdout, stderr) => r({ code: err ? err.code : 0, stdout, stderr })));
+const run = (bin, args) => new Promise(r => execFile(bin, args, { env: { PATH: process.env.PATH, HOME: home } }, (err, stdout, stderr) => r({ code: err ? err.code : 0, stdout, stderr })));
+const stage = path.join(home, 'stage'), tickLog = path.join(stage, 'logs', 'tick.log');   // tick.py's staged copy: two blocks run it
 const PRIV = ['contact', 'phone', 'email'];
 const leaked = () => [...T('events').values()].filter(d => PRIV.some(k => k in d));
 const isSE = l => /set\s*up|tear\s*down|\bse\b/i.test(String(l || ''));
@@ -62,125 +77,128 @@ const staffedOf = e => (e.booths || []).reduce((n, b) => n + (b.shifts || []).re
 
 await new Promise(r => server.listen(0, '127.0.0.1', r)); base = 'http://127.0.0.1:' + server.address().port;
 try {
-  // ---- add: contacts go to event_contacts, not events
-  let r = await board(['add', '--name', 'Test Fair', '--start', '2026-03-06', '--end', '2026-03-07', '--json', 'phone=(928) 555-0100', 'contact=Jane Doe', 'promoter=Fair Co']);
-  ok(r.code === 0, 'add exits 0: ' + r.stderr); const id = JSON.parse(r.stdout).id;
-  ok(leaked().length === 0, 'add: no contact field in events');
-  ok(T('event_contacts').get(id)?.phone === '(928) 555-0100', 'add: phone stored in event_contacts');
-  ok(T('events').get(id)?.promoter === 'Fair Co', 'add: promoter (public) stays in events');
+  await section('board.mjs: add, set, get, list, rollforward, delete', async () => {
+    // ---- add: contacts go to event_contacts, not events
+    r = await board(['add', '--name', 'Test Fair', '--start', '2026-03-06', '--end', '2026-03-07', '--json', 'phone=(928) 555-0100', 'contact=Jane Doe', 'promoter=Fair Co']);
+    ok(r.code === 0, 'add exits 0: ' + r.stderr); const id = JSON.parse(r.stdout).id;
+    ok(leaked().length === 0, 'add: no contact field in events');
+    ok(T('event_contacts').get(id)?.phone === '(928) 555-0100', 'add: phone stored in event_contacts');
+    ok(T('events').get(id)?.promoter === 'Fair Co', 'add: promoter (public) stays in events');
 
-  // ---- set: mixed patch is split
-  r = await board(['set', id, 'email=jane@example.com', 'cityState=Prescott, AZ']);
-  ok(r.code === 0, 'set exits 0: ' + r.stderr);
-  ok(leaked().length === 0, 'set: no contact field in events');
-  ok(T('event_contacts').get(id)?.email === 'jane@example.com' && T('event_contacts').get(id)?.phone === '(928) 555-0100', 'set: email merged, phone kept');
-  ok(T('events').get(id)?.cityState === 'Prescott, AZ', 'set: public field written');
-  r = await board(['set', '2026-nope', 'phone=(928) 555-0101']);
-  ok(r.code !== 0 && !T('event_contacts').has('2026-nope'), 'set: contact patch on a missing event is refused');
+    // ---- set: mixed patch is split
+    r = await board(['set', id, 'email=jane@example.com', 'cityState=Prescott, AZ']);
+    ok(r.code === 0, 'set exits 0: ' + r.stderr);
+    ok(leaked().length === 0, 'set: no contact field in events');
+    ok(T('event_contacts').get(id)?.email === 'jane@example.com' && T('event_contacts').get(id)?.phone === '(928) 555-0100', 'set: email merged, phone kept');
+    ok(T('events').get(id)?.cityState === 'Prescott, AZ', 'set: public field written');
+    r = await board(['set', '2026-nope', 'phone=(928) 555-0101']);
+    ok(r.code !== 0 && !T('event_contacts').has('2026-nope'), 'set: contact patch on a missing event is refused');
 
-  // ---- get / list --full merge contacts back for routines; brief list does not
-  r = await board(['get', id, '--json']); ok(JSON.parse(r.stdout).phone === '(928) 555-0100', 'get: contacts merged');
-  r = await board(['list', '--json', '--full']); ok(JSON.parse(r.stdout)[0].contact === 'Jane Doe', 'list --full: contacts merged');
-  r = await board(['list', '--json']); ok(!('phone' in JSON.parse(r.stdout)[0]), 'list (brief): no contacts');
+    // ---- get / list --full merge contacts back for routines; brief list does not
+    r = await board(['get', id, '--json']); ok(JSON.parse(r.stdout).phone === '(928) 555-0100', 'get: contacts merged');
+    r = await board(['list', '--json', '--full']); ok(JSON.parse(r.stdout)[0].contact === 'Jane Doe', 'list --full: contacts merged');
+    r = await board(['list', '--json']); ok(!('phone' in JSON.parse(r.stdout)[0]), 'list (brief): no contacts');
 
-  // ---- startDate recompute still works and clears datesEstimated
-  r = await board(['set', id, 'startDate=2026-03-13']); const ev = T('events').get(id);
-  ok(ev.weekend === '2026-03-13' && ev.endDate === '2026-03-14' && ev.datesEstimated === false, 'set startDate: weekend/end recomputed');
+    // ---- startDate recompute still works and clears datesEstimated
+    r = await board(['set', id, 'startDate=2026-03-13']); const ev = T('events').get(id);
+    ok(ev.weekend === '2026-03-13' && ev.endDate === '2026-03-14' && ev.datesEstimated === false, 'set startDate: weekend/end recomputed');
 
-  // ---- rollforward: contacts follow the show, held-back rules hold, idempotent
-  T('events').set('2026-skip', { year: 2026, name: 'Skip Show', startDate: '2026-04-03', booths: [], skipNext: true });
-  T('events').set('2026-staffed', { year: 2026, name: 'Staffed Show', startDate: '2026-05-01', days: ['Friday'], booths: [{ label: '', days: ['Friday', 'Saturday SE'], shifts: [{ label: 'Shift 1', slots: [{ rep: 'Alan', ft: [] }, { rep: 'Matt A.', ft: [] }] }] }] });
-  r = await board(['rollforward', '2027']); ok(r.code === 0, 'rollforward exits 0: ' + r.stderr);
-  const rolled = '2027-' + id.replace(/^\d{4}-/, '');
-  ok(T('events').has(rolled) && T('events').get(rolled).status === 'Prospective' && T('events').get(rolled).datesEstimated === true, 'rollforward: event rolled as Prospective, dates estimated');
-  ok(T('event_contacts').get(rolled)?.phone === '(928) 555-0100', 'rollforward: contacts copied to the new id');
-  ok(leaked().length === 0, 'rollforward: no contact field in events');
-  ok(!T('events').has('2027-skip'), 'rollforward: skipNext held back');
-  ok(T('events').get('2027-staffed').booths[0].shifts[0].slots.every(s => s.rep === ''), 'rollforward: shifts cleared');
-  const n = T('events').size; await board(['rollforward', '2027']); ok(T('events').size === n, 'rollforward: idempotent');
+    // ---- rollforward: contacts follow the show, held-back rules hold, idempotent
+    T('events').set('2026-skip', { year: 2026, name: 'Skip Show', startDate: '2026-04-03', booths: [], skipNext: true });
+    T('events').set('2026-staffed', { year: 2026, name: 'Staffed Show', startDate: '2026-05-01', days: ['Friday'], booths: [{ label: '', days: ['Friday', 'Saturday SE'], shifts: [{ label: 'Shift 1', slots: [{ rep: 'Alan', ft: [] }, { rep: 'Matt A.', ft: [] }] }] }] });
+    r = await board(['rollforward', '2027']); ok(r.code === 0, 'rollforward exits 0: ' + r.stderr);
+    const rolled = '2027-' + id.replace(/^\d{4}-/, '');
+    ok(T('events').has(rolled) && T('events').get(rolled).status === 'Prospective' && T('events').get(rolled).datesEstimated === true, 'rollforward: event rolled as Prospective, dates estimated');
+    ok(T('event_contacts').get(rolled)?.phone === '(928) 555-0100', 'rollforward: contacts copied to the new id');
+    ok(leaked().length === 0, 'rollforward: no contact field in events');
+    ok(!T('events').has('2027-skip'), 'rollforward: skipNext held back');
+    ok(T('events').get('2027-staffed').booths[0].shifts[0].slots.every(s => s.rep === ''), 'rollforward: shifts cleared');
+    const n = T('events').size; await board(['rollforward', '2027']); ok(T('events').size === n, 'rollforward: idempotent');
 
-  // ---- staffed: SE days never count
-  T('events').set('2026-se-only', { year: 2026, name: 'SE Only', startDate: '2026-06-05', booths: [{ days: ['Friday SE'], shifts: [{ label: 'S', slots: [{ rep: 'Alan', ft: [] }] }] }] });
-  r = await board(['list', '--year', '2026', '--staffed', '--json']); const staffed = JSON.parse(r.stdout).map(e => e.id);
-  ok(staffed.includes('2026-staffed') && !staffed.includes('2026-se-only'), 'staffed: an SE-day-only name is not a shift');
-  ok(JSON.parse(r.stdout).find(e => e.id === '2026-staffed').filled === 1, 'staffed: the SE slot on a mixed booth is not counted');
+    // ---- staffed: SE days never count
+    T('events').set('2026-se-only', { year: 2026, name: 'SE Only', startDate: '2026-06-05', booths: [{ days: ['Friday SE'], shifts: [{ label: 'S', slots: [{ rep: 'Alan', ft: [] }] }] }] });
+    r = await board(['list', '--year', '2026', '--staffed', '--json']); const staffed = JSON.parse(r.stdout).map(e => e.id);
+    ok(staffed.includes('2026-staffed') && !staffed.includes('2026-se-only'), 'staffed: an SE-day-only name is not a shift');
+    ok(JSON.parse(r.stdout).find(e => e.id === '2026-staffed').filled === 1, 'staffed: the SE slot on a mixed booth is not counted');
 
-  // ---- delete removes the contact row too
-  await board(['delete', id]); ok(!T('events').has(id) && !T('event_contacts').has(id), 'delete: event and its contacts removed');
+    // ---- delete removes the contact row too
+    await board(['delete', id]); ok(!T('events').has(id) && !T('event_contacts').has(id), 'delete: event and its contacts removed');
+  });
 
-  // ---- tick
-  T('settings').set('division', { meetings: ['2027-01-15'] });
-  const due = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due.map(x => x.routine);
-  const dueFullEarly = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due;
-  ok((await due('2027-01-08')).join() === 'date-research', 'tick: the date research 7 days before a meeting');
-  ok((await due('2027-01-13')).join() === 'preflight', 'tick: the preflight 2 days before a meeting');
-  ok((await dueFullEarly('2027-01-08'))[0].auto === true && (await dueFullEarly('2027-01-13'))[0].auto === true, 'tick: both run themselves (auto)');
-  ok((await due('2027-01-16')).length === 0, 'tick: nothing the day after a meeting (the sweep waits a day for the picks to reach the board)');
-  const dueFull = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due;
-  let bs = (await dueFull('2027-01-17')).find(x => x.routine === 'booking-sweep');
-  ok(bs && bs.auto === true && bs.day === 2 && bs.followUp === false && bs.meeting === '2027-01-15', 'tick: the booking sweep is due two days after a meeting, and runs itself (auto)');
-  bs = (await dueFull('2027-01-23')).find(x => x.routine === 'booking-sweep');
-  ok(bs && bs.followUp === true && bs.day === 8, 'tick: the booking sweep follows up through day 8');
-  ok((await due('2027-01-24')).length === 0, 'tick: and not on day 9');
-  ok((await due('2027-01-06')).length === 0, 'tick: Wednesday is no longer "due" (the event check runs unattended at 08:00)');
-  ok((await due('2027-01-14')).length === 0, 'tick: nothing on an ordinary Thursday');
-  ok((await due('2027-01-17')).join() === 'booking-sweep,freshmen-roster', 'tick: freshmen roster two days after a January meeting (the sweep\'s first day too)');
-  T('settings').set('division', { meetings: ['2027-04-28'] });
-  ok((await due('2027-08-15')).join() === 'freshmen-roster', 'tick: freshmen roster on Aug 15 when no August meeting is on the calendar');
-  T('settings').set('division', { meetings: ['2027-08-03'] });
-  ok((await due('2027-08-15')).length === 0 && (await due('2027-08-05')).join() === 'booking-sweep,freshmen-roster', 'tick: with an August meeting, the reminder follows the meeting, not the fixed day');
-  ok((await due('2026-12-28')).join() === 'season-changeover', 'tick: season changeover reminder on Dec 28');
-  T('settings').set('division', { meetings: ['2027-01-15'] });
+  await section('board.mjs: tick and seed', async () => {
+    // ---- tick
+    T('settings').set('division', { meetings: ['2027-01-15'] });
+    const due = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due.map(x => x.routine);
+    const dueFullEarly = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due;
+    ok((await due('2027-01-08')).join() === 'date-research', 'tick: the date research 7 days before a meeting');
+    ok((await due('2027-01-13')).join() === 'preflight', 'tick: the preflight 2 days before a meeting');
+    ok((await dueFullEarly('2027-01-08'))[0].auto === true && (await dueFullEarly('2027-01-13'))[0].auto === true, 'tick: both run themselves (auto)');
+    ok((await due('2027-01-16')).length === 0, 'tick: nothing the day after a meeting (the sweep waits a day for the picks to reach the board)');
+    const dueFull = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due;
+    let bs = (await dueFull('2027-01-17')).find(x => x.routine === 'booking-sweep');
+    ok(bs && bs.auto === true && bs.day === 2 && bs.followUp === false && bs.meeting === '2027-01-15', 'tick: the booking sweep is due two days after a meeting, and runs itself (auto)');
+    bs = (await dueFull('2027-01-23')).find(x => x.routine === 'booking-sweep');
+    ok(bs && bs.followUp === true && bs.day === 8, 'tick: the booking sweep follows up through day 8');
+    ok((await due('2027-01-24')).length === 0, 'tick: and not on day 9');
+    ok((await due('2027-01-06')).length === 0, 'tick: Wednesday is no longer "due" (the event check runs unattended at 08:00)');
+    ok((await due('2027-01-14')).length === 0, 'tick: nothing on an ordinary Thursday');
+    ok((await due('2027-01-17')).join() === 'booking-sweep,freshmen-roster', 'tick: freshmen roster two days after a January meeting (the sweep\'s first day too)');
+    T('settings').set('division', { meetings: ['2027-04-28'] });
+    ok((await due('2027-08-15')).join() === 'freshmen-roster', 'tick: freshmen roster on Aug 15 when no August meeting is on the calendar');
+    T('settings').set('division', { meetings: ['2027-08-03'] });
+    ok((await due('2027-08-15')).length === 0 && (await due('2027-08-05')).join() === 'booking-sweep,freshmen-roster', 'tick: with an August meeting, the reminder follows the meeting, not the fixed day');
+    ok((await due('2026-12-28')).join() === 'season-changeover', 'tick: season changeover reminder on Dec 28');
+    T('settings').set('division', { meetings: ['2027-01-15'] });
 
-  // ---- seed: refuses a public seed that carries contacts; the real seed is clean
-  const real = JSON.parse(fs.readFileSync(path.join(REPO, 'seed/events.json'), 'utf8'));
-  ok(real.filter(e => PRIV.some(k => e[k] && String(e[k]).trim())).length === 0, 'seed/events.json carries no contact fields');
-  for (const t of Object.keys(db)) db[t].clear();
-  r = await board(['seed']); ok(r.code === 0 && T('events').size === real.length, 'seed: loads the public seed: ' + r.stderr.slice(-200));
-  ok(leaked().filter(d => PRIV.some(k => d[k])).length === 0, 'seed: no contact values in events');
-  if (fs.existsSync(path.join(REPO, 'seed/private/event_contacts.json'))) ok(T('event_contacts').size > 0, 'seed: private contacts loaded when the file exists');
+    // ---- seed: refuses a public seed that carries contacts; the real seed is clean
+    const real = JSON.parse(fs.readFileSync(path.join(REPO, 'seed/events.json'), 'utf8'));
+    ok(real.filter(e => PRIV.some(k => e[k] && String(e[k]).trim())).length === 0, 'seed/events.json carries no contact fields');
+    for (const t of Object.keys(db)) db[t].clear();
+    r = await board(['seed']); ok(r.code === 0 && T('events').size === real.length, 'seed: loads the public seed: ' + r.stderr.slice(-200));
+    ok(leaked().filter(d => PRIV.some(k => d[k])).length === 0, 'seed: no contact values in events');
+    if (fs.existsSync(path.join(REPO, 'seed/private/event_contacts.json'))) ok(T('event_contacts').size > 0, 'seed: private contacts loaded when the file exists');
 
-  // ---- seed never empties a field the database has filled. seed/settings.json ships
-  // meetings: [] because the dates live in seed/private/go-live.md and this repo is public;
-  // a plain upsert wiped them, and tick.py would then never report preflight due.
-  T('settings').set('division', { ...T('settings').get('division'), meetings: ['2027-01-15'], name: 'Hand-edited Division' });
-  r = await board(['seed', '--force']);
-  ok(r.code === 0, 'seed --force exits 0: ' + r.stderr.slice(-200));
-  ok(JSON.stringify(T('settings').get('division').meetings) === '["2027-01-15"]', 'seed: keeps meeting dates the seed file does not carry');
-  ok(T('settings').get('division').name === 'Rising Sun Division', 'seed: a filled field in the seed still overwrites the database');
-  ok(/kept \d+ field/.test(r.stderr), 'seed: says out loud which fields it kept');
-  ok((await due('2027-01-08')).join() === 'date-research', 'seed: tick still reports the date research due afterwards');
+    // ---- seed never empties a field the database has filled. seed/settings.json ships
+    // meetings: [] because the dates live in seed/private/go-live.md and this repo is public;
+    // a plain upsert wiped them, and tick.py would then never report preflight due.
+    T('settings').set('division', { ...T('settings').get('division'), meetings: ['2027-01-15'], name: 'Hand-edited Division' });
+    r = await board(['seed', '--force']);
+    ok(r.code === 0, 'seed --force exits 0: ' + r.stderr.slice(-200));
+    ok(JSON.stringify(T('settings').get('division').meetings) === '["2027-01-15"]', 'seed: keeps meeting dates the seed file does not carry');
+    ok(T('settings').get('division').name === 'Rising Sun Division', 'seed: a filled field in the seed still overwrites the database');
+    ok(/kept \d+ field/.test(r.stderr), 'seed: says out loud which fields it kept');
+    ok((await due('2027-01-08')).join() === 'date-research', 'seed: tick still reports the date research due afterwards');
+  });
 
-  // ---- deploy/tick.py --dry: decides and prints, never sends. HOME is the temp dir, so it reads a fake board.env.
-  // The launcher runs from a staged copy: tick.py takes its root from where it sits, so the stage has its own
-  // PAUSED, logs/ and .git, and the real repo's kill switch or a dirty tree cannot reach these tests.
-  fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
-  fs.writeFileSync(path.join(home, '.rsd', 'board.env'), `BOARD_SUPABASE_URL=${base}\nBOARD_SERVICE_KEY=test\nBOARD_ALAN_IMESSAGE=+15555550100\n`);
-  T('settings').set('division', { meetings: ['2027-01-15'] });
-  const stage = path.join(home, 'stage'), tickLog = path.join(stage, 'logs', 'tick.log');
-  for (const f of ['deploy/tick.py', 'scripts/board.mjs', '.gitignore']) { fs.mkdirSync(path.dirname(path.join(stage, f)), { recursive: true }); fs.copyFileSync(path.join(REPO, f), path.join(stage, f)); }
-  const run = (bin, args) => new Promise(r => execFile(bin, args, { env: { PATH: process.env.PATH, HOME: home } }, (err, stdout, stderr) => r({ code: err ? err.code : 0, stdout, stderr })));
-  const tickpy = (...a) => run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', ...a]);
-  r = await tickpy('--date', '2026-12-28');
-  ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /WOULD iMESSAGE ALAN/.test(r.stdout) && /say "set up the Jan-May changeover for the board"/.test(r.stdout), 'tick.py --dry: a due routine produces one Slack + one iMessage notice: ' + r.stderr);
-  r = await tickpy('--date', '2027-01-08');
-  ok(r.code === 0 && /due, runs itself: date-research/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: the date research runs itself, no notice: ' + r.stdout);
-  r = await tickpy('--date', '2027-01-14');
-  ok(r.code === 0 && /nothing due/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: nothing due means no notices');
-  r = await tickpy('--date', '2027-01-20');
-  ok(r.code === 0 && /due, runs itself: booking-sweep/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: a routine that runs itself (the booking sweep) is logged, never a "go run it" notice: ' + r.stdout);
-  r = await tickpy('--date', '2027-01-17');
-  ok(r.code === 0 && /WOULD iMESSAGE ALAN/.test(r.stdout) && /training sign-in sheet/.test(r.stdout) && !/booking sweep/.test(r.stdout.split('WOULD iMESSAGE ALAN')[1] || ''), 'tick.py --dry: on the sweep\'s first day the notice is only the freshmen sheet: ' + r.stdout);
+  await section('deploy/tick.py', async () => {
+    // ---- deploy/tick.py --dry: decides and prints, never sends. HOME is the temp dir, so it reads a fake board.env.
+    // The launcher runs from a staged copy: tick.py takes its root from where it sits, so the stage has its own
+    // PAUSED, logs/ and .git, and the real repo's kill switch or a dirty tree cannot reach these tests.
+    fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.rsd', 'board.env'), `BOARD_SUPABASE_URL=${base}\nBOARD_SERVICE_KEY=test\nBOARD_ALAN_IMESSAGE=+15555550100\n`);
+    T('settings').set('division', { meetings: ['2027-01-15'] });
+    for (const f of ['deploy/tick.py', 'scripts/board.mjs', '.gitignore']) { fs.mkdirSync(path.dirname(path.join(stage, f)), { recursive: true }); fs.copyFileSync(path.join(REPO, f), path.join(stage, f)); }
+    const tickpy = (...a) => run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', ...a]);
+    r = await tickpy('--date', '2026-12-28');
+    ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /WOULD iMESSAGE ALAN/.test(r.stdout) && /say "set up the Jan-May changeover for the board"/.test(r.stdout), 'tick.py --dry: a due routine produces one Slack + one iMessage notice: ' + r.stderr);
+    r = await tickpy('--date', '2027-01-08');
+    ok(r.code === 0 && /due, runs itself: date-research/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: the date research runs itself, no notice: ' + r.stdout);
+    r = await tickpy('--date', '2027-01-14');
+    ok(r.code === 0 && /nothing due/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: nothing due means no notices');
+    r = await tickpy('--date', '2027-01-20');
+    ok(r.code === 0 && /due, runs itself: booking-sweep/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: a routine that runs itself (the booking sweep) is logged, never a "go run it" notice: ' + r.stdout);
+    r = await tickpy('--date', '2027-01-17');
+    ok(r.code === 0 && /WOULD iMESSAGE ALAN/.test(r.stdout) && /training sign-in sheet/.test(r.stdout) && !/booking sweep/.test(r.stdout.split('WOULD iMESSAGE ALAN')[1] || ''), 'tick.py --dry: on the sweep\'s first day the notice is only the freshmen sheet: ' + r.stdout);
 
-  // ---- a real (not --dry) run, with slack() and imessage_alan() swapped for printers before main() starts, so the
-  // pull and the log are exercised and nothing is sent. The guard on subprocess.run is the backstop: whatever tick.py
-  // grows into, a process rooted in node never reaches Messages.app or the Keychain (messages-tcc.md).
-  const REAL = `import subprocess, sys
+    // ---- a real (not --dry) run, with slack() and imessage_alan() swapped for printers before main() starts, so the
+    // pull and the log are exercised and nothing is sent. The guard on subprocess.run is the backstop: whatever tick.py
+    // grows into, a process rooted in node never reaches Messages.app or the Keychain (messages-tcc.md).
+    const REAL = `import subprocess, sys
 sys.path.insert(0, ${JSON.stringify(path.join(stage, 'deploy'))})
 real_run = subprocess.run
 def guarded(cmd, *a, **k):
-    assert cmd[0] not in ('/usr/bin/osascript', '/usr/bin/security'), 'a test reached for Messages or the Keychain'
-    return real_run(cmd, *a, **k)
+      assert cmd[0] not in ('/usr/bin/osascript', '/usr/bin/security'), 'a test reached for Messages or the Keychain'
+      return real_run(cmd, *a, **k)
 subprocess.run = guarded
 import tick
 assert callable(tick.slack) and callable(tick.imessage_alan)
@@ -188,67 +206,68 @@ tick.slack = lambda text: print('SLACK: ' + text) or True
 tick.imessage_alan = lambda text, env: print('IMESSAGE: ' + text) or (True, 'fake')
 sys.exit(tick.main())
 `;
-  const tickreal = async (...a) => { fs.rmSync(tickLog, { force: true }); const o = await run('/usr/bin/python3', ['-B', '-c', REAL, ...a]); return { ...o, log: fs.existsSync(tickLog) ? fs.readFileSync(tickLog, 'utf8') : '' }; };
-  const git = (...a) => run('/usr/bin/git', ['-C', stage, '-c', 'user.name=test', '-c', 'user.email=test@example.com', ...a]);
-  const count = (s, re) => (s.match(re) || []).length;
+    const tickreal = async (...a) => { fs.rmSync(tickLog, { force: true }); const o = await run('/usr/bin/python3', ['-B', '-c', REAL, ...a]); return { ...o, log: fs.existsSync(tickLog) ? fs.readFileSync(tickLog, 'utf8') : '' }; };
+    const git = (...a) => run('/usr/bin/git', ['-C', stage, '-c', 'user.name=test', '-c', 'user.email=test@example.com', ...a]);
+    const count = (s, re) => (s.match(re) || []).length;
 
-  // the kill switch, on a day a routine IS due: one log line, exit 0, nothing decided, nothing sent
-  fs.writeFileSync(path.join(stage, 'PAUSED'), '');
-  r = await tickreal('--date', '2027-01-08');
-  ok(r.code === 0 && /PAUSED file present: doing nothing/.test(r.log) && count(r.log, /\n/g) === 1 && r.stdout === '', 'tick.py: PAUSED present logs one line, exits 0, sends no notices: ' + r.stderr + r.stdout);
-  r = await tickpy('--date', '2027-01-08');
-  ok(r.code === 0 && /PAUSED file present: doing nothing/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: PAUSED present means no notices either');
-  fs.rmSync(path.join(stage, 'PAUSED'));
+    // the kill switch, on a day a routine IS due: one log line, exit 0, nothing decided, nothing sent
+    fs.writeFileSync(path.join(stage, 'PAUSED'), '');
+    r = await tickreal('--date', '2027-01-08');
+    ok(r.code === 0 && /PAUSED file present: doing nothing/.test(r.log) && count(r.log, /\n/g) === 1 && r.stdout === '', 'tick.py: PAUSED present logs one line, exits 0, sends no notices: ' + r.stderr + r.stdout);
+    r = await tickpy('--date', '2027-01-08');
+    ok(r.code === 0 && /PAUSED file present: doing nothing/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: PAUSED present means no notices either');
+    fs.rmSync(path.join(stage, 'PAUSED'));
 
-  // the pull: a skipped or failed one means stale code on the mini, so it alerts; the two harmless skips do not
-  r = await tickreal('--date', '2027-01-14');
-  ok(r.code === 0 && /not a git checkout/.test(r.log) && /nothing due/.test(r.log) && r.stdout === '', 'tick.py: not a git checkout is no alert: ' + r.stderr + r.stdout);
-  await git('init', '-q');
-  r = await tickreal('--date', '2027-01-14');
-  ok(r.code === 0 && /no remote yet/.test(r.log) && r.stdout === '', 'tick.py: no remote yet is no alert: ' + r.stderr + r.stdout);
-  await git('init', '-q', '--bare', path.join(home, 'origin.git')); await git('remote', 'add', 'origin', path.join(home, 'origin.git'));
-  await git('add', '-A'); await git('commit', '-q', '-m', 'stage'); r = await git('push', '-q', '-u', 'origin', 'HEAD');
-  ok(r.code === 0, 'stage: a clean checkout with a remote to pull from: ' + r.stderr);
-  r = await tickreal('--date', '2027-01-14');
-  ok(r.code === 0 && /— pulled: /.test(r.log) && r.stdout === '', 'tick.py: a clean pull is no alert (and logs/ does not dirty the tree): ' + r.log + r.stdout);
+    // the pull: a skipped or failed one means stale code on the mini, so it alerts; the two harmless skips do not
+    r = await tickreal('--date', '2027-01-14');
+    ok(r.code === 0 && /not a git checkout/.test(r.log) && /nothing due/.test(r.log) && r.stdout === '', 'tick.py: not a git checkout is no alert: ' + r.stderr + r.stdout);
+    await git('init', '-q');
+    r = await tickreal('--date', '2027-01-14');
+    ok(r.code === 0 && /no remote yet/.test(r.log) && r.stdout === '', 'tick.py: no remote yet is no alert: ' + r.stderr + r.stdout);
+    await git('init', '-q', '--bare', path.join(home, 'origin.git')); await git('remote', 'add', 'origin', path.join(home, 'origin.git'));
+    await git('add', '-A'); await git('commit', '-q', '-m', 'stage'); r = await git('push', '-q', '-u', 'origin', 'HEAD');
+    ok(r.code === 0, 'stage: a clean checkout with a remote to pull from: ' + r.stderr);
+    r = await tickreal('--date', '2027-01-14');
+    ok(r.code === 0 && /— pulled: /.test(r.log) && r.stdout === '', 'tick.py: a clean pull is no alert (and logs/ does not dirty the tree): ' + r.log + r.stdout);
 
-  fs.writeFileSync(path.join(stage, 'stray.txt'), 'left behind by some other tool');
-  r = await tickreal('--date', '2027-01-14');
-  ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 1 && /AUTOMATION FAILURE/.test(r.stdout) && /tree is dirty, pull skipped: \?\? stray\.txt/.test(r.stdout) && r.stdout.includes(stage), 'tick.py: a dirty tree posts one Slack alert naming the repo and the path: ' + r.stdout + r.stderr);
-  ok(/tree is dirty/.test(r.log) && /nothing due/.test(r.log), 'tick.py: a dirty tree is not fatal, the tick still decides');
-  r = await tickreal('--date', '2026-12-28');
-  ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 2 && count(r.stdout, /^IMESSAGE: /gm) === 1 && /say "set up the Jan-May changeover for the board"/.test(r.stdout), 'tick.py: a dirty tree on a due day sends the alert and still the due notice: ' + r.stdout + r.stderr);
-  r = await tickpy('--date', '2027-01-14');
-  ok(r.code === 0 && /nothing due/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: a dirty tree sends nothing, --dry pulls nothing');
-  fs.rmSync(path.join(stage, 'stray.txt'));
+    fs.writeFileSync(path.join(stage, 'stray.txt'), 'left behind by some other tool');
+    r = await tickreal('--date', '2027-01-14');
+    ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 1 && /AUTOMATION FAILURE/.test(r.stdout) && /tree is dirty, pull skipped: \?\? stray\.txt/.test(r.stdout) && r.stdout.includes(stage), 'tick.py: a dirty tree posts one Slack alert naming the repo and the path: ' + r.stdout + r.stderr);
+    ok(/tree is dirty/.test(r.log) && /nothing due/.test(r.log), 'tick.py: a dirty tree is not fatal, the tick still decides');
+    r = await tickreal('--date', '2026-12-28');
+    ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 2 && count(r.stdout, /^IMESSAGE: /gm) === 1 && /say "set up the Jan-May changeover for the board"/.test(r.stdout), 'tick.py: a dirty tree on a due day sends the alert and still the due notice: ' + r.stdout + r.stderr);
+    r = await tickpy('--date', '2027-01-14');
+    ok(r.code === 0 && /nothing due/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: a dirty tree sends nothing, --dry pulls nothing');
+    fs.rmSync(path.join(stage, 'stray.txt'));
 
-  await git('remote', 'set-url', 'origin', path.join(home, 'gone.git'));
-  r = await tickreal('--date', '2027-01-14');
-  ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 1 && /could not update its code: PULL FAILED: .*gone\.git/.test(r.stdout) && r.stdout.includes(stage), 'tick.py: a failed pull posts one Slack alert with git\'s reason: ' + r.stdout + r.stderr);
-  ok(/PULL FAILED/.test(r.log) && /nothing due/.test(r.log), 'tick.py: a failed pull is not fatal, the tick still decides');
+    await git('remote', 'set-url', 'origin', path.join(home, 'gone.git'));
+    r = await tickreal('--date', '2027-01-14');
+    ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 1 && /could not update its code: PULL FAILED: .*gone\.git/.test(r.stdout) && r.stdout.includes(stage), 'tick.py: a failed pull posts one Slack alert with git\'s reason: ' + r.stdout + r.stderr);
+    ok(/PULL FAILED/.test(r.log) && /nothing due/.test(r.log), 'tick.py: a failed pull is not fatal, the tick still decides');
 
-  // the net under main(): an exception nobody planned for is a loud failure, not a traceback only launchd.log sees
-  await git('remote', 'set-url', 'origin', path.join(home, 'origin.git'));   // a clean pull again, so one failure is one alert
-  fs.chmodSync(path.join(home, '.rsd', 'board.env'), 0o000);
-  r = await tickreal('--date', '2027-01-14');
-  ok(r.code === 1 && count(r.stdout, /^SLACK: /gm) === 1 && /AUTOMATION FAILURE.*unexpected PermissionError in read_env\(\), tick\.py line \d+/.test(r.stdout) && /launchd\.log/.test(r.stdout), 'tick.py: an unexpected exception posts one Slack alert naming the function and line, exit 1: ' + r.stdout);
-  ok(/FAILED: unexpected PermissionError/.test(r.log) && /Traceback/.test(r.stderr), 'tick.py: an unexpected exception is logged, and the full trace goes to stderr');
-  r = await tickpy('--date', '2027-01-14');
-  ok(r.code === 1 && count(r.stdout, /WOULD POST TO SLACK/g) === 1 && /unexpected PermissionError/.test(r.stdout), 'tick.py --dry: an unexpected exception is reported, still nothing sent');
-  fs.chmodSync(path.join(home, '.rsd', 'board.env'), 0o600);
-  fs.rmSync(tickLog, { force: true }); fs.chmodSync(path.dirname(tickLog), 0o500);
-  r = await tickreal('--date', '2027-01-14');
-  ok(r.code === 1 && count(r.stdout, /^SLACK: /gm) === 1 && /unexpected PermissionError in log\(\)/.test(r.stdout) && r.log === '', 'tick.py: when the log is what broke, the Slack alert still goes out: ' + r.stdout);
-  fs.chmodSync(path.dirname(tickLog), 0o700);
+    // the net under main(): an exception nobody planned for is a loud failure, not a traceback only launchd.log sees
+    await git('remote', 'set-url', 'origin', path.join(home, 'origin.git'));   // a clean pull again, so one failure is one alert
+    fs.chmodSync(path.join(home, '.rsd', 'board.env'), 0o000);
+    r = await tickreal('--date', '2027-01-14');
+    ok(r.code === 1 && count(r.stdout, /^SLACK: /gm) === 1 && /AUTOMATION FAILURE.*unexpected PermissionError in read_env\(\), tick\.py line \d+/.test(r.stdout) && /launchd\.log/.test(r.stdout), 'tick.py: an unexpected exception posts one Slack alert naming the function and line, exit 1: ' + r.stdout);
+    ok(/FAILED: unexpected PermissionError/.test(r.log) && /Traceback/.test(r.stderr), 'tick.py: an unexpected exception is logged, and the full trace goes to stderr');
+    r = await tickpy('--date', '2027-01-14');
+    ok(r.code === 1 && count(r.stdout, /WOULD POST TO SLACK/g) === 1 && /unexpected PermissionError/.test(r.stdout), 'tick.py --dry: an unexpected exception is reported, still nothing sent');
+    fs.chmodSync(path.join(home, '.rsd', 'board.env'), 0o600);
+    fs.rmSync(tickLog, { force: true }); fs.chmodSync(path.dirname(tickLog), 0o500);
+    r = await tickreal('--date', '2027-01-14');
+    ok(r.code === 1 && count(r.stdout, /^SLACK: /gm) === 1 && /unexpected PermissionError in log\(\)/.test(r.stdout) && r.log === '', 'tick.py: when the log is what broke, the Slack alert still goes out: ' + r.stdout);
+    fs.chmodSync(path.dirname(tickLog), 0o700);
 
-  fs.writeFileSync(path.join(home, '.rsd', 'board.env'), 'BOARD_SUPABASE_URL=\n');
-  r = await tickpy(); ok(r.code === 1 && /AUTOMATION FAILURE/.test(r.stdout), 'tick.py --dry: missing env is a loud failure, exit 1');
-  fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });
+    fs.writeFileSync(path.join(home, '.rsd', 'board.env'), 'BOARD_SUPABASE_URL=\n');
+    r = await tickpy(); ok(r.code === 1 && /AUTOMATION FAILURE/.test(r.stdout), 'tick.py --dry: missing env is a loud failure, exit 1');
+    fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });
+  });
 
   // ---- parse-sheet: the Sheet's shape, read the way the 2026-09-13 migration read it.
   // A synthetic grid, because the real schedule is 800 rows of promoter contacts and cannot live
   // in a public repo. The real check is `parse-sheet.mjs <xlsx> --verify` against seed/events.json.
-  {
+  await section('parse-sheet', async () => {
     const G = [];
     const row = o => { const r = new Array(27).fill(null); for (const [i, v] of Object.entries(o)) r[+i] = v; G.push(r); };
     const SER = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000);
@@ -319,18 +338,20 @@ sys.exit(tick.main())
     fs.writeFileSync(seedAlias, JSON.stringify(asSeed(ev)));
     r = await ps('--verify', '--seed', seedAlias);
     ok(!/reps the roster cannot place/.test(r.stdout), 'parse-sheet --verify: Cam, JP and Matt A all resolve to the roster');
-  }
+  });
 
-  // ---- tick.py words the freshmen reminder as an ask, not an "open Claude on this repo" routine
-  fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
-  fs.writeFileSync(path.join(home, '.rsd', 'board.env'), `BOARD_SUPABASE_URL=${base}\nBOARD_SERVICE_KEY=test\nBOARD_ALAN_IMESSAGE=+15555550100\n`);
-  T('settings').set('division', { meetings: ['2027-01-15'] });
-  r = await run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', '--date', '2027-01-17']);
-  ok(r.code === 0 && /New freshmen: send Claude this season's training sign-in sheet/.test(r.stdout), 'tick.py --dry: the freshmen reminder reads as an ask: ' + r.stdout.slice(0, 300));
-  fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });
+  await section('tick.py: the freshmen reminder', async () => {
+    // ---- tick.py words the freshmen reminder as an ask, not an "open Claude on this repo" routine
+    fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.rsd', 'board.env'), `BOARD_SUPABASE_URL=${base}\nBOARD_SERVICE_KEY=test\nBOARD_ALAN_IMESSAGE=+15555550100\n`);
+    T('settings').set('division', { meetings: ['2027-01-15'] });
+    r = await run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', '--date', '2027-01-17']);
+    ok(r.code === 0 && /New freshmen: send Claude this season's training sign-in sheet/.test(r.stdout), 'tick.py --dry: the freshmen reminder reads as an ask: ' + r.stdout.slice(0, 300));
+    fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });
+  });
 
   // ---- lib/match.mjs: the event-check skill's rules, as code
-  {
+  await section('lib/match.mjs', async () => {
     const M = await import(path.join(REPO, 'scripts/lib/match.mjs'));
     ok(M.nameScore('Santa Cruz County Fair', 'Navajo County Fair') === 0, 'match: two county fairs share no distinctive word, so they score zero');
     ok(M.nameScore('Kierland Fine Art & Wine Festival', 'Waterfront Fine Art & Wine Festival') === 0, 'match: "<City> Fine Art & Wine" family scores zero across cities');
@@ -377,10 +398,10 @@ sys.exit(tick.main())
     const dup = M.duplicateClaims(claims, new Map(boardEv.map(x => [x.id, x])));
     ok(dup.length === 1 && dup[0].legit, 'match: the week-split show is a legitimate duplicate claim');
     ok(!M.duplicateClaims(new Map([['1', ['a', 'b']]]), new Map(boardEv.map(x => [x.id, x])))[0].legit, 'match: two unrelated events claiming one number is flagged');
-  }
+  });
 
   // ---- sheet-sync: three-way, VC wins, board edits win, held changes stay pending
-  {
+  await section('sheet-sync: the three-way merge', async () => {
     const S = await import(path.join(REPO, 'scripts/sheet-sync.mjs'));
     const PS = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
     const resolve = PS.makeRepResolver(['Cameron', 'Eli', 'Kendall', 'Kendall H.', 'Sarah', 'Jerry']);
@@ -419,10 +440,10 @@ sys.exit(tick.main())
     ok(!p.patch.booths && p.keepBase.whole && p.conflicts.length === 1, 'sync: the same row removed on both, but different reps on what is left, is still held whole');
     p = S.planEvent({ base: two(['Cameron', '', 'Eli', 'Eli']), sheet: two(['Sarah', '', 'Eli', 'Eli']), board: ev(['Cameron', '']), resolve, vcRow: null, today: '2026-08-01' });
     ok(!p.patch.booths && p.keepBase.whole && p.conflicts.length === 1, 'sync: a Sheet re-staff on top of a row removed on the board is held whole');
-  }
+  });
 
   // ---- sheet-sync end to end: the fake database, a synthetic grid, a baseline file, --apply twice
-  {
+  await section('sheet-sync end to end', async () => {
     const PS = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
     const G = [], row = o => { const r = new Array(27).fill(null); for (const [i, v] of Object.entries(o)) r[+i] = v; G.push(r); };
     const SER = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000);
@@ -469,10 +490,10 @@ sys.exit(tick.main())
     ok(runs.length === 2 && runs.every(x => x.status === 'done' && x.requested_by === 'service:sheet-sync' && x.finished_at) && runs[0].result.eventsTouched === 2 && runs[0].result.counts.held === 1,
       'sheet-sync --apply: each run is on the record for the page (the dry run is not): ' + JSON.stringify(runs.map(x => [x.status, x.requested_by, x.result && x.result.eventsTouched])));
     ok(!fs.existsSync(path.join(state, 'sheet-sync.lock')), 'sheet-sync --apply: the lock is released when the run ends');
-  }
+  });
 
   // ---- tier rules (Alan, 2026-09-24: Maricopa is Elite, always, except the Maricopa County Fair)
-  {
+  await section('tier rules', async () => {
     const { ruleTier, tierOf } = await import(path.join(REPO, 'scripts/lib/match.mjs'));
     const R = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8')).tierRules;
     ok(ruleTier('Maricopa County Home & Garden Show', R) === 'Elite' && ruleTier('Maricopa County Fair', R) === null && ruleTier('Maricopa County Fair & Rodeo', R) === null
@@ -499,10 +520,32 @@ sys.exit(tick.main())
     const made = [...T('events').values()];
     const mc = made.find(e => e.name === 'Maricopa County Home & Garden Show'), fair = made.find(e => e.name === 'Maricopa County Fair');
     ok(r.code === 0 && mc && mc.tier === 'Elite' && fair && fair.tier === 'Traditional', 'sheet-sync: a new Maricopa show is created Elite; the Maricopa County Fair is not: ' + JSON.stringify({ code: r.code, tiers: made.map(e => [e.name, e.tier]), err: r.stderr.slice(0, 200) }));
-  }
+  });
+
+  // ---- lib/is-main.mjs: "am I the script that was started?" must not depend on how the path was spelled. A Mac's
+  // temp folder is reached through a link (/var -> /private/var) and node gives a module its real path, so comparing
+  // the two as text made a script started from a staged copy exit 0 having done nothing: the listener's tests failed
+  // on the mini from 2026-09-28 to 2026-10-06 and passed on Linux. The link here is made on purpose, so this is
+  // checked on any machine.
+  await section('lib/is-main.mjs', async () => {
+    const { isMain } = await import(path.join(REPO, 'scripts/lib/is-main.mjs'));
+    const dir = path.join(home, 'is main'), linked = path.join(home, 'is-main-link');          // a space in the name, and a link to it
+    fs.mkdirSync(path.join(dir, 'lib'), { recursive: true }); fs.symlinkSync(dir, linked);
+    fs.copyFileSync(path.join(REPO, 'scripts/lib/is-main.mjs'), path.join(dir, 'lib', 'is-main.mjs'));
+    fs.writeFileSync(path.join(dir, 'probe.mjs'), "import { isMain } from './lib/is-main.mjs';\nif (isMain(import.meta.url)) console.log('ran');\nexport const loaded = true;\n");
+    fs.writeFileSync(path.join(dir, 'importer.mjs'), "import { loaded } from './probe.mjs';\nconsole.log('imported ' + loaded);\n");
+    const node = (file, cwd) => new Promise(res => execFile(process.execPath, [file], { cwd }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    r = await node(path.join(dir, 'probe.mjs')); ok(r.stdout === 'ran\n', 'is-main: started by its full path, a space in a folder name, it runs: ' + r.stdout + r.stderr);
+    r = await node(path.join(linked, 'probe.mjs')); ok(r.stdout === 'ran\n', 'is-main: started through a link, it runs: ' + r.stdout + r.stderr);
+    r = await node('probe.mjs', linked); ok(r.stdout === 'ran\n', 'is-main: started by a relative path from a linked folder, it runs: ' + r.stdout + r.stderr);
+    r = await node(path.join(linked, 'importer.mjs')); ok(r.stdout === 'imported true\n', 'is-main: imported by another script, it does not run: ' + r.stdout + r.stderr);
+    ok(isMain(import.meta.url) === true && isMain(import.meta.url, '') === false && isMain(import.meta.url, path.join(REPO, 'scripts/board.mjs')) === false, 'is-main: true for the file node started, false for any other and when nothing was started from a file');
+    const byHand = fs.readdirSync(path.join(REPO, 'scripts')).filter(f => f.endsWith('.mjs') && /import\.meta\.url\s*===?/.test(fs.readFileSync(path.join(REPO, 'scripts', f), 'utf8')));
+    ok(byHand.length === 0, 'is-main: no script compares import.meta.url to a path by hand: ' + byHand.join(', '));
+  });
 
   // ---- Sync from the Sheet (2026-09-28): the no-VC date hold, the lock, the record, the button's listener
-  {
+  await section('Sync from the Sheet: the lock, the record, the listener, the hourly sync', async () => {
     const S = await import(path.join(REPO, 'scripts/sheet-sync.mjs'));
     const PS = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
     const resolve = PS.makeRepResolver(['Cameron', 'Sarah']);
@@ -547,13 +590,16 @@ sys.exit(tick.main())
     const ring = (extra = {}) => { const id = ++flatId; T('sheet_syncs').set(id, { id, requested_at: new Date().toISOString(), requested_by: 'matt@example.com', status: 'pending', started_at: null, finished_at: null, result: null, ...extra }); return id; };
     const rowOf = id => T('sheet_syncs').get(id);
 
+    // "prints nothing, writes nothing" is also what a listener that never started looks like (2026-09-28 to 10-06,
+    // lib/is-main.mjs), so the one read is counted: silence only passes when it really asked the board.
+    let reads = flatReads;
     r = await listen();
-    ok(r.code === 0 && r.stdout === '' && r.stderr === '' && T('sheet_syncs').size === 0, 'listener: nobody pressed Sync, so it reads once, prints nothing, writes nothing: ' + r.stdout + r.stderr);
+    ok(r.code === 0 && r.stdout === '' && r.stderr === '' && T('sheet_syncs').size === 0 && flatReads - reads === 1, `listener: nobody pressed Sync, so it reads once (${flatReads - reads}), prints nothing, writes nothing: ` + r.stdout + r.stderr);
 
     fs.writeFileSync(path.join(stage2, 'PAUSED'), '');
-    const a = ring();
+    const a = ring(); reads = flatReads;
     r = await listen();
-    ok(r.code === 0 && rowOf(a).status === 'pending' && T('events').get('2026-corn-fest-b1').booths[0].shifts[0].slots[1].rep === '', 'listener: PAUSED leaves the request waiting and the board alone');
+    ok(r.code === 0 && rowOf(a).status === 'pending' && T('events').get('2026-corn-fest-b1').booths[0].shifts[0].slots[1].rep === '' && flatReads === reads, 'listener: PAUSED leaves the request waiting and the board alone (not even a read)');
     fs.rmSync(path.join(stage2, 'PAUSED'));
 
     fs.writeFileSync(path.join(state, 'sheet-sync.lock'), JSON.stringify({ pid: process.pid, at: new Date().toISOString() }));
@@ -628,10 +674,10 @@ sys.exit(tick.main())
     ok(r.code === 0 && rowOf(p1).status === 'done' && T('sheet_syncs').size === 3, 'hourly sync: a press still goes through while it is paused, and that sync is the only run');
     r = await listen();
     ok(r.code === 0 && T('sheet_syncs').size === 3, 'hourly sync: the press counts as the latest sync, so the hour starts over');
-  }
+  });
 
   // ---- event-check end to end: write-back rules, Mesa, the past, the placeholder, the safety refusal
-  {
+  await section('event-check end to end', async () => {
     for (const t of Object.keys(db)) db[t].clear();
     const e = (id, name, weekend, reps, extra = {}) => T('events').set(id, { year: 2026, name, weekend, startDate: weekend, endDate: weekend, days: ['Friday'], dates: [weekend],
       booths: [{ label: '', days: ['Friday'], dates: [weekend], shifts: [{ label: 'Shift 1', slots: reps.map(r => ({ rep: r, ft: [] })) }] }], status: 'Booked', ...extra });
@@ -698,10 +744,10 @@ sys.exit(tick.main())
     fs.writeFileSync(vcFile, JSON.stringify({ rows: rows.slice(0, 3) }));
     r = await ec('--vc', vcFile, '--apply', '--date', '2026-10-01');
     ok(r.code === 4, 'event-check: a VC pull too small to judge against exits 4 and writes nothing');
-  }
+  });
 
   // ---- booking-sweep end to end: the buckets, the only write (whole-week date moves), and its refusals
-  {
+  await section('booking-sweep end to end', async () => {
     for (const t of Object.keys(db)) db[t].clear();
     const addD = (iso, n) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
     const ev = (id, name, weekend, reps, extra = {}) => { const days = ['Friday', 'Saturday', 'Sunday']; const dates = days.map((_, i) => addD(weekend, i));
@@ -789,10 +835,10 @@ sys.exit(tick.main())
     const { sellingRun } = await import(path.join(REPO, 'scripts/booking-sweep.mjs'));
     ok(sellingRun({ weekend: '2026-10-16', booths: [{ days: ['Thursday SE', 'Friday', 'Saturday'], dates: ['2026-10-15', '2026-10-16', '2026-10-17'] }] }).start === '2026-10-16', 'sellingRun: a set-up day is not a selling day');
     ok(sellingRun({ weekend: '2027-01-29', booths: [{ days: ['Friday'], dates: ['2024-01-26'] }] }) === null, 'sellingRun: stale day cells a year off are not trusted');
-  }
+  });
 
   // ---- lib/dates.mjs planMove: moving a show to its true dates, shifts and all
-  {
+  await section('lib/dates.mjs planMove', async () => {
     const { planMove, fridayKey, weekday } = await import(path.join(REPO, 'scripts/lib/dates.mjs'));
     const show = (days, dates, reps, extra = {}) => ({ weekend: fridayKey(dates.find(d => d) || '2026-10-09'), days, dates, booths: [{ label: '', days, dates, shifts: [{ label: 'Shift 1', slots: reps.map(r => ({ rep: r, ft: [] })) }] }], ...extra });
     let p = planMove(show(['Saturday', 'Sunday'], ['2026-10-10', '2026-10-11'], ['Eli', 'Sarah']), { start: '2026-10-09', end: '2026-10-10' });
@@ -806,10 +852,10 @@ sys.exit(tick.main())
     ok(p.patch.booths[0].days.join() === 'Friday,Saturday,Sunday' && p.patch.booths[0].shifts[0].slots.map(x => x.rep).join() === ',Eli,Sarah' && p.added.join() === '2027-03-05', 'planMove: to a longer run the next week, reps keep their weekday and the new day is empty');
     ok(planMove(show(['Saturday'], [null], ['Eli']), { start: '2026-10-10', end: '2026-10-10' }).error, 'planMove: a show with no usable days is not moved');
     ok(weekday('2026-10-09') === 'Friday' && fridayKey('2026-10-11') === '2026-10-09' && fridayKey('2026-10-12') === '2026-10-16', 'dates: weekday names and the board\'s Friday key');
-  }
+  });
 
   // ---- board-research end to end: targets, the date rule, the preflight's fields, the cap
-  {
+  await section('board-research end to end', async () => {
     for (const t of Object.keys(db)) db[t].clear();
     const addD = (iso, n) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
     const ev = (id, name, first, n, reps, extra = {}) => { const dates = Array.from({ length: n }, (_, i) => addD(first, i)); const W = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -919,9 +965,11 @@ sys.exit(tick.main())
     r = await node('scripts/board-research.mjs', 'targets', '--mode', 'dates', '--check', check, '--out', tfile, '--date', '2026-10-01');
     const dw = JSON.parse(fs.readFileSync(tfile, 'utf8'));
     ok(mw.count === 0 && dw.targets.filter(x => x.multiWeek).length === 2 && dw.targets.find(x => x.id === '2026-w1').mismatch, 'board-research targets: a multi-week show is researched by the date runs but left out of the sweep\'s mismatches: ' + JSON.stringify({ mm: mw.count, mw: dw.targets.map(x => [x.id, x.multiWeek, x.mismatch]) }));
-  }
+  });
 
-  // ---- missing env is a loud failure
-  r = await board(['tick'], { BOARD_SUPABASE_URL: '', BOARD_SERVICE_KEY: '' }); ok(r.code !== 0 && /board\.env/.test(r.stderr), 'no env: exits non-zero and says where to put it');
+  await section('no env', async () => {
+    // ---- missing env is a loud failure
+    r = await board(['tick'], { BOARD_SUPABASE_URL: '', BOARD_SERVICE_KEY: '' }); ok(r.code !== 0 && /board\.env/.test(r.stderr), 'no env: exits non-zero and says where to put it');
+  });
 } finally { server.close(); fs.rmSync(home, { recursive: true, force: true }); }
 console.log(`${pass} passed, ${failN} failed`); process.exit(failN ? 1 : 0);

@@ -101,7 +101,11 @@ routines in `.claude/skills/` keep it true.
   2026-09-22 reboot timed out the 2026-09-23 notice).
 - `install.sh` — preflight + both plists (the tick and the sync listener), disarmed by default; `--arm`, `--disarm`,
   `--check` act on both. The preflight also checks SheetJS and that `sheet_syncs` exists.
+- `scripts/lib/is-main.mjs` — `isMain(import.meta.url)`: "is this file the script node was started with?", by real path.
+  Every script that is both run and imported guards its `main()` with it (rule below).
 - `tests/run-all.mjs` — CLI, launcher, Sheet-parser, matcher, sync and event-check tests against an in-memory fake database. Run before every commit.
+  Each block is a `section()`: one that throws is a single named failure, the blocks after it still run, and the count
+  always prints. `./install.sh --arm` refuses while this fails.
 - `docs/ROADMAP.md` — the staged plan to replace the Sheet by Fall 2027. `docs/HANDOFF.md` — go-live steps.
 - `.claude/skills/` — the routines: `board-tick` (daily), `board-preflight` and `board-booking-sweep` (hand-run fallbacks),
   `board-event-check`, `board-rollforward`. They lean on the account skills
@@ -142,6 +146,12 @@ the service key moves them on.
 - Roll-forward holds back `skipNext`, `neverWork`, and Never-list series keys. Idempotent.
 - The routines never text the whole roster. Only staffed reps on events whose status changed.
 - Set `BOARD_ACTOR=service:<routine>` so the changelog says who did what.
+- **A script's "am I the one that was started?" check is `isMain(import.meta.url)`** (`scripts/lib/is-main.mjs`), never
+  `import.meta.url === \`file://${process.argv[1]}\``. Node gives a module its real path and argv the path as typed, so
+  through a link (a Mac's temp folder: `/var` is a link to `/private/var`) or a folder with a space the hand-made test is
+  false and the script exits 0 having done and said nothing. From 2026-09-28 to 2026-10-06 that made the listener's
+  tests fail on the mini (they passed on Linux, where the change was written), which is also why `install.sh --arm`
+  would have refused. The tests refuse a hand-made comparison in `scripts/`.
 - Never commit `~/.rsd/board.env` or a service key. The anon key in `config.js` is fine.
 - **Editors sign in with an emailed code** (8 digits, one hour), typed into the board on the device
   being signed in; that device then stays signed in until "sign out", which is this device only. The
@@ -191,8 +201,13 @@ the service key moves them on.
 ## Production
 
 Mac mini, `~/automations/rsd-show-shift-board`, registry entry `rsd-show-shift-board`. Two launchd jobs:
-`com.allinalan.rsd-board-tick` (07:00 daily) and `com.allinalan.rsd-board-sync` (every 30 s: the Sync button,
-and the hourly sync from 2026-10-15).
+`com.allinalan.rsd-board-tick` (07:00 daily, armed 2026-09-20) and `com.allinalan.rsd-board-sync` (every 30 s: the
+Sync button, and the hourly sync from 2026-10-15).
+**The sync listener is NOT armed (as of 2026-10-06).** It was built 2026-09-28 and `./install.sh --arm` was never
+run again on the mini (`docs/HANDOFF.md` section 10, steps 2-3), so a Sync press waits on the page and the hourly
+sync cannot start. Arming is Alan's call: the first thing an armed listener does is run every waiting press as a real
+Sheet -> board sync. When it is armed, change this paragraph, HANDOFF section 10 and the registry's
+`com.allinalan.rsd-board-sync` entry (PREPARED until then) in the same change.
 Kill switch for both: a `PAUSED` file in the repo root, or `./install.sh --disarm`. Tick failures post to the
 shared Slack alert webhook (Keychain `csp-slack-webhook`); the sync listener's go to its log and onto the
 request, which the page shows. After changing `deploy/tick.py` or a plist: run
