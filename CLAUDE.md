@@ -206,8 +206,9 @@ Sync button, and the hourly sync from 2026-10-15).
 **The sync listener is NOT armed (as of 2026-10-06).** It was built 2026-09-28 and `./install.sh --arm` was never
 run again on the mini (`docs/HANDOFF.md` section 10, steps 2-3), so a Sync press waits on the page and the hourly
 sync cannot start. Arming is Alan's call: the first thing an armed listener does is run every waiting press as a real
-Sheet -> board sync. When it is armed, change this paragraph, HANDOFF section 10 and the registry's
-`com.allinalan.rsd-board-sync` entry (PREPARED until then) in the same change.
+Sheet -> board sync. When it is armed, change this paragraph and HANDOFF section 10, and give
+`com.allinalan.rsd-board-sync` its entry in `~/ai-system/REGISTRY.yaml` (it has none as of 2026-10-06, so the mini's
+morning health check does not look for it), in the same change.
 Kill switch for both: a `PAUSED` file in the repo root, or `./install.sh --disarm`. Tick failures post to the
 shared Slack alert webhook (Keychain `csp-slack-webhook`); the sync listener's go to its log and onto the
 request, which the page shows. After changing `deploy/tick.py` or a plist: run

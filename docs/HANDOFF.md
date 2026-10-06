@@ -335,7 +335,8 @@ board still follows the Sheet on the runs that sync it anyway: Wednesday 08:00 a
 agent's refresh), and the booking sweep and research days.
 `./install.sh --arm` would also have refused: the listener's tests failed on any Mac from the day the hourly sync
 landed (0c1b455) because a script started from the tests' staged copy in the temp folder never ran its `main()`
-(`scripts/lib/is-main.mjs` says why). Fixed 2026-10-06; `./install.sh --check` is all OK again.
+(`scripts/lib/is-main.mjs` says why). Fixed 2026-10-06: that was the only FAIL line in `./install.sh --check`, and
+the suite passes on the mini with the fix (255 checks). Run `--check` again after pulling, before `--arm`.
 **Arming does three things**: reloads the tick (same plist, nothing changes), loads the listener, and within 30
 seconds the listener runs the waiting press as a real `sheet-sync.mjs --apply` (no VC pull: whatever the Sheet has
 changed since the last sync goes onto the board, dates on shows VC has a record for are held). From 2026-10-15 it
