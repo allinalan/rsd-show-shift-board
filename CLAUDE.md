@@ -203,12 +203,11 @@ the service key moves them on.
 Mac mini, `~/automations/rsd-show-shift-board`, registry entry `rsd-show-shift-board`. Two launchd jobs:
 `com.allinalan.rsd-board-tick` (07:00 daily, armed 2026-09-20) and `com.allinalan.rsd-board-sync` (every 30 s: the
 Sync button, and the hourly sync from 2026-10-15).
-**The sync listener is NOT armed (as of 2026-10-06).** It was built 2026-09-28 and `./install.sh --arm` was never
-run again on the mini (`docs/HANDOFF.md` section 10, steps 2-3), so a Sync press waits on the page and the hourly
-sync cannot start. Arming is Alan's call: the first thing an armed listener does is run every waiting press as a real
-Sheet -> board sync. Alan gave the go on 2026-10-06; it waits on this fix reaching the mini's checkout. When it is
-armed, change this paragraph, HANDOFF section 10 and the registry's `com.allinalan.rsd-board-sync` entry (PREPARED
-since 2026-10-06, so the mini's morning health check lists it as not armed) in the same change.
+The sync listener was armed 2026-10-06 11:34 (Alan's go the same morning) and proven through launchd a minute later:
+it ran the press that had waited since 2026-10-03 (`docs/HANDOFF.md` section 10). It was built 2026-09-28 and sat
+unarmed for eight days because `./install.sh --arm` was never run again on the mini and the registry had no entry
+for the label, so nothing looked for it. `./install.sh --arm` loads both jobs; an armed listener runs every waiting
+press at once, as a real Sheet -> board sync. `logs/sync-requests.log` is stamped in UTC (the tick's log is local).
 Kill switch for both: a `PAUSED` file in the repo root, or `./install.sh --disarm`. Tick failures post to the
 shared Slack alert webhook (Keychain `csp-slack-webhook`); the sync listener's go to its log and onto the
 request, which the page shows. After changing `deploy/tick.py` or a plist: run
