@@ -294,7 +294,7 @@ offline copy (`config.js` blank), the editing tools and the rep picker fit a 375
 code was requested: the first real code sign-in is Alan's, on his iPhone. JP and Matt were not told
 (Alan, 2026-09-23: no text or e-mail); they meet the code box the first time they sign in.
 
-## 10. Sync from the Sheet: a button on the board, and an hourly sync  (built 2026-09-28; three steps below turn it on)
+## 10. Sync from the Sheet: a button on the board, and an hourly sync  (built 2026-09-28; armed 2026-10-06 11:34)
 **Why.** The team re-staffs shows on the Sheet (stage 1: the Sheet is still the truth), and the board caught
 up only on Wednesdays. Alan asked for a refresh button, then for the board to keep itself current, so that Matt
 and JP find it matching the Sheet whenever they start looking (`docs/ROADMAP.md`, "Who switches, and when").
@@ -327,25 +327,33 @@ morning (the tick), so a changed date reaches it the next day.
 3. Add `com.allinalan.rsd-board-sync` (every 30 s, `scripts/sync-requests.mjs`, log `logs/sync-requests.log`,
    kill switch `PAUSED`) to `~/ai-system/REGISTRY.yaml` under `rsd-show-shift-board`.
 
-**Where this stands, 2026-10-06.** Step 1 is done: `sheet_syncs` exists and the button shows. Step 3's registry
-entry exists as PREPARED (2026-10-06), to be changed when the job is armed. Step 2 is
-not done: `./install.sh` has not been run on the mini since 2026-09-20 (the pre-commit hook it rewrites every time still
-carries that date, and the tick's plist in `~/Library/LaunchAgents` too), so the listener was never loaded, never
-disarmed, and has no log. One press is waiting on the page (request 1, Alan, Saturday 2026-10-03, 10:52am). The
-board still follows the Sheet on the runs that sync it anyway: Wednesday 08:00 and Tuesday 07:00 (the shift cost
-agent's refresh), and the booking sweep and research days.
-`./install.sh --arm` would also have refused: the listener's tests failed on any Mac from the day the hourly sync
-landed (0c1b455) because a script started from the tests' staged copy in the temp folder never ran its `main()`
-(`scripts/lib/is-main.mjs` says why). Fixed 2026-10-06: that was the only FAIL line in `./install.sh --check`, and
-the suite passes on the mini with the fix (255 checks). Run `--check` again after pulling, before `--arm`.
-**Arming does three things**: reloads the tick (same plist, nothing changes), loads the listener, and within 30
-seconds the listener runs the waiting press as a real `sheet-sync.mjs --apply` (no VC pull: whatever the Sheet has
-changed since the last sync goes onto the board, dates on shows VC has a record for are held). From 2026-10-15 it
-then syncs every hour, 7am-9pm. A dry run on 2026-10-06 (`node scripts/sheet-sync.mjs --tag preview`, which writes
-only its report) said the waiting press would carry one show and two shift changes, with one conflict held. To arm
-without running the old press, mark it failed first (the page then reads "Last sync failed ... Press Sync to try
-again" until the next sync), or `touch PAUSED` before arming and decide later (PAUSED holds the tick's 07:00 notice
-too while it is there).
+**Eight days unarmed, 2026-09-28 to 2026-10-06.** Step 1 was done (the button showed); steps 2 and 3 were not.
+`./install.sh` had not been run on the mini since 2026-09-20 (the pre-commit hook it rewrites every time still
+carried that date, and the tick's plist in `~/Library/LaunchAgents` too), so the listener was never loaded, never
+disarmed, and had no log; with no registry entry, the mini's morning health check did not look for it. A press
+(request 1, Alan, Saturday 2026-10-03, 10:52am) waited on the page. The board still followed the Sheet on the runs
+that sync it anyway (Wednesday 08:00, Tuesday 07:00 with the shift cost agent's refresh, the booking sweep and
+research days). `./install.sh --arm` would also have refused: the listener's tests failed on any Mac from the day
+the hourly sync landed (0c1b455) because a script started from the tests' staged copy in the temp folder never ran
+its `main()` (`scripts/lib/is-main.mjs` says why). That was the only FAIL line in `./install.sh --check`.
+
+**Run of 2026-10-06 (Alan's go).** The fix pulled (de33803); `./install.sh --check` all OK (255 checks);
+`./install.sh --arm` at 11:34 reloaded the tick with an identical plist and loaded the listener. At 11:35:18 its
+first pass claimed request 1 and ran the sync: `requests 1 (...): written, 0 event(s), 0 shift change(s), 0 held,
+0 conflict(s)`, the row went to done, the report is `out/reports/sheet-sync-2026-10-06-req1.json`. Nothing was
+left to change because the event check's stages had run at 11:27 for another job and already carried the one
+Sheet edit a dry run had found that morning (two shift changes on one show). So the button's whole path is proven
+under launchd; a press that actually changes the board is not yet (the Verify step below does that). Registry:
+`com.allinalan.rsd-board-sync`, armed. Next: the hourly sync starts itself on 2026-10-15 unless `sync.auto.from`
+is moved.
+
+**What arming does, for the next time.** It reloads the tick, loads the listener, and within 30 seconds the
+listener runs every waiting press as a real `sheet-sync.mjs --apply` (no VC pull: whatever the Sheet has changed
+since the last sync goes onto the board, dates on shows VC has a record for are held). To see first what that
+would carry, `node scripts/sheet-sync.mjs --tag preview` writes only its report. To arm without running an old
+press, mark it failed first (the page then reads "Last sync failed ... Press Sync to try again" until the next
+sync), or `touch PAUSED` before arming and decide later (PAUSED holds the tick's 07:00 notice too while it is
+there).
 
 **Verify.** Change one rep on the Sheet, press Sync on the board, and watch the line go "Asked the Mac mini…",
 then "Syncing…", then "Synced … 1 show updated, 1 shift change". The shift changes on the board without a
