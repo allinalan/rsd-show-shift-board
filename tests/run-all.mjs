@@ -786,6 +786,10 @@ sys.exit(tick.main())
     r = await fd('--apply', '--research', resFile);
     ok(D('2026-web').startDate === '' && /not this row's weekend/.test(JSON.parse(fs.readFileSync(path.join(outd, 'fill-dates', 'latest.json'), 'utf8')).unfound[0].why), 'fill-dates: a page that dates ANOTHER edition of the show (months from the row\'s weekend) is never written');
     const FDm = await import(path.join(REPO, 'scripts/fill-dates.mjs'));
+    const rec = FDm.recentFills([{ id: 'a', name: 'New', weekend: '2026-10-09', startDate: '2026-10-09', endDate: '2026-10-10', startDateSource: 'sheet-days', startDateFilledAt: '2026-10-06' },
+      { id: 'b', name: 'Old', startDate: '2026-09-01', endDate: '2026-09-02', startDateSource: 'vc', startDateFilledAt: '2026-09-20' }, { id: 'c', name: 'Typed by hand', startDate: '2026-10-12', endDate: '2026-10-12' }], '2026-10-07');
+    ok(rec.length === 1 && rec[0].id === 'a' && rec[0].source === 'sheet-days', 'fill-dates: the weekly list is the fills of the last 7 days, read from the board; a date typed in the Sheet is not a fill');
+    ok(Array.isArray(JSON.parse(fs.readFileSync(path.join(outd, 'fill-dates', 'latest.json'), 'utf8')).recent), 'fill-dates: every run records the recent fills');
     ok(FDm.webRun({ ok: true, result: { dates: { found: true, start: '2026-10-24', end: '2026-10-25', confidence: 'official', sourceUrl: '', evidence: 'x' } } }, '2026-10-23') === null, 'fill-dates: a found date without a source page is not used');
   }
 

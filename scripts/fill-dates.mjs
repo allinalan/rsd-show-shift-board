@@ -19,7 +19,8 @@
 
   Usage: fill-dates.mjs --vc <pull.json> [--research <results.json>] [--targets-out <file>] [--apply]
                         [--skip-names golf,builder] [--skip-tiers Elite] [--date YYYY-MM-DD]
-  Output: out/fill-dates/latest.json (and <date>.json), out/reports/fill-dates-<date>.md. --targets-out writes the
+  Output: out/fill-dates/latest.json (and <date>.json; `recent` = every fill of the last 7 days, read back from the
+  board, which the weekly note to Alan lists), out/reports/fill-dates-<date>.md. --targets-out writes the
           shows that still need a search, in board-research.mjs's targets shape (research-events.js reads it).
   Exit: 0 ok · 1 error · 5 too many fills at once (none written)
 */
@@ -87,6 +88,14 @@ const md = iso => `${MON[+iso.slice(5, 7) - 1]} ${+iso.slice(8, 10)}`;
 const fmt = (a, b) => (a === b ? md(a) : a.slice(0, 7) === b.slice(0, 7) ? `${md(a)}-${+b.slice(8, 10)}` : `${md(a)}-${md(b)}`);
 const FROM = { 'sheet-days': "the Sheet's own day columns", vc: 'VectorConnect', web: 'a page online' };
 
+/** The fills of the last `days` days, read back from the board itself (a run only knows its own): what the weekly note lists. */
+export function recentFills(events, today, days = 7) {
+  const from = addDays(today, -days);
+  return (events || []).filter(e => t(e.startDateFilledAt) >= from && t(e.startDateFilledAt) <= today && t(e.startDate) && t(e.startDateSource))
+    .map(e => ({ id: e.id, name: t(e.name), weekend: t(e.weekend), start: t(e.startDate), end: t(e.endDate) || t(e.startDate), source: t(e.startDateSource), filledAt: t(e.startDateFilledAt) }))
+    .sort((a, b) => a.start.localeCompare(b.start) || a.name.localeCompare(b.name));
+}
+
 export function summaryMd(r) {
   const L = [`# Blank Start Dates, ${r.date} (${r.mode}${r.written ? ', board updated' : ', board not written'})`, ''];
   if (r.stopped) L.push(`**STOPPED:** ${r.stopped}`, '');
@@ -142,6 +151,8 @@ async function main() {
     staffed: staffedOf(e), reps: [], vc: null, mismatch: false, multiWeek: false, lastYear: e.lastYear || null }));
   r.search = r.search.map(({ e, ...row }) => row);
   if (opt('--targets-out')) writeJson(opt('--targets-out'), { date: TODAY, mode: 'dates', count: targets.length, targets, skippedTiers: [] });
+  // dry: the board as it stands, so a preview never lists a fill it did not make
+  r.recent = recentFills(await api.events(), TODAY, (CFG.fillDates && CFG.fillDates.recentDays) ?? 7);
   writeJson(path.join(OUT_BASE, 'fill-dates', 'latest.json'), r);
   writeJson(path.join(OUT_BASE, 'fill-dates', `${TODAY}.json`), r);
   fs.mkdirSync(path.join(OUT_BASE, 'reports'), { recursive: true });
