@@ -36,6 +36,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
+import { isMain } from './lib/is-main.mjs';
 import { matchAll, duplicateClaims, statusCategory, CATEGORY_LABEL, effectiveDate, inRun, addDaysIso, dayDiff, normName } from './lib/match.mjs';
 import { boardStatus, isSEday, XLSX_PATHS } from './parse-sheet.mjs';
 
@@ -375,6 +376,6 @@ async function writeXlsx(r, out, defs) {
   fs.writeFileSync(path.join(OUT_EC, 'latest.json'), JSON.stringify(r, null, 1));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main().then(c => process.exit(c)).catch(e => { console.error('event-check: ' + (e.stack || e.message)); process.exit(1); });
 }

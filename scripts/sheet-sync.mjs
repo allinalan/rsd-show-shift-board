@@ -47,6 +47,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseAll, makeRepResolver, repKey, boardStatus, staffedCount, matchToSeed, STRUCTURAL, readGrid, normName } from './parse-sheet.mjs';
 import { boardApi } from './lib/board-api.mjs';
+import { isMain } from './lib/is-main.mjs';
 import { nameScore, statusCategory, effectiveDate, inRun, dayDiff, ruleTier } from './lib/match.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -476,6 +477,6 @@ async function run(api, startedAt) {
   return code;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main().then(c => process.exit(c)).catch(e => { console.error('sheet-sync: ' + (e.stack || e.message)); process.exit(1); });
 }

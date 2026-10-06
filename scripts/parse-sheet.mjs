@@ -27,6 +27,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './lib/is-main.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -586,4 +587,4 @@ async function main() {
   if (unresolved.size) process.exit(3);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main().catch(e => die(e.stack || e.message));
+if (isMain(import.meta.url)) main().catch(e => die(e.stack || e.message));

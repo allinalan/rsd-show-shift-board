@@ -31,6 +31,7 @@ import path from 'path';
 import { execFile } from 'child_process';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
+import { isMain } from './lib/is-main.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PASS = process.argv.includes('--') ? process.argv.slice(process.argv.indexOf('--') + 1) : [];
@@ -126,7 +127,7 @@ async function hourly(api) {
 
 // An outage would otherwise log the same line every 30 seconds: say it once, and say when it clears.
 const STATE = process.env.BOARD_STATE_DIR || path.join(REPO, 'state'), LAST_ERR = path.join(STATE, 'sync-requests.error');
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   main().then(c => {
     if (fs.existsSync(LAST_ERR)) { fs.rmSync(LAST_ERR, { force: true }); say('the board is reachable again'); }
     process.exit(c);
