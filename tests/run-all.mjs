@@ -259,6 +259,55 @@ sys.exit(tick.main())
     ok(r.code === 1 && count(r.stdout, /^SLACK: /gm) === 1 && /unexpected PermissionError in log\(\)/.test(r.stdout) && r.log === '', 'tick.py: when the log is what broke, the Slack alert still goes out: ' + r.stdout);
     fs.chmodSync(path.dirname(tickLog), 0o700);
 
+    // ---- channels, not texts to Alan (2026-10-07): with slackroom on the machine the due notice is one message in
+    // #rsd-board that names him, and no iMessage; alerts go to #rsd-alerts. A pretend slackroom in the temp HOME
+    // records what it was handed. Only imessage_alan() is swapped here: slack() itself is under test.
+    const roomDir = path.join(home, 'ai-system', 'lib', 'slackroom'), roomPosts = path.join(roomDir, 'posts.jsonl');
+    fs.mkdirSync(roomDir, { recursive: true });
+    fs.writeFileSync(path.join(roomDir, 'slackroom.py'), `import json, os
+HERE = os.path.dirname(os.path.abspath(__file__))
+def _cfg():
+    try:
+        return json.load(open(os.path.join(HERE, "box.json")))
+    except Exception:
+        return {}
+def live(route):
+    return route in _cfg().get("live", [])
+def resolve(route):
+    return {"live": live(route), "why": "not set up (test)"}
+def post(route, text, mention=None, fallback=True, **k):
+    ok = route not in _cfg().get("fail", [])
+    with open(os.path.join(HERE, "posts.jsonl"), "a") as f:
+        f.write(json.dumps({"route": route, "text": text, "mention": mention, "fallback": fallback}) + "\\n")
+    return {"ok": ok, "via": "route" if ok else None, "error": None if ok else "channel_not_found"}
+`);
+    const roomSays = cfg => { fs.writeFileSync(path.join(roomDir, 'box.json'), JSON.stringify(cfg)); fs.rmSync(roomPosts, { force: true }); };
+    const roomGot = () => (fs.existsSync(roomPosts) ? fs.readFileSync(roomPosts, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) : []);
+    const ROOMED = REAL.replace("tick.slack = lambda text: print('SLACK: ' + text) or True\n", '');
+    const tickroom = async (...a) => { fs.rmSync(tickLog, { force: true }); const o = await run('/usr/bin/python3', ['-B', '-c', ROOMED, ...a]); return { ...o, log: fs.existsSync(tickLog) ? fs.readFileSync(tickLog, 'utf8') : '' }; };
+    roomSays({ live: ['rsd.board'] });
+    r = await tickroom('--date', '2026-12-28');
+    let got = roomGot();
+    ok(r.code === 0 && got.length === 1 && got[0].route === 'rsd.board' && got[0].mention === true && got[0].fallback === false && /Due today, waiting on you/.test(got[0].text) && /say "set up the Jan-May changeover for the board"/.test(got[0].text),
+      'tick.py: #rsd-board live, a due routine is one message there, naming Alan, strict: ' + JSON.stringify(got) + r.stderr);
+    ok(!/IMESSAGE: /.test(r.stdout) && /due list posted in #rsd-board/.test(r.log), 'tick.py: #rsd-board live, no iMessage goes to Alan: ' + r.stdout);
+    r = await tickpy('--date', '2026-12-28');
+    ok(r.code === 0 && /WOULD POST IN #rsd-board/.test(r.stdout) && !/WOULD iMESSAGE ALAN/.test(r.stdout) && roomGot().length === 1, 'tick.py --dry: #rsd-board live, it says so and posts nothing');
+    roomSays({ live: [] });
+    r = await tickroom('--date', '2026-12-28');
+    got = roomGot();
+    ok(r.code === 0 && got.length === 1 && got[0].route === 'rsd.alerts' && got[0].fallback === true && /Due today/.test(got[0].text) && count(r.stdout, /^IMESSAGE: /gm) === 1,
+      'tick.py: #rsd-board not live, the notice goes the old way (the alert route and an iMessage): ' + JSON.stringify(got) + r.stdout);
+    roomSays({ live: ['rsd.board'], fail: ['rsd.board'] });
+    r = await tickroom('--date', '2026-12-28');
+    got = roomGot();
+    ok(r.code === 0 && got.map(g => g.route).join() === 'rsd.board,rsd.alerts' && count(r.stdout, /^IMESSAGE: /gm) === 1 && /SLACK FAILED \(#rsd-board: channel_not_found\); notifying the old way/.test(r.log),
+      'tick.py: #rsd-board live but Slack refuses it, the old notice goes instead, so a due routine is never left unseen: ' + JSON.stringify(got) + r.log);
+    roomSays({ live: ['rsd.board'] });
+    r = await tickroom('--date', '2027-01-14');
+    ok(r.code === 0 && roomGot().length === 0 && /nothing due/.test(r.log), 'tick.py: nothing due posts nothing in any channel');
+    fs.rmSync(path.join(home, 'ai-system'), { recursive: true, force: true });
+
     fs.writeFileSync(path.join(home, '.rsd', 'board.env'), 'BOARD_SUPABASE_URL=\n');
     r = await tickpy(); ok(r.code === 1 && /AUTOMATION FAILURE/.test(r.stdout), 'tick.py --dry: missing env is a loud failure, exit 1');
     fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });

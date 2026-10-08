@@ -37,6 +37,7 @@ case "$PROJECT" in "$HOME"/Documents/*|"$HOME"/Desktop/*|"$HOME"/Downloads/*) ba
 [ -x /usr/local/bin/node ] && ok "node $(/usr/local/bin/node -v) at /usr/local/bin/node" || bad "/usr/local/bin/node missing"
 [ -x /usr/bin/python3 ] && ok "/usr/bin/python3 present (the Messages identity)" || bad "/usr/bin/python3 missing"
 /usr/bin/security find-generic-password -s csp-slack-webhook -a csp-autopilot >/dev/null 2>&1 && ok "Keychain csp-slack-webhook / csp-autopilot" || bad "Keychain item csp-slack-webhook / csp-autopilot missing (failure alerts need it)"
+[ -f "$HOME/ai-system/lib/slackroom/slackroom.py" ] && ok "slackroom present (due notices in #rsd-board, alerts in #rsd-alerts, once those routes are live: python3 deploy/tick.py --status)" || warn "~/ai-system/lib/slackroom is missing (git -C ~/ai-system pull): alerts use the shared webhook, due notices the alert channel and an iMessage"
 if [ -f "$ENVF" ]; then
   [ "$(stat -f %Lp "$ENVF")" = "600" ] && ok "$ENVF is mode 600" || bad "$ENVF must be mode 600 (chmod 600 $ENVF)"
   for k in BOARD_SUPABASE_URL BOARD_SERVICE_KEY; do grep -q "^$k=." "$ENVF" && ok "$k is set" || bad "$k is missing from $ENVF"; done
