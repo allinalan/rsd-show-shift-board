@@ -14,8 +14,11 @@ WHAT IT DOES (stage 1: decide and notify, nothing else)
      failed pull -> Slack alert naming the repo and the reason, then carry on: stale, not fatal.
   3. node scripts/board.mjs tick --json   -> which routines are due today. Deterministic.
   4. Nothing due -> one log line, exit 0. No Claude, no messages.
-  5. Something due -> one Slack post and one iMessage to Alan naming the routine and the sentence
-     to say in the Claude desktop app. It does NOT run the routine: the routines lean on account
+  5. Something due -> one notice to Alan naming the routine and the sentence to say in the Claude
+     desktop app. Since 2026-10-07 (Alan: channels, not texts to him) that is one message in
+     #rsd-board that names him (slackroom route rsd.board). Until that route is live, and whenever
+     Slack cannot take it, it is what it always was: one post in the alert channel and one iMessage
+     to Alan, so a due routine is never left unseen. It does NOT run the routine: the routines lean on account
      skills (event-check, vectorconnect-booking-request, vectorconnect-event-export, humanizer)
      that a headless `claude -p` on this mini cannot see (verified 2026-09-19). Unattended runs
      are stage 2 in docs/ROADMAP.md, after those skills are vendored into this repo.
@@ -24,12 +27,14 @@ WHAT IT DOES (stage 1: decide and notify, nothing else)
      2026-09-23) texts Alan its own preview, so a second "go run it" notice would be wrong.
   6. Any failure -> Slack alert with the reason and the log path, exit 1. Never silent. That includes
      an exception nobody planned for: main() catches it, names the function and line, alerts the same.
+     Alerts go to #rsd-alerts through slackroom (route rsd.alerts), which itself falls back to the
+     mini's shared alert webhook; without slackroom, to that webhook directly, as before.
 
 WHY PYTHON
 ----------
 On this mini the only identity allowed to control Messages.app is /usr/bin/python3
-(~/ai-system/claude/shared/messages-tcc.md). This process sends the one iMessage itself, with
-the account resolved inline. It never texts a rep: the only recipient it knows is
+(~/ai-system/claude/shared/messages-tcc.md). This process sends the one iMessage itself (the
+fallback notice since 2026-10-07), with the account resolved inline. It never texts a rep: the only recipient it knows is
 BOARD_ALAN_IMESSAGE from ~/.rsd/board.env. No business logic lives here.
 
 Python 3.9 (Xcode Command Line Tools) is enough. No dependencies.
@@ -50,6 +55,7 @@ NODE = "/usr/local/bin/node"            # the node identity every launchd job on
 LABEL = "com.allinalan.rsd-board-tick"
 BOARD_URL = "https://allinalan.github.io/rsd-show-shift-board/"
 MINI = "Alans-Mac-mini"
+SLACKROOM = os.path.join(os.path.expanduser("~"), "ai-system", "lib", "slackroom")
 
 # what Alan says in the Claude desktop app (opened on this repo) to run each routine by hand
 SAY = {
@@ -90,11 +96,59 @@ def read_env():
     return env
 
 
+def room():
+    """slackroom, the mini's one way to post to Slack by route (~/ai-system/lib/slackroom), or None
+    when it is not there: then everything goes the way it went before 2026-10-07."""
+    try:
+        if not os.path.isfile(os.path.join(SLACKROOM, "slackroom.py")):
+            return None
+        if SLACKROOM not in sys.path:
+            sys.path.insert(0, SLACKROOM)
+        import slackroom
+        return slackroom
+    except Exception as e:  # noqa: BLE001  (a broken slackroom must never take the tick down)
+        log("slackroom could not be loaded (%s); using the shared webhook" % str(e)[:120])
+        return None
+
+
+def board_notice(text):
+    """The due list in #rsd-board, naming Alan so his phone buzzes (slackroom route rsd.board).
+    True only when it was posted THERE. False = the route is not live yet, slackroom is missing, or
+    Slack refused it: the caller then notifies the old way (the alert channel and an iMessage)."""
+    r = room()
+    try:
+        if not r or not r.live("rsd.board"):
+            return False
+        if DRY:
+            print("WOULD POST IN #rsd-board:\n  " + text.replace("\n", "\n  "))
+            return True
+        res = r.post("rsd.board", text, mention=True, fallback=False)
+        if res.get("ok"):
+            log("due list posted in #rsd-board")
+            return True
+        log("SLACK FAILED (#rsd-board: %s); notifying the old way" % str(res.get("error"))[:160])
+    except Exception as e:  # noqa: BLE001
+        log("SLACK FAILED (#rsd-board: %s); notifying the old way" % str(e)[:160])
+    return False
+
+
 def slack(text):
-    """One post to the mini's shared alert channel. Returns True only on HTTP 200."""
+    """One alert: #rsd-alerts through slackroom (route rsd.alerts), which itself falls back to the
+    mini's shared alert webhook while that route is not live or Slack refuses it. Without slackroom,
+    that webhook directly, as before 2026-10-07. Returns True only when Slack took it."""
     if DRY:
         print("WOULD POST TO SLACK:\n  " + text.replace("\n", "\n  "))
         return True
+    r = room()
+    if r:
+        try:
+            res = r.post("rsd.alerts", text)
+            if res.get("ok"):
+                log("slack sent%s: %s" % (" (shared webhook)" if res.get("via") == "fallback" else "", text[:160].replace("\n", " | ")))
+                return True
+            log("SLACK: slackroom could not deliver (%s); trying the webhook directly" % str(res.get("error"))[:160])
+        except Exception as e:  # noqa: BLE001
+            log("SLACK: slackroom failed (%s); trying the webhook directly" % str(e)[:160])
     try:
         hook = subprocess.run(["/usr/bin/security", "find-generic-password", "-s", "csp-slack-webhook",
                                "-a", "csp-autopilot", "-w"], capture_output=True, text=True, timeout=15).stdout.strip()
@@ -204,6 +258,14 @@ def status():
         print("env file mode: %s%s" % (mode, "" if mode == "0o600" else "   (must be 0o600: chmod 600 ~/.rsd/board.env)"))
     except FileNotFoundError:
         print("env file:    ~/.rsd/board.env does not exist yet")
+    r = room()
+    try:
+        w = r.resolve("rsd.board") if r else None
+        print("due notices: " + ("#rsd-board, naming Alan (no iMessage)" if w and w.get("live")
+                                 else "the alert channel and an iMessage to Alan (#rsd-board is not live: %s)"
+                                 % (w.get("why") if w else "slackroom is not installed")))
+    except Exception as e:  # noqa: BLE001
+        print("due notices: the alert channel and an iMessage to Alan (slackroom could not say: %s)" % str(e)[:100])
     try:
         with open(LOG) as f:
             print("last log:    " + (f.read().strip().splitlines() or ["(empty)"])[-1])
@@ -279,6 +341,8 @@ def run():
     text = "Show Shift Board, %s. Due today, waiting on you:\n%s\n%s" % (tick.get("date"), "\n".join(lines), BOARD_URL)
     log("due: " + ", ".join(d.get("routine", "?") for d in due))
 
+    if board_notice(text):
+        return 0
     posted = slack(text)
     sent, why = imessage_alan(text, env)
     if not sent:

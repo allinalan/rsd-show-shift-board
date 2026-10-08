@@ -218,9 +218,13 @@ it ran the press that had waited since 2026-10-03 (`docs/HANDOFF.md` section 10)
 unarmed for eight days because `./install.sh --arm` was never run again on the mini and the registry had no entry
 for the label, so nothing looked for it. `./install.sh --arm` loads both jobs; an armed listener runs every waiting
 press at once, as a real Sheet -> board sync. `logs/sync-requests.log` is stamped in UTC (the tick's log is local).
-Kill switch for both: a `PAUSED` file in the repo root, or `./install.sh --disarm`. Tick failures post to the
+Kill switch for both: a `PAUSED` file in the repo root, or `./install.sh --disarm`. Tick failures post to
+`#rsd-alerts` through slackroom (`~/ai-system/lib/slackroom`, route `rsd.alerts`), which itself falls back to the
 shared Slack alert webhook (Keychain `csp-slack-webhook`); the sync listener's go to its log and onto the
-request, which the page shows. After changing `deploy/tick.py` or a plist: run
+request, which the page shows. **A due routine is one message in `#rsd-board` that names Alan** (route
+`rsd.board`; Alan, 2026-10-07: channels, not texts to him). Only while that route is not live, or when Slack
+refuses the post, it is the old pair: the alert channel and an iMessage to `BOARD_ALAN_IMESSAGE`, so a due routine
+is never left unseen. `python3 deploy/tick.py --status` says which it is right now. After changing `deploy/tick.py` or a plist: run
 `node tests/run-all.mjs`, `python3 deploy/tick.py --dry`, then `touch PAUSED; launchctl start
 com.allinalan.rsd-board-tick; tail logs/tick.log; rm PAUSED`. If how a job starts changes, update
 `install.sh`, this file and `~/ai-system/REGISTRY.yaml` in the same change.
