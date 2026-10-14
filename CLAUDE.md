@@ -22,7 +22,13 @@ routines in `.claude/skills/` keep it true.
   table (`.kgrid`), both rendered and one shown by CSS at 640px; in season the days already gone fold away so it opens on
   today; names under "Tap your name" are alphabetical; the header tags only what isn't Booked. UI pass the same day: phone
   targets 38-44px, a redraw keeps keyboard focus and half-typed card fields (`kFocusKey`), the season tabs scroll on a
-  small phone instead of pushing Never off screen, and the captain is the same picker on the card and header. Removing a
+  small phone instead of pushing Never off screen, and the captain is the same picker on the card and header. **Days in a
+  row** (Alan, 2026-10-14: fill a name in for several days without picking each one): the day picker's 1-7, or "Pick the
+  last day" and a tap on that mall's later day. What lands on the day tapped (a name, a split, Closed) lands on every open
+  day after it; a day someone has or a closed day is skipped and named in the toast, never overwritten (decided on a fresh
+  read). The run lights up before anything saves (the picker opens beside the column where there's room), saves as one
+  write, is read back, and Undo (12 s) restores only the days it changed that nobody has touched since. Taking someone
+  off is still one day. `setKioskRun` / `undoKioskRun` in index.html. Removing a
   mall is two taps, armed in the page (rule below). After the delete the page reads the row back, so "Removed" means removed. `board kiosks` lists them; `board kiosks seed` adds the
   seed's malls the board lacks and never touches one it has.
 - `seed/*.json` — the data as of the migration off the Google Sheet. Also what the page shows

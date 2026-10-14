@@ -430,6 +430,28 @@ table.wgrid .slotbox.filled{background:var(--surface);border-color:var(--steel)}
 #pickutil{flex:none;display:flex;flex-direction:column;gap:1px;border-top:1px solid var(--line);padding-top:5px}
 #pickutil:empty{display:none}
 .pickempty{font-size:.8rem;color:var(--ink-3);padding:10px}
+/* days in a row (kiosk): 1-7 or a last day picked on the board; the run lights up before anything is saved */
+#pickdays{flex:none;display:flex;flex-direction:column;gap:5px;padding:2px 2px 6px;border-bottom:1px solid var(--line)}
+#pickdays[hidden]{display:none}
+.pdh{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.74rem;color:var(--ink-3)}
+.pdcap{font-size:.74rem;color:var(--ink-2);line-height:1.35}
+.pdcap b{color:var(--ink);font-weight:600}
+.pdseg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.pdseg button{flex:1;min-width:0;font:inherit;font-size:.82rem;font-weight:600;color:var(--ink-2);background:var(--surface);
+  border:0;border-left:1px solid var(--line);padding:0;height:34px;cursor:pointer}
+.pdseg button:first-child{border-left:0}
+.pdseg button[aria-pressed="true"]{background:var(--navy);color:var(--on-accent)}
+.pdend{align-self:flex-start;font:inherit;font-size:.76rem;font-weight:600;color:var(--navy);background:none;border:0;
+  padding:4px 2px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+#pickpop.ending #pickq,#pickpop.ending #picklist,#pickpop.ending #pickutil{display:none}
+#pickpop.ending #pickdays{border-bottom:0;padding-bottom:0}
+#board .slotbox.krun{border-color:var(--navy);background:color-mix(in srgb,var(--navy) 12%,var(--surface))}   /* #board: beats the grid's open-slot "no box" */
+#board .slotbox.krunskip{border:1px dashed var(--warn)}
+@media (max-width:640px){ .pdseg button{height:40px} .pdend{padding:12px 2px} }
+.toast.undo{display:flex;align-items:center;gap:12px;border-radius:12px;width:max-content;max-width:calc(100vw - 32px);line-height:1.4;box-sizing:border-box}
+.toast.undo button{flex:none;font:inherit;font-weight:700;color:inherit;background:none;border:1px solid currentColor;border-radius:99px;
+  padding:0 14px;min-height:36px;cursor:pointer}
+@media (max-width:640px){ .toast.undo button{min-height:40px} }
 .inflbl{color:var(--warn);font-weight:700;margin-left:2px;cursor:help}
 .legend{margin:2px 0 0;font-size:.7rem;line-height:1.45;color:var(--ink-3);max-width:72ch}
 .ft{display:flex;flex-wrap:wrap;gap:3px;padding:0 7px 6px}
@@ -962,6 +984,7 @@ body.kioskv #syncLine,body.kioskv #syncPanel{display:none !important}   /* rende
  </div>
 </div>
 <div id="pickpop" role="dialog" aria-label="Assign this shift" hidden>
+ <div id="pickdays" hidden></div>
  <input id="pickq" type="text" placeholder="Type a name…" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Type to filter names">
  <div id="picklist" role="listbox"></div>
  <div id="pickutil" role="listbox" aria-label="Other choices"></div>
@@ -1566,6 +1589,11 @@ function renderKiosks(){
     <div class="kmalls"><h3 class="sec-l">The malls</h3>${list.map(k=>kCard(k,P)).join('')}</div>
   </section>`;
   kRestoreFocus(keepFocus);
+  if(pickCtx&&pickCtx.kind==='kiosk'&&!document.contains(pickCtx.btn)){
+    const nb=[...document.querySelectorAll(`.slotpick[data-kid="${pickCtx.id}"][data-kday="${pickCtx.date}"]`)].find(b=>b.offsetParent!==null);
+    if(nb){ pickCtx.btn=nb; nb.classList.add('picking'); placePop(); }
+  }
+  if(pickCtx&&pickCtx.kind==='kiosk') kRunMark();
 }
 async function patchKiosk(k,patch){
   if(!db){toast('Shared storage not available');return false;}
@@ -1574,17 +1602,69 @@ async function patchKiosk(k,patch){
 }
 /* one day of one mall. It re-reads the mall's row first and writes the whole day map back: another editor
    staffing a different day a moment ago is kept, not overwritten by this tab's older copy. */
+async function kFresh(k){
+  let base=k.shifts||{};
+  if(db.client){ const {data,error}=await db.client.from('kiosks').select('data').eq('id',k.id).maybeSingle(); if(!error&&data&&data.data) base=data.data.shifts||{}; }
+  return base;
+}
+const kSame=(a,b)=>((a&&a.rep)||'')===((b&&b.rep)||'')&&((a&&a.note)||'')===((b&&b.note)||'');
 async function setKioskDay(id,date,rep){
   const k=kiosks.find(x=>x.id===id); if(!k) return;
   if(!db){toast('Shared storage not available');return;}
   try{
-    let base=k.shifts||{};
-    if(db.client){ const {data,error}=await db.client.from('kiosks').select('data').eq('id',id).maybeSingle(); if(!error&&data&&data.data) base=data.data.shifts||{}; }
+    const base=await kFresh(k);
     const shifts=Object.assign({},base), prev=base[date]||{};
     if(!rep) delete shifts[date];
     else shifts[date]=Object.assign({rep},rep===prev.rep&&prev.note?{note:prev.note}:{});
     await db.doc('kiosks/'+id).update({shifts});
     k.shifts=shifts; build();
+  }catch(err){ toast(kErr(err)); }
+}
+/* days in a row (Alan, 2026-10-14: "quickly fill someone's name in if they are working multiple days in a row").
+   What lands on the day tapped lands on every open day after it; a day someone already has, or a closed day, is
+   skipped and named, never overwritten. Skips are decided on a fresh read, so a day another editor took a moment
+   ago is skipped too. One write for the run, read back before the toast says it worked; Undo puts back only the
+   days this run changed, and leaves any of them someone has changed since. */
+function kRunDates(c){
+  const k=kiosks.find(x=>x.id===c.id), out=[]; if(!k) return out;
+  for(let d=fromISO(c.date);d&&out.length<(c.n||1);d=addDays(d,1)){ const s=iso(d); if(!kIn(k,s)) break; out.push(s); }
+  return out;
+}
+const kSpan=ds=>ds.length?`${kDow(ds[0])} ${fdate(ds[0])}`+(ds.length>1?` – ${kDow(ds[ds.length-1])} ${fdate(ds[ds.length-1])}`:''):'';
+async function setKioskRun(id,dates,rep){
+  const k=kiosks.find(x=>x.id===id); if(!k) return;
+  if(!db){toast('Shared storage not available');return;}
+  try{
+    const base=await kFresh(k), shifts=Object.assign({},base), was={}, on=[], skip=[];
+    dates.forEach((d,i)=>{
+      const prev=base[d]||{}, v=prev.rep||'';
+      if(i>0&&v===rep){ on.push(d); return; }                       // already theirs: counted, nothing to write
+      if(i>0&&v){ skip.push(d); return; }                             // someone else's day, or closed
+      const next=Object.assign({rep},rep===v&&prev.note?{note:prev.note}:{});
+      if(!kSame(prev,next)){ was[d]=base[d]||null; shifts[d]=next; }
+      on.push(d);
+    });
+    if(Object.keys(was).length) await db.doc('kiosks/'+id).update({shifts});
+    const after=db.client?await kFresh(k):shifts, missed=Object.keys(was).filter(d=>!kSame(after[d],shifts[d]));
+    k.shifts=after; build();
+    if(missed.length){ toast(`${missed.length} of the days didn't save — check them on the board`); return; }
+    const who=rep==='__X__'?`${k.name} closed`:`${kReps(rep).join(' / ')} on`;
+    let m=`${who} ${on.length} day${on.length===1?'':'s'}${rep==='__X__'?'':' at '+k.name}, ${kSpan([dates[0],dates[dates.length-1]])}`;
+    if(skip.length) m+=`. Skipped ${skip.map(d=>{ const s=base[d]; return `${kDow(d)} ${fdate(d)} (${s.rep==='__X__'?(s.note||'closed'):kReps(s.rep).join(' / ')+' has it'})`; }).join(', ')}`;
+    if(Object.keys(was).length) toastUndo(m+'.',()=>undoKioskRun(id,was,shifts)); else toast(m+'.');
+  }catch(err){ toast(kErr(err)); }
+}
+async function undoKioskRun(id,was,wrote){
+  const k=kiosks.find(x=>x.id===id); if(!k||!db) return;
+  try{
+    const base=await kFresh(k), shifts=Object.assign({},base), back=[], kept=[];
+    Object.keys(was).forEach(d=>{ if(!kSame(base[d],wrote[d])){ kept.push(d); return; } if(was[d]) shifts[d]=was[d]; else delete shifts[d]; back.push(d); });
+    if(back.length) await db.doc('kiosks/'+id).update({shifts});
+    const after=db.client?await kFresh(k):shifts, missed=back.filter(d=>!kSame(after[d],was[d]));
+    k.shifts=after; build();
+    toast(missed.length?`${missed.length} day${missed.length===1?'':'s'} didn't go back — check them on the board`
+      :back.length?`Undone${kept.length?`, except ${kept.length} day${kept.length===1?'':'s'} someone changed since`:''}`
+      :'Nothing undone: someone changed those days since');
   }catch(err){ toast(kErr(err)); }
 }
 function kRollDoc(k,Y){
@@ -1907,6 +1987,14 @@ function bodyHtml(e){
 
 /* ---- db writes ---- */
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
+/* a toast you can take back: it stays 12 s, long enough to read what was skipped and change your mind */
+function toastUndo(m,undo){
+  document.querySelectorAll('.toast.undo').forEach(t=>t.remove());
+  const t=document.createElement('div'), s=document.createElement('span'), b=document.createElement('button');
+  t.className='toast undo'; t.setAttribute('role','status'); s.textContent=m; b.type='button'; b.textContent='Undo';
+  b.addEventListener('click',()=>{ t.remove(); undo(); });
+  t.append(s,b); document.body.appendChild(t); setTimeout(()=>t.remove(),12000);
+}
 async function patchEvent(id,patch){
   if(!db){toast('Shared storage not available');return false;}
   try{ await db.doc('events/'+id).update(patch); return true; }
@@ -1987,7 +2075,7 @@ board.addEventListener('click',async ev=>{
   const rc=ev.target.closest('.rchip[data-rep]');
   if(rc){ F.rep=(F.rep===rc.dataset.rep)?'':rc.dataset.rep; document.getElementById('rep').value=F.rep; build(); return; }
   const sp=ev.target.closest('.slotpick');
-  if(sp){ ev.preventDefault(); openPick(sp); return; }
+  if(sp){ ev.preventDefault(); if(!kRunEnd(sp)) openPick(sp); return; }
   const go=ev.target.closest('[data-gopen]');
   if(go){ const id=go.closest('[data-id]').dataset.id; open.has(id)?open.delete(id):open.add(id); build(); return; }
   const bh=ev.target.closest('.band.past .band-h');
@@ -2166,6 +2254,7 @@ function pickMatches(q){
   return pre.concat(sub);
 }
 function renderPickList(){
+  renderPickDays();
   const q=popQ.value, names=pickMatches(q), cv=pickCtx?pickCtx.v:'';
   const mark=n=>{ const i=n.toLowerCase().indexOf(q.trim().toLowerCase()); if(!q.trim()||i<0) return esc(n);
     return esc(n.slice(0,i))+'<b>'+esc(n.slice(i,i+q.trim().length))+'</b>'+esc(n.slice(i+q.trim().length)); };
@@ -2199,20 +2288,64 @@ function renderPickList(){
   if(first) first.classList.add('on');
   placePop();
 }
+/* days in a row: the kiosk picker's 1-7, or "Pick the last day" and a tap on that mall's later day.
+   Runs from the day tapped through the mall's own last day at most. */
+const pickDaysBox=document.getElementById('pickdays');
+function kRunLeft(c){ const k=kiosks.find(x=>x.id===c.id); return k&&k.endDate?Math.round((fromISO(k.endDate)-fromISO(c.date))/864e5)+1:1; }
+function renderPickDays(){
+  const c=pickCtx, k=c&&c.kind==='kiosk'?kiosks.find(x=>x.id===c.id):null, left=k?kRunLeft(c):0;
+  pickDaysBox.hidden=!(k&&left>1); pop.classList.toggle('ending',!!(k&&c.ending));
+  if(pickDaysBox.hidden){ pickDaysBox.innerHTML=''; kRunMark(); return; }
+  if(c.ending) pickDaysBox.innerHTML=`<div class="pdcap"><b>Now tap the last day at ${esc(k.name)}</b></div><button type="button" class="pdend" data-pd="back">Back to the names</button>`;
+  else {
+    const ds=kRunDates(c), taken=ds.filter((d,i)=>i>0&&((kDay(k,d)||{}).rep||'')).length;
+    const cap=ds.length<2?'just this day':kSpan(ds)+(taken?` · ${taken} taken, skipped`:'');
+    pickDaysBox.innerHTML=`<div class="pdh"><span>Days in a row</span><button type="button" class="pdend" data-pd="end">${c.n>7?'Change the last day':'Pick the last day…'}</button></div>`+
+      `<div class="pdseg" role="group" aria-label="Days in a row">${[1,2,3,4,5,6,7].filter(i=>i<=left).map(i=>`<button type="button" data-pd="${i}" aria-pressed="${c.n===i}">${i}</button>`).join('')}</div>`+
+      `<div class="pdcap">${esc(cap)}${c.n>7?` (${c.n} days)`:''}</div>`;
+  }
+  kRunMark();
+}
+function pickDays(v){
+  const c=pickCtx; if(!c) return;
+  if(v==='end'){ c.ending=true; renderPickDays(); placePop(); popQ.blur(); const b=pickDaysBox.querySelector('[data-pd="back"]'); if(b) b.focus({preventScroll:true}); return; }
+  if(v==='back'){ c.ending=false; renderPickDays(); placePop(); popQ.focus(); return; }
+  c.n=+v||1; c.ending=false; renderPickDays(); placePop(); popQ.focus();
+}
+/* while picking the last day: a tap on the same mall, that day or later, ends the run there (any other day opens as usual) */
+function kRunEnd(btn){
+  const c=pickCtx; if(!c||c.kind!=='kiosk'||!c.ending||btn.dataset.kid!==c.id||!btn.dataset.kday||btn.dataset.kday<c.date) return false;
+  c.n=Math.round((fromISO(btn.dataset.kday)-fromISO(c.date))/864e5)+1; c.ending=false;
+  renderPickDays(); placePop(); popQ.focus(); return true;
+}
+/* light up the run on the board, the grid and the phone's day list alike; a day that will be skipped gets a dashed edge */
+function kRunMark(){
+  document.querySelectorAll('.slotbox.krun,.slotbox.krunskip').forEach(b=>b.classList.remove('krun','krunskip'));
+  const c=pickCtx; if(!c||c.kind!=='kiosk'||c.ending||(c.n||1)<2) return;
+  const k=kiosks.find(x=>x.id===c.id); if(!k) return;
+  kRunDates(c).forEach((d,i)=>{ const taken=i>0&&((kDay(k,d)||{}).rep||'');
+    document.querySelectorAll(`.slotpick[data-kid="${c.id}"][data-kday="${d}"]`).forEach(b=>{ const box=b.closest('.slotbox'); if(box) box.classList.add(taken?'krunskip':'krun'); }); });
+}
 function placePop(){
   if(!pickCtx) return; const r=pickCtx.btn.getBoundingClientRect();
-  const w=Math.min(Math.max(r.width,214), innerWidth-16);
-  pop.style.width=w+'px'; pop.style.left=Math.min(Math.max(8,r.left), innerWidth-w-8)+'px';
-  pop.style.top='0px'; const h=pop.offsetHeight;
-  let top=r.bottom+4; if(top+h>innerHeight-8) top=Math.max(8, r.top-h-4);
+  const kiosk=pickCtx.kind==='kiosk', w=Math.min(Math.max(r.width,kiosk?264:214), innerWidth-16);
+  pop.style.width=w+'px'; pop.style.top='0px'; const h=pop.offsetHeight;
+  /* a kiosk day opens beside its column where there is room, so the days below it (the run) stay in sight */
+  const side=!kiosk?null:r.right+4+w<=innerWidth-8?r.right+4:r.left-4-w>=8?r.left-4-w:null;
+  if(side!=null){ pop.style.left=side+'px'; pop.style.top=Math.min(Math.max(8,r.top),Math.max(8,innerHeight-h-8))+'px'; return; }
+  pop.style.left=Math.min(Math.max(8,r.left), innerWidth-w-8)+'px';
+  let top=r.bottom+4;
+  if(pickCtx.ending&&r.top-h-4>=8) top=r.top-h-4;
+  else if(top+h>innerHeight-8) top=Math.max(8, r.top-h-4);
   pop.style.top=top+'px';
 }
 function openPick(btn){
+  if(pickCtx&&pickCtx.btn!==btn){ pickCtx.btn.classList.remove('picking'); pickCtx=null; kRunMark(); }
   if(btn.dataset.kcap){ const k=kiosks.find(x=>x.id===btn.dataset.kcap); if(!k) return;
     pickCtx={kind:'kcap',id:k.id,btn,v:k.captain||'',rep:k.captain||'',se:false};
     btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus(); return; }
   if(btn.dataset.kday){ const k=kiosks.find(x=>x.id===btn.dataset.kid); if(!k) return; const rep=(kDay(k,btn.dataset.kday)||{}).rep||'';
-    pickCtx={kind:'kiosk',id:k.id,date:btn.dataset.kday,btn,v:rep,rep,se:false,split:''};
+    pickCtx={kind:'kiosk',id:k.id,date:btn.dataset.kday,btn,v:rep,rep,se:false,split:'',n:1,ending:false};
     btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus(); return; }
   const art=btn.closest('[data-id]'); const e=cur().find(x=>x.id===art.dataset.id); if(!e)return;
   const bi=+btn.dataset.b, si=+btn.dataset.s, di=+btn.dataset.d;
@@ -2220,7 +2353,7 @@ function openPick(btn){
   pickCtx={id:e.id,bi,si,di,btn,v:btn.textContent.trim(),rep:val(e,bi,si,di,sl.rep)||'',se:isSE(b&&b.days[di])};
   btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus();
 }
-function closePick(){ pop.hidden=true; const b=pickCtx&&pickCtx.btn; pickCtx=null; if(b){ b.classList.remove('picking'); if(document.contains(b)) b.focus(); } }
+function closePick(){ pop.hidden=true; pop.classList.remove('ending'); const b=pickCtx&&pickCtx.btn; pickCtx=null; kRunMark(); if(b){ b.classList.remove('picking'); if(document.contains(b)) b.focus(); } }
 async function applyPick(v){
   if(pickCtx&&pickCtx.kind==='kcap'){
     const c=pickCtx, typed=popQ.value; closePick();
@@ -2237,7 +2370,9 @@ async function applyPick(v){
     else if(/^__DROP\d__$/.test(v)){ const i=+v.slice(6,-2); rep=kReps(c.rep).filter((_,j)=>j!==i).join(' / '); }
     else rep=v;                                     // a name, '' (clear) or '__X__' (closed)
     if(c.split&&rep&&rep!=='__X__') rep=kReps(c.split+' / '+rep).filter((x,i,a)=>a.indexOf(x)===i).join(' / ');
-    await setKioskDay(c.id,c.date,rep); return;
+    const run=c.n>1&&rep&&!/^__DROP\d__$/.test(v)?kRunDates(c):[];
+    if(run.length>1) await setKioskRun(c.id,run,rep); else await setKioskDay(c.id,c.date,rep);
+    return;
   }
   if(!pickCtx) return; const {id,bi,si,di}=pickCtx, typed=popQ.value;
   const e=cur().find(x=>x.id===id); closePick(); if(!e)return;
@@ -2250,9 +2385,11 @@ async function applyPick(v){
   await setSlot(e,B,bi,si,di,val);
 }
 popQ.addEventListener('input',renderPickList);
-pop.addEventListener('click',ev=>{ const r=ev.target.closest('.pickrow'); if(r) applyPick(r.dataset.v); });
+pop.addEventListener('click',ev=>{ const d=ev.target.closest('[data-pd]'); if(d){ pickDays(d.dataset.pd); return; }
+  const r=ev.target.closest('.pickrow'); if(r) applyPick(r.dataset.v); });
 pop.addEventListener('keydown',ev=>{
-  if(ev.key==='Escape'){ ev.preventDefault(); closePick(); return; }
+  if(ev.key==='Escape'){ ev.preventDefault(); if(pickCtx&&pickCtx.ending) pickDays('back'); else closePick(); return; }
+  if(ev.target.closest('#pickdays')) return;          // Enter or Space on 1-7 presses that button, not the highlighted name
   const rows=[...pop.querySelectorAll('.pickrow')]; if(!rows.length) return;
   let i=rows.findIndex(r=>r.classList.contains('on'));
   if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){
@@ -2262,7 +2399,7 @@ pop.addEventListener('keydown',ev=>{
   } else if(ev.key==='Enter'){ ev.preventDefault(); applyPick((rows[i<0?0:i]).dataset.v); }
 });
 document.addEventListener('mousedown',ev=>{ if(pickCtx&&!pop.contains(ev.target)&&!ev.target.closest('.slotpick')) closePick(); });
-addEventListener('resize',()=>{ if(pickCtx) closePick(); });
+addEventListener('resize',()=>{ if(pickCtx){ if(pickCtx.ending) placePop(); else closePick(); } });
 addEventListener('scroll',()=>{ if(pickCtx) placePop(); },true);
 document.getElementById('seasonSeg').addEventListener('click',e=>{const b=e.target.closest('[data-year]'); if(!b)return; const y=b.dataset.year; store.year=(y==='never'||y==='kiosk')?y:+y; save(); open.clear(); build();});
 document.getElementById('q').addEventListener('input',e=>{F.q=e.target.value;build();});
