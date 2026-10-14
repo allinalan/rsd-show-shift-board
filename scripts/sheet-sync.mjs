@@ -48,7 +48,7 @@ import { fileURLToPath } from 'url';
 import { parseAll, makeRepResolver, repKey, boardStatus, staffedCount, matchToSeed, STRUCTURAL, readGrid, normName } from './parse-sheet.mjs';
 import { boardApi } from './lib/board-api.mjs';
 import { isMain } from './lib/is-main.mjs';
-import { nameScore, statusCategory, effectiveDate, inRun, dayDiff, ruleTier } from './lib/match.mjs';
+import { nameScore, statusCategory, effectiveDate, lastDay, inRun, dayDiff, ruleTier } from './lib/match.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -112,7 +112,7 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull 
   const out = (raw) => { const s = t(raw); return !s || s === '__X__' ? s : resolve(s); };
   const outSlot = sl => ({ rep: out(sl && sl.rep), ft: ((sl && sl.ft) || []).map(out) });
   const patch = {}, held = [], conflicts = [], changes = [], keepBase = { fields: new Set(), slots: new Set(), whole: false };
-  const upcoming = (board.endDate || board.startDate || board.weekend || '') >= today;
+  const upcoming = (lastDay(board) || '') >= today;                    // the show's own days, not a stale End Date cell
   const vcStatus = vcRow ? vcRow.status : board.vcStatus;
   const deadByVc = upcoming && !!t(vcStatus) && statusCategory(vcStatus) === 'dead';
 

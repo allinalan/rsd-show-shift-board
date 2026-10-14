@@ -47,7 +47,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
 import { isMain } from './lib/is-main.mjs';
-import { normName, dayDiff, tierOf } from './lib/match.mjs';
+import { normName, dayDiff, tierOf, lastDay } from './lib/match.mjs';
 import { sellingRun, within, sameRun, planMove, runDays, isSE } from './lib/dates.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -87,7 +87,7 @@ async function targets() {
   const out = [];
   for (const e of await api.events()) {
     const run = sellingRun(e);
-    const end = e.endDate || e.startDate || e.weekend || '';
+    const end = lastDay(e) || '';                                      // the show's own days, not a stale End Date cell
     if (!end || end < TODAY || e.dead || e.neverWork || MESA.test(e.name || '') || exclude.has(normName(e.name))) continue;
     const tier = t(tierOf(e, CFG.tierRules));                          // a tier rule (Maricopa = Elite) wins over the tag
     if (skipTiers.has(tier.toLowerCase())) { skipped.push({ id: e.id, name: t(e.name), tier }); continue; }

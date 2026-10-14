@@ -37,7 +37,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
 import { isMain } from './lib/is-main.mjs';
-import { matchAll, duplicateClaims, statusCategory, CATEGORY_LABEL, effectiveDate, inRun, addDaysIso, dayDiff, normName } from './lib/match.mjs';
+import { matchAll, duplicateClaims, statusCategory, CATEGORY_LABEL, effectiveDate, lastDay, dateCellsOff, inRun, addDaysIso, dayDiff, normName } from './lib/match.mjs';
 import { boardStatus, isSEday, XLSX_PATHS } from './parse-sheet.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -109,8 +109,10 @@ async function main() {
   const byId = new Map(events.map(e => [e.id, e]));
   const facts = events.map(e => {
     const reps = leadReps(e);
-    const end = e.endDate || e.startDate || e.weekend;
-    return { e, reps, staffed: reps.length > 0, mesa: MESA.test(e.name), upcoming: end >= TODAY, past: end < TODAY };
+    // the show's own last day, not the raw End Date cell: a cell from another edition (Pinetop-Lakeside 2026: Oct 27
+    // on a Sep 25-27 show) kept a finished show on JP's list, and last year's dates made a 2027 show count as over
+    const end = lastDay(e, CFG.effectiveDateMaxDrift) || '';
+    return { e, reps, staffed: reps.length > 0, mesa: MESA.test(e.name), upcoming: end >= TODAY, past: end < TODAY, end, cellsOff: dateCellsOff(e, CFG.effectiveDateMaxDrift) };
   });
   const toMatch = facts.filter(f => !f.mesa && (f.staffed || t(f.e.vcNumber)));
   const { results, claims } = matchAll(toMatch.map(f => f.e), rows, CFG);
@@ -144,7 +146,7 @@ async function main() {
     if (staleRequest) notes.push(requestedAt ? `booking request submitted ${requestedAt}, still no VC record after ${requestAge} days` : 'marked Booking Request Submitted with no request date');
     const rec = {
       id: e.id, name: e.name, weekend: e.weekend, startDate: e.startDate, endDate: e.endDate, effective: m.effective || effectiveDate(e),
-      upcoming: f.upcoming, staffed: f.staffed, reps: f.reps, shifts: shiftCount(e), sheetStatus: t(e.sheetStatus), boardStatus: t(e.status),
+      lastDay: f.end || null, dateCellsOff: f.cellsOff, upcoming: f.upcoming, staffed: f.staffed, reps: f.reps, shifts: shiftCount(e), sheetStatus: t(e.sheetStatus), boardStatus: t(e.status),
       vcNumber: row ? row.eventNumber : t(e.vcNumber), vcStatus, vcStart: row ? row.startDate : null, vcEnd: row ? row.endDate : null, vcName: row ? row.name : null,
       matchedBy: m.by || null, score: m.score || 0, category: cat, before: { vcStatus: beforeStatus, category: beforeCat, vcNumber: t(e.vcNumber), status: t(e.status) },
       dateMismatch: !!m.dateMismatch, numberMissing: !!m.numberMissing && !row, suspicious: suspicious.has(e.id), openQuestion,
@@ -260,6 +262,8 @@ async function main() {
     staleRequests: out.filter(r => r.staleRequest && r.upcoming).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, requestedAt: r.vcRequestedAt })),
     aliasCandidates: out.filter(r => (r.aliasCandidates || []).length).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, candidates: r.aliasCandidates })),
     pastProblems: out.filter(r => !r.upcoming && r.staffed && ['no-vc', 'dead'].includes(r.category)).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, vc: r.vcStatus || 'no VC record' })),
+    // Start/End Date cells the check set aside for the show's own days: wrong on the board until someone fixes them
+    dateCellsOff: out.filter(r => r.dateCellsOff.length).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, startDate: r.startDate || '', endDate: r.endDate || '', days: `${r.effective}..${r.lastDay}`, upcoming: r.upcoming })),
   };
   result.flags.ruledOff = out.filter(r => r.ruling).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, vc: r.vcStatus || 'no VC record', note: r.ruling.note }));
   result.aliasesUsed = out.filter(r => r.matchedBy === 'alias').map(r => ({ board: r.name, vc: r.vcName, number: r.vcNumber }));
@@ -309,6 +313,7 @@ export function summaryMd(r) {
     if (f.aliasCandidates.length) { md.push('', '## Possible name changes (confirm, and they match silently from then on)'); for (const x of f.aliasCandidates) md.push(`- ${x.weekend} ${x.name} -> ${x.candidates.map(c => `${c.eventNumber} ${c.name} (${c.status})`).join('; ')}`); }
     if (f.openQuestions.length) { md.push('', '## Open questions'); for (const x of f.openQuestions) md.push(`- ${x.weekend} ${x.name}: ${x.note}`); }
     if ((f.staleRequests || []).length) { md.push('', `## Booking requests with no VC record after ${CFG.requestPendingDays ?? 14} days (back to Booking Request Needed)`); for (const x of f.staleRequests) md.push(`- ${x.weekend} ${x.name}: requested ${x.requestedAt || '(no date)'}`); }
+    if ((f.dateCellsOff || []).length) { md.push('', "## Start/End Date on the board disagrees with the show's own days (judged by the days; fix the cells)"); for (const x of f.dateCellsOff) md.push(`- ${x.weekend} ${x.name}: days ${fmtRange(...x.days.split('..'))}, Start ${x.startDate || '(blank)'}, End ${x.endDate || '(blank)'}`); }
   }
   if (r.sync) md.push('', `Sheet -> board sync: ${r.sync.eventsTouched} event(s), ${r.sync.slotChanges} shift change(s)${r.sync.wrote ? '' : ' (not written)'}; ${r.sync.held.length} held, ${r.sync.conflicts.length} conflict(s), ${r.sync.flagged.length} flagged.`);
   return md.join('\n');

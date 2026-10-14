@@ -444,6 +444,15 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(M.nameScore("Women's Day Out Expo - Glendale", "Women's Day Out Expo - Mesa") === 0, 'match: a family of same-named expos never matches across cities');
     ok(M.effectiveDate({ weekend: '2027-01-29', startDate: '2027-01-28', days: ['1/25/2024', '1/26/2024', 'Sunday SE'], dates: [null, null, '2027-01-31'] }) === '2027-01-28', 'match: a set-up day is never the effective date');
     ok(M.effectiveDate({ weekend: '2026-10-09', startDate: '2026-11-01', days: ['Saturday'], dates: ['2026-10-10'] }) === '2026-10-10', 'match: the banner-resolved day beats a stale start date');
+    const pinetop = { weekend: '2026-09-25', startDate: '2026-10-27', endDate: '2026-10-27', days: ['Friday', 'Saturday', 'Sunday', 'Monday SE'], dates: ['2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28'] };
+    ok(M.lastDay(pinetop) === '2026-09-27' && M.dateCellsOff(pinetop).join() === 'startDate,endDate', 'match: a Start/End Date cell weeks after the show\'s own days never makes a finished show upcoming (Pinetop-Lakeside 2026)');
+    const havasu = { weekend: '2027-01-22', startDate: '2026-01-22', endDate: '2026-01-25', days: ['Thursday', 'Friday', 'Saturday', 'Sunday'], dates: ['2027-01-21', '2027-01-22', '2027-01-23', '2027-01-24'] };
+    ok(M.lastDay(havasu) === '2027-01-24', 'match: last year\'s Start/End Date cells never make a show count as over (Havasu Island Balloon 2027)');
+    ok(M.lastDay({ weekend: '2026-11-13', startDate: '2026-11-28', endDate: '2026-11-28', days: ['Saturday'], dates: ['2026-11-14'] }) === '2026-11-14', 'match: an End Date copied from the next market\'s row is not this row\'s last day');
+    ok(M.lastDay({ weekend: '2027-02-12', startDate: '2027-02-12', endDate: '2027-02-21', days: ['Friday', 'Saturday', 'Sunday'], dates: ['2027-02-12', '2027-02-13', '2027-02-14'] }) === '2027-02-21'
+      && M.lastDay({ weekend: '2027-02-19', startDate: '2027-02-20', endDate: '2027-02-28' }) === '2027-02-28' && M.dateCellsOff({ weekend: '2027-02-19', startDate: '2027-02-20', endDate: '2027-02-28' }).length === 0,
+      'match: an End Date that belongs to the show (a run longer than the staffed days) still counts');
+    ok(M.lastDay({ weekend: '2026-10-16' }) === '2026-10-16' && M.lastDay({ weekend: '2026-12-11', startDate: '2026-12-12', endDate: 'TBD' }) === '2026-12-12', 'match: a weekend alone, or a junk End Date, falls back to the show\'s start');
     const cat = (s, past) => M.statusCategory(s, { past });
     ok(cat('OK to Book - Need Contract') === 'contract' && cat('Pending Promoter - Acceptance') === 'promoter' && cat('Show Full - on Waiting List') === 'dead'
       && cat('Booked Own') === 'booked' && cat('Booked - Needs Insurance') === 'coi' && cat('Prospective') === 'not-committed' && cat('OK to Book') === 'not-committed'
@@ -773,6 +782,8 @@ def post(route, text, mention=None, fallback=True, **k):
     e('2026-k', 'Cochise County Fair', '2026-10-02', ['J. Parker'], { vcNumber: '00300011', vcStatus: 'OK to Book - Need Contract', status: 'OK to Book - Need Contract' });
     e('2026-l', 'Lambda Market', '2026-11-20', ['Eli'], { status: 'Booking Request Submitted', vcRequestedAt: '2026-09-28' });
     e('2026-m', 'Mu Pageant', '2026-11-27', ['Sarah'], { status: 'Booking Request Submitted', vcRequestedAt: '2026-09-01' });
+    e('2026-n', 'Nu Artisan Fair', '2026-09-18', ['Adam'], { startDate: '2026-10-20', endDate: '2026-10-20', vcNumber: '00300012', vcStatus: 'Promoter Cancelled Event', status: 'Cancelled', dead: true });
+    e('2026-o', 'Omicron Balloon Fest', '2026-10-23', ['Sarah'], { startDate: '2025-10-24', endDate: '2025-10-26', vcNumber: '00300013', vcStatus: 'Booked', status: 'Booked', days: ['Friday', 'Saturday', 'Sunday'], dates: ['2026-10-23', '2026-10-24', '2026-10-25'] });
     const filler = Array.from({ length: 22 }, (_, i) => ({ eventNumber: String(310000 + i), name: `Filler Show ${String.fromCharCode(65 + i)}`, status: 'Booked', startDate: '2026-12-0' + (1 + (i % 9)), endDate: '2026-12-0' + (1 + (i % 9)) }));
     const rows = [
       { eventNumber: '00300001', name: 'Alpha Days', status: 'Booked', startDate: '2026-10-09', endDate: '2026-10-11', eventCost: 450.4 },
@@ -781,6 +792,8 @@ def post(route, text, mention=None, fallback=True, **k):
       { eventNumber: '00092192', name: 'Queen Creek Family Market 11/1', status: 'Booked', startDate: '2026-11-01', endDate: '2026-11-30' },
       { eventNumber: '00300006', name: 'Beta Fest', status: 'Promoter Cancelled Event', startDate: '2026-10-16', endDate: '2026-10-18' },
       { eventNumber: '00300011', name: 'Cochise County Fair', status: 'OK to Book - Need Contract', startDate: '2026-10-01', endDate: '2026-10-04' },
+      { eventNumber: '00300012', name: 'Nu Artisan Fair', status: 'Promoter Cancelled Event', startDate: '2026-09-18', endDate: '2026-09-20' },
+      { eventNumber: '00300013', name: 'Omicron Balloon Fest', status: 'Booked', startDate: '2026-10-23', endDate: '2026-10-25' },
       ...filler];
     const vcFile = path.join(home, 'ec-vc.json'); fs.writeFileSync(vcFile, JSON.stringify({ coordinator: 'Matt Foss', rows }));
     const outd = path.join(home, 'ec-out');
@@ -809,6 +822,11 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(A.status === 'Booked' && !A.dead, 'event-check: a rep-scoped ruling never kills the show');
     const latest = JSON.parse(fs.readFileSync(path.join(outd, 'event-check', 'latest.json'), 'utf8'));
     ok(latest.headline.deadWithReps === 2 && latest.headline.openQuestions === 1 && latest.written, 'event-check: the headline counts the dead shows and the open question');
+    const ecNu = latest.events.find(x => x.id === '2026-n'), ecOmicron = latest.events.find(x => x.id === '2026-o');
+    ok(ecNu.upcoming === false && ecNu.lastDay === '2026-09-18', 'event-check: a finished show with a stale End Date cell weeks later is past, so it never reaches JP\'s list or a rep (Pinetop-Lakeside, 2026-10-14)');
+    ok(ecOmicron.upcoming === true && ecOmicron.lastDay === '2026-10-25', 'event-check: a show still carrying last year\'s Start/End Date is upcoming');
+    ok(latest.flags.dateCellsOff.map(x => x.id).sort().join() === '2026-n,2026-o' && /disagrees with the show's own days[^]*Omicron Balloon Fest: days Oct 23-25, Start 2025-10-24, End 2025-10-26/.test(fs.readFileSync(path.join(outd, 'reports', 'event-check-2026-10-01.md'), 'utf8')),
+      'event-check: the report names every row whose Start/End Date cells were set aside, with what they say');
     ok(latest.costs.changed.length === 2 && latest.costs.changed.some(x => x.name === 'Alpha Days' && x.from === '$300' && x.to === '$450') && /Costs set from VectorConnect \(2\)/.test(fs.readFileSync(path.join(outd, 'reports', 'event-check-2026-10-01.md'), 'utf8')), 'event-check: the report lists every cost it set from VC');
     ok(latest.flags.ruledOff.length === 1 && latest.events.find(x => x.id === '2026-k').ruling.reason === "we couldn't get in", 'event-check: the ruling travels to the texts with its reason');
     ok(!JSON.stringify(latest).includes('555-'), 'event-check: the result carries no contact data');

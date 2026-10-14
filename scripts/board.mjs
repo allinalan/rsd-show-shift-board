@@ -171,7 +171,10 @@ const commands = {
     if (flags.weekend) ev = ev.filter(e => e.weekend === flags.weekend);
     if (flags.staffed) ev = ev.filter(e => filled(e) > 0);
     if (flags['no-vc']) ev = ev.filter(e => !e.vcNumber);
-    if (flags.upcoming) { const t = iso(today()); ev = ev.filter(e => (e.endDate || e.startDate || e.weekend || '') >= t); }
+    if (flags.upcoming) {                     // the show's own days, not a stale End Date cell (loaded here: the tick's path stays dependency-free)
+      const { lastDay } = await import('./lib/match.mjs'), t = iso(today());
+      ev = ev.filter(e => (lastDay(e) || '') >= t);
+    }
     if (flags.live) ev = ev.filter(e => !e.dead && !e.neverWork);
     ev.sort((a, b) => (a.weekend || '').localeCompare(b.weekend || '') || a.name.localeCompare(b.name));
     if (json && flags.full) { const cm = await contactMap(); ev = ev.map(e => ({ ...e, ...pickPriv(cm[e.id]) })); }

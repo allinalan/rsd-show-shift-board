@@ -128,6 +128,35 @@ export function effectiveDate(e, maxDrift = 45) {
   return w || s || null;
 }
 
+/**
+ * The show's last day: what "has it happened yet" turns on (the event check's upcoming/past, and through it
+ * JP's list, the rep texts and the booking sweep). From effectiveDate() on: the latest selling day on the row,
+ * then the End Date, but only when the Start Date sits with the show's days; never more than `maxRun` days
+ * after the start. A Start/End Date cell from another edition never decides it (2026-10-14): Pinetop-Lakeside
+ * 2026 ran Sep 25-27 with Oct 27 in both cells and stayed on JP's list after it was over, and Havasu Island
+ * Balloon 2027 still carried 2026's dates and was counted as already over.
+ */
+export function lastDay(e, maxDrift = 45, maxRun = 21) {
+  const eff = effectiveDate(e, maxDrift);
+  if (!eff) return e.endDate || null;
+  const ours = d => !!d && dayDiff(d, eff) >= 0 && dayDiff(d, eff) <= maxRun;
+  let last = eff;
+  const sell = (days, dates) => (dates || []).forEach((d, i) => { if (ours(d) && !isSE((days || [])[i]) && d > last) last = d; });
+  sell(e.days, e.dates);
+  for (const b of e.booths || []) sell(b.days, b.dates);
+  if (dateCellsOff(e, maxDrift, maxRun).length === 0 && e.endDate > last) last = e.endDate;
+  return last;
+}
+
+/** The Start/End Date cells that disagree with the show's own days (so lastDay() went by the days): [] when none. */
+export function dateCellsOff(e, maxDrift = 45, maxRun = 21) {
+  const eff = effectiveDate(e, maxDrift), s = e.startDate, end = e.endDate, off = [];
+  if (!eff) return off;
+  if (s && Math.abs(dayDiff(s, eff)) > 7) off.push('startDate');
+  if (end && (off.length || dayDiff(end, eff) < -7 || dayDiff(end, eff) > maxRun)) off.push('endDate');
+  return off;
+}
+
 /** True when `iso` falls inside the VC run, `slack` days either side. */
 export function inRun(iso, row, slack = 4) {
   if (!iso || !row || !row.startDate) return false;

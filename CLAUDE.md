@@ -189,6 +189,12 @@ the service key moves them on.
   board, which would drop what is half-typed in another field. A removed show is read back like a mall: a delete the
   database refuses comes back without an error.
 
+- **Upcoming or past is the show's last day, `lastDay()` (lib/match.mjs), never the raw End Date cell** (2026-10-14).
+  Its own selling days, then the End Date only when the Start Date sits within a week of them. Cells from another
+  edition kept Pinetop-Lakeside (ran Sep 25-27, cells Oct 27) on JP's list weeks after it ran, and made Havasu Island
+  Balloon 2027 (cells Jan 2026) count as over. The event check, the Sheet sync's VC-dead hold, the research targets
+  and `board list --upcoming` use it; the check lists the cells it set aside in `flags.dateCellsOff` (the upcoming
+  ones reach Alan's Wednesday report). rsd-shift-picking also never names a show whose dates have passed.
 - A shift is a slot with a `rep` that isn't empty or `__X__`. **SE days are never shifts.**
 - **Tier rules** (config/event-check.json `tierRules`, Alan 2026-09-24): every show named Maricopa is Elite, except the
   Maricopa County Fair. The Sheet sync creates new shows with the rule's tier, and the research runs and the booking
