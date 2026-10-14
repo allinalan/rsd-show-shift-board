@@ -17,7 +17,10 @@ routines in `.claude/skills/` keep it true.
   (`2025 Mall Schedule - AZ.xlsx` on Alan's Drive) as worked, plus 2026 as set up that day: Chandler Fashion Center
   ($7,000) and Arrowhead ($7,300), Sierra Vista and Cielo Vista Mall rolled from 2025 as Prospective, Kierland new and
   Prospective ("we are not in yet"). Park Place Mall is out, 2025 included (Alan, 2026-10-14). Nov 27 - Dec 27, Christmas
-  closed. In plan mode the captain is picked from each mall's column header and the name there opens the mall to rename. `board kiosks` lists them; `board kiosks seed` adds the
+  closed. In plan mode the captain is picked from each mall's column header and the name there opens the mall to rename.
+  Read as a rep (Alan, 2026-10-14: "who's working what day"): a phone gets a list of days (`.kdays`), a wider screen the
+  table (`.kgrid`), both rendered and one shown by CSS at 640px; in season the days already gone fold away so it opens on
+  today; names under "Tap your name" are alphabetical; the header tags only what isn't Booked. `board kiosks` lists them; `board kiosks seed` adds the
   seed's malls the board lacks and never touches one it has.
 - `seed/*.json` — the data as of the migration off the Google Sheet. Also what the page shows
   when `config.js` is blank (read-only preview). `seed/private/` (gitignored, mode 600) holds the
