@@ -197,7 +197,7 @@ try {
     const a = l.find(k => k.id === '2026-arrowhead');
     ok(a && a.staffed === 1 && a.open === 29 && a.reps.join() === 'Cameron', 'kiosks: a booked mall counts staffed and open days, and Christmas (closed) is neither');
     ok(a && a.cost === 7300 && a.perDays === 30 && a.perDay === 243.33, 'kiosks: cost per day before the season = the cost over the 30 days not closed: ' + JSON.stringify(a && [a.cost, a.perDay, a.perDays]));
-    ok(l.find(k => k.id === '2026-kierland')?.open === 0, 'kiosks: a Prospective mall has no open shifts (not in yet)');
+    ok(l.find(k => k.id === '2026-kierland')?.open === 0, 'kiosks: a Prospective mall has no open shifts');
     r = await board(['kiosks', '--year', '2025', '--json']); const c = JSON.parse(r.stdout).find(k => k.id === '2025-chandler-fashion-center');
     ok(c && c.staffed === 30 && c.reps.includes('J. Parker'), 'kiosks: 2025 Chandler, 30 staffed days, as the mall sheet had them');
     const sv = JSON.parse(r.stdout).find(k => k.id === '2025-sierra-vista');
