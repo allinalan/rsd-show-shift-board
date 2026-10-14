@@ -14,9 +14,10 @@ routines in `.claude/skills/` keep it true.
 - `config.js` — Supabase URL + anon key for this deployment (public by design; RLS guards writes).
 - The **Kiosk Schedule** tab (Alan, 2026-10-14): the holiday mall kiosks, one `kiosks` row per mall per season, one
   shift per mall per day. Read the data model below before touching it. `seed/kiosks.json` is the 2025 mall sheet
-  (`2025 Mall Schedule - AZ.xlsx` on Alan's Drive) as worked, plus 2026 as set up that day: Chandler Fashion Center,
-  Sierra Vista, Arrowhead and Cielo Vista Mall rolled from 2025 as Prospective, Kierland new and Prospective ("we are not
-  in yet"), Park Place not back. Nov 27 - Dec 27, Christmas closed. `board kiosks` lists them; `board kiosks seed` adds the
+  (`2025 Mall Schedule - AZ.xlsx` on Alan's Drive) as worked, plus 2026 as set up that day: Chandler Fashion Center
+  ($7,000) and Arrowhead ($7,300), Sierra Vista and Cielo Vista Mall rolled from 2025 as Prospective, Kierland new and
+  Prospective ("we are not in yet"). Park Place Mall is out, 2025 included (Alan, 2026-10-14). Nov 27 - Dec 27, Christmas
+  closed. In plan mode the captain is picked from each mall's column header and the name there opens the mall to rename. `board kiosks` lists them; `board kiosks seed` adds the
   seed's malls the board lacks and never touches one it has.
 - `seed/*.json` — the data as of the migration off the Google Sheet. Also what the page shows
   when `config.js` is blank (read-only preview). `seed/private/` (gitignored, mode 600) holds the
@@ -147,7 +148,11 @@ back on read, so everything else treats them as event fields. `history` — resu
 `meetings` (ISO dates of shift-picking meetings). `never_work` — shows we never work again,
 keyed by series key. `kiosks` — the Kiosk Schedule: id `YYYY-<mall>` (base stable across seasons), `name, year,
 cityState, status (Booked | Prospective | Cancelled), captain, cost (free text, "$7,038 ($230/day)"), startDate, endDate,
-order (column), notes, shifts{ISO date: {rep, note?}}, lastYear{year, status, captain, cost, days}, rolledFrom`. One shift
+order (column), notes, shifts{ISO date: {rep, note?}}, lastYear{year, status, captain, cost, costNum, days}, rolledFrom`,
+`costNum` (the season's cost as a number; the page sets both from what is typed). Cost per day (Alan, 2026-10-14) is
+worked out, never stored: before and during the season, `costNum` over the days in its dates not marked closed (an
+estimate, "est." on the page); once the season is over, over the days worked, which is how the mall sheet's $/day was
+figured (Sierra Vista 2025: $500 / 16 = $31.25). One shift
 per day: `rep` is a roster name, two joined by " / " for a split day, or `__X__` for no shift (the mall is closed; `note`
 says why, e.g. Christmas). Open = a Booked mall's upcoming day with no rep; a Prospective mall has none. The page writes a
 day by re-reading the row and sending the whole `shifts` map through `merge_doc` (shallow), so a concurrent edit to
@@ -243,7 +248,9 @@ com.allinalan.rsd-board-tick; tail logs/tick.log; rm PAUSED`. If how a job start
 
 The `kiosks` table went into the live database on 2026-10-14: the same statements as `supabase/schema.sql`, run as SQL
 (Supabase's migration tool hung on them), then the ten malls from `seed/kiosks.json` (the changelog names
-`service:kiosk-setup`). Checked as anon the same day: reads all rows; an insert and `merge_doc` are refused. No job
+`service:kiosk-setup`), and the same day the costs and costNum. The Supabase tool holds a `delete` for a confirmation a
+cloud session cannot show, so `2025-park-place-mall` was left for Alan to remove on the board (Plan mode, 2025, the mall's
+card, Remove) or in the SQL editor: `delete from kiosks where id = '2025-park-place-mall';`. Checked as anon the same day: reads all rows; an insert and `merge_doc` are refused. No job
 reads or writes it; the tab shows once `main` carries it.
 
 The full spec and clarifications log lives in the RSD Events Team Cowork project

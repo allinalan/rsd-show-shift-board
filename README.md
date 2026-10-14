@@ -61,10 +61,12 @@ Meeting dates live in plan mode → Division settings.
 The **Kiosk Schedule** tab (next to the years) is the holiday mall kiosks: dates down the side, one
 column per mall, **one shift per mall per day**. Two names on a day is a split day (the mall sheet's
 Rep #2). A Prospective mall isn't signed yet, so its empty days are not open shifts; switch it to
-Booked in plan mode once the lease is signed. In plan mode, click a day to put a rep on it, split it
-or mark the mall closed (Christmas is closed already); open a mall below the schedule for its
-captain, cost, dates and notes; **+ Add a mall** adds one, and an empty season offers to roll last
-season's malls forward. 2025 is last year's mall sheet as it was worked. The malls live in their own
+Booked in plan mode once the lease is signed. Under each mall: its captain and its cost with the cost per day (the season's cost
+over the days the kiosk is open, "est." until the season is over). In plan mode, click a day to put
+a rep on it, split it or mark the mall closed (Christmas is closed already; a closed day raises the
+cost per day); **+ Assign a captain** in a mall's header picks its captain; click a mall's name to
+rename it or set its cost, dates and notes; **+ Add a mall** adds one, and an empty season offers to
+roll last season's malls forward. 2025 is last year's mall sheet as it was worked. The malls live in their own
 `kiosks` table, so nothing that reads the show board (the event check, the booking sweep, SUNNY)
 ever sees them. `node scripts/board.mjs kiosks` lists them.
 

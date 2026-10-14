@@ -177,7 +177,9 @@ try {
     ok(seed.every(k => Object.entries(k.shifts || {}).every(([d, s]) => d >= k.startDate && d <= k.endDate && typeof s.rep === 'string' && s.rep)), 'kiosks seed: every shift sits inside its mall\'s dates and names someone (or __X__ = closed)');
     ok(seed.every(k => !PRIV.some(p => p in k)), 'kiosks seed: no contact fields');
     ok(seed.filter(k => k.year === 2026).every(k => k.status === 'Prospective' && k.shifts['2026-12-25']?.rep === '__X__'), 'kiosks seed: 2026 malls start Prospective, Christmas closed');
-    ok(!seed.some(k => k.id === '2026-park-place-mall') && seed.some(k => k.id === '2026-kierland'), 'kiosks seed: Park Place is not back in 2026; Kierland is, Prospective (Alan, 2026-10-14)');
+    ok(!seed.some(k => /park-place/.test(k.id)) && seed.some(k => k.id === '2026-kierland'), 'kiosks seed: no Park Place in any season; Kierland in 2026, Prospective (Alan, 2026-10-14)');
+    ok(seed.find(k => k.id === '2026-arrowhead').costNum === 7300 && seed.find(k => k.id === '2026-chandler-fashion-center').costNum === 7000, 'kiosks seed: 2026 Arrowhead $7,300, Chandler $7,000 (Alan, 2026-10-14)');
+    ok(seed.every(k => k.cost === '' ? k.costNum == null : +k.cost.replace(/[$,]/g, '') === k.costNum), 'kiosks seed: every cost carries its number, and they agree');
 
     // ---- kiosks seed adds what is missing and never touches a mall the board already has
     T('kiosks').clear();
@@ -194,9 +196,12 @@ try {
     ok(l.length === 5 && l.every(k => k.year === 2026), 'kiosks: --year lists that season only');
     const a = l.find(k => k.id === '2026-arrowhead');
     ok(a && a.staffed === 1 && a.open === 29 && a.reps.join() === 'Cameron', 'kiosks: a booked mall counts staffed and open days, and Christmas (closed) is neither');
+    ok(a && a.cost === 7300 && a.perDays === 30 && a.perDay === 243.33, 'kiosks: cost per day before the season = the cost over the 30 days not closed: ' + JSON.stringify(a && [a.cost, a.perDay, a.perDays]));
     ok(l.find(k => k.id === '2026-kierland')?.open === 0, 'kiosks: a Prospective mall has no open shifts (not in yet)');
     r = await board(['kiosks', '--year', '2025', '--json']); const c = JSON.parse(r.stdout).find(k => k.id === '2025-chandler-fashion-center');
     ok(c && c.staffed === 30 && c.reps.includes('J. Parker'), 'kiosks: 2025 Chandler, 30 staffed days, as the mall sheet had them');
+    const sv = JSON.parse(r.stdout).find(k => k.id === '2025-sierra-vista');
+    ok(sv && sv.perDay === 31.25 && sv.perDays === 16, 'kiosks: a season that is over spreads its cost over the days worked (Sierra Vista 2025: $500 / 16 = $31.25, as the sheet had it)');
   });
 
   await section('deploy/tick.py', async () => {
