@@ -27,14 +27,14 @@
      every other strong hue on this board is a status or a tier. */
   --navy:#8a6212; --slate:#6d4c0b; --steel:#b3a68f; --on-accent:#fbf9f4;
   --ground:#e9e3d7; --surface:#fbf9f4; --surface-2:#f2ede2;
-  --ink:#241f19; --ink-2:#514738; --ink-3:#7d7263;
+  --ink:#241f19; --ink-2:#514738; --ink-3:#685d4e;   /* 4.85-6.1:1 on every ground here; #7d7263 was 3.6-4.5 */
   --line:#d2c8b4; --line-soft:#e3dbca;
   --elite:#6e44a3; --key:#12766f; --trad:#3a3123; --untag:#a2967f;
   --ok:#2f6b45; --ok-bg:#dfeadf; --on-ok:#fbf9f4;
   --warn:#c2600c; --warn-bg:#f8e6d2;
-  --pend:#a8431f; --pend-bg:#f6dfd4;
+  --pend:#a8431f; --pend-bg:#f6dfd4; --on-pend:#fff;
   --info:#2a5a8c; --info-bg:#e1e9f1;
-  --mute:#7a705f; --mute-bg:#e8e1d3;
+  --mute:#665b4c; --mute-bg:#e8e1d3;   /* the Prospective / Full pill: 5.1:1 (was 3.7) */
   --shadow:0 1px 0 rgba(90,70,30,.06),0 8px 20px -14px rgba(60,45,20,.28);
   --r:8px;
   --f-disp:"Bricolage Grotesque",system-ui,sans-serif;
@@ -43,26 +43,26 @@
 }
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
   --ground:#171310; --surface:#211c17; --surface-2:#2a231c;
-  --ink:#efe8dc; --ink-2:#c6baa7; --ink-3:#978b79;
+  --ink:#efe8dc; --ink-2:#c6baa7; --ink-3:#a39784;
   --line:#3b3229; --line-soft:#2f2821;
   --navy:#d9a94a; --slate:#e6bb62; --steel:#6e6252; --on-accent:#1a1408;
   --elite:#b895e3; --key:#52c6ba; --trad:#c6baa7; --untag:#6f6455;
   --ok:#62d19b; --ok-bg:#17382a; --on-ok:#06170d;
   --warn:#f0a44e; --warn-bg:#3d2912;
-  --pend:#f39066; --pend-bg:#3b1d12;
+  --pend:#f39066; --pend-bg:#3b1d12; --on-pend:#1a1408;
   --info:#8dbaec; --info-bg:#1b2a3e;
   --mute:#a59983; --mute-bg:#2d2620;
   --shadow:0 1px 2px rgba(0,0,0,.45),0 10px 24px -14px rgba(0,0,0,.75);
 }}
 :root[data-theme="dark"]{
   --ground:#171310; --surface:#211c17; --surface-2:#2a231c;
-  --ink:#efe8dc; --ink-2:#c6baa7; --ink-3:#978b79;
+  --ink:#efe8dc; --ink-2:#c6baa7; --ink-3:#a39784;
   --line:#3b3229; --line-soft:#2f2821;
   --navy:#d9a94a; --slate:#e6bb62; --steel:#6e6252; --on-accent:#1a1408;
   --elite:#b895e3; --key:#52c6ba; --trad:#c6baa7; --untag:#6f6455;
   --ok:#62d19b; --ok-bg:#17382a; --on-ok:#06170d;
   --warn:#f0a44e; --warn-bg:#3d2912;
-  --pend:#f39066; --pend-bg:#3b1d12;
+  --pend:#f39066; --pend-bg:#3b1d12; --on-pend:#1a1408;
   --info:#8dbaec; --info-bg:#1b2a3e;
   --mute:#a59983; --mute-bg:#2d2620;
   --shadow:0 1px 2px rgba(0,0,0,.45),0 10px 24px -14px rgba(0,0,0,.75);
@@ -82,7 +82,7 @@ button,select,input{font:inherit;color:inherit}
 h1{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
 .season{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-3);
   border:1px solid var(--line);border-radius:99px;padding:2px 8px}
-.sheetlink{font-size:.76rem;font-weight:600;color:var(--navy);text-decoration:none;
+.sheetlink{font-size:.76rem;font-weight:600;color:var(--slate);text-decoration:none;
   border:1px solid var(--line);border-radius:99px;padding:4px 10px;white-space:nowrap;font-family:var(--f-disp)}
 .sheetlink:hover{border-color:var(--navy)}
 .switch{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-size:.74rem;
@@ -101,7 +101,7 @@ body.plan .switch{color:var(--navy)}
 .seg button{border:0;background:none;padding:5px 12px;font-family:var(--f-disp);font-size:.74rem;font-weight:600;
   color:var(--ink-3);cursor:pointer;display:flex;align-items:center;gap:6px}
 .seg button[aria-selected="true"]{background:var(--navy);color:var(--on-accent)}
-.seg button small{font-family:var(--f-mono);font-weight:400;font-size:.62rem;opacity:.8}
+.seg button small{font-family:var(--f-mono);font-weight:400;font-size:.62rem}
 .seg button:disabled{opacity:.45;cursor:default}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);
   display:flex;flex-direction:column;gap:10px}
@@ -428,7 +428,7 @@ table.wgrid .slotbox.filled{background:var(--surface);border-color:var(--steel)}
 #pickutil:empty{display:none}
 .pickempty{font-size:.8rem;color:var(--ink-3);padding:10px}
 .inflbl{color:var(--warn);font-weight:700;margin-left:2px;cursor:help}
-.legend{margin:2px 0 0;font-size:.7rem;line-height:1.45;color:var(--ink-3);opacity:.8;max-width:72ch}
+.legend{margin:2px 0 0;font-size:.7rem;line-height:1.45;color:var(--ink-3);max-width:72ch}
 .ft{display:flex;flex-wrap:wrap;gap:3px;padding:0 7px 6px}
 .ft span{font-size:.64rem;background:var(--info-bg);color:var(--info);border-radius:3px;padding:1px 5px;
   font-weight:500}
@@ -539,7 +539,7 @@ h1{font-size:1.18rem;font-weight:700;letter-spacing:-.015em}
 .tally .t-open b{font-size:1.85rem;color:var(--ok);letter-spacing:-.03em}
 .tally span{display:inline;font-size:.68rem;letter-spacing:.09em;margin:0;white-space:nowrap;overflow:visible;color:var(--ink-3);font-family:var(--f-disp);font-weight:600}
 .tally .t-booked b{color:var(--ink)}
-.stamp{padding:0;margin-left:auto;font-size:.64rem;opacity:.85}
+.stamp{padding:0;margin-left:auto;font-size:.64rem}
 /* controls */
 .controls{padding:12px 0 12px;gap:8px}
 .field,.pick{height:36px;border-radius:8px}
@@ -552,7 +552,7 @@ h1{font-size:1.18rem;font-weight:700;letter-spacing:-.015em}
 .chip{padding:5px 11px;font-weight:600;font-size:.76rem;border-radius:99px;transition:border-color .12s,background .12s,transform .1s}
 .chip:active{transform:scale(.97)}
 .chip .n{font-family:var(--f-body);font-weight:500}
-.legend{font-size:.72rem;opacity:.85;margin-top:2px}
+.legend{font-size:.72rem;margin-top:2px}
 /* weekend bands */
 .band{margin-top:24px}
 .band-h{border-bottom:2px solid var(--navy);padding-bottom:7px}
@@ -658,7 +658,7 @@ table.wgrid td.gcell.na{background:color-mix(in srgb,var(--ink-3) 9%,transparent
 .dl dd.notes{white-space:pre-wrap;font-size:.84rem;color:var(--ink-2);background:var(--surface-2);border-radius:6px;padding:8px 10px;border:1px solid var(--line-soft)}
 
 /* ---- platform: never list, lifecycle, auth ---- */
-.seg button.tab-never{color:var(--pend)} .seg button.tab-never[aria-selected="true"]{background:var(--pend);color:#fff}
+.seg button.tab-never{color:var(--pend)} .seg button.tab-never[aria-selected="true"]{background:var(--pend);color:var(--on-pend)}
 .never .band-h{border-bottom-color:var(--pend)} .never .band-h h2{color:var(--pend)}
 .nw-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);margin-top:12px}
 table.nwtbl{border-collapse:separate;border-spacing:0;width:100%;min-width:640px}
@@ -689,31 +689,35 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
 .synclist{margin:0;padding-left:18px;font-size:.8rem;color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
 .synclist ul{margin:2px 0 0;padding-left:16px;color:var(--ink-3);font-size:.76rem}
 /* ---- Kiosk Schedule (2026-10-14): one shift per mall per day, dates down, malls across, like the mall sheet ---- */
-/* its own muted ink and teal: the board's --ink-3 is 4.47:1 on a card and 3.68:1 on the ground, under the 4.5 small text needs */
-:root{--k-mute:#665b4c;--k-ink:#0f6660;--on-key:#fff}
-@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--k-mute:var(--ink-2);--k-ink:var(--key);--on-key:#0b1f1d} }
-:root[data-theme="dark"]{--k-mute:var(--ink-2);--k-ink:var(--key);--on-key:#0b1f1d}
+/* the kiosk teal as text: 5.3:1 on the ground (the --key fill is 4.3 there) */
+:root{--k-ink:#0f6660;--on-key:#fff}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--k-ink:var(--key);--on-key:#0b1f1d} }
+:root[data-theme="dark"]{--k-ink:var(--key);--on-key:#0b1f1d}
 .seg button.tab-kiosk{color:var(--k-ink)} .seg button.tab-kiosk[aria-selected="true"]{background:var(--key);color:var(--on-key)}
 /* the season tabs never push "Never" off a small phone: they scroll sideways in their pill instead */
 #seasonSeg{max-width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 #seasonSeg::-webkit-scrollbar{display:none}
 #seasonSeg button{white-space:nowrap;flex:none}
 @media (max-width:420px){ #seasonSeg button{padding:5px 8px} }
+@media (max-width:640px){
+  #seasonSeg button,#viewSeg button{min-height:44px}
+  .switch{min-height:44px}
+}
 body.kioskv .wrap,body.kioskv .top-in{max-width:1320px}
 .kiosk .band-h{border-bottom-color:var(--key)} .kiosk .band-h h2{color:var(--k-ink)}
-.kiosk .band-h .sub,.kiosk .band-h .cov:not(.cov-open){color:var(--k-mute)}
+.kiosk .band-h .sub,.kiosk .band-h .cov:not(.cov-open){color:var(--ink-3)}
 .kiosk .band-h .seg{margin-left:auto}
-.kiosk .band-h .seg button{color:var(--k-mute)}
+.kiosk .band-h .seg button{color:var(--ink-3)}
 .kiosk .band-h .seg button[aria-selected="true"]{background:var(--key);color:var(--on-key)}
-.kiosk .legend{margin:-4px 0 10px;color:var(--k-mute);opacity:1}
-.kiosk .sec-l,.kiosk .pastsum,.kiosk .rchip b,.kcard .ev-meta,.kcard .res i,.kcard .res b{color:var(--k-mute)}
-.kiosk .p-Prospective,.kiosk .p-CX{color:var(--k-mute)}
+.kiosk .legend{margin:-4px 0 10px;color:var(--ink-3);opacity:1}
+.kiosk .sec-l,.kiosk .pastsum,.kiosk .rchip b,.kcard .ev-meta,.kcard .res i,.kcard .res b{color:var(--ink-3)}
+.kiosk .p-Prospective,.kiosk .p-CX{color:var(--ink-3)}
 .ksr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .kmine{display:flex;flex-wrap:wrap;gap:5px;align-items:baseline;margin:-4px 0 12px;font-size:.78rem;color:var(--ink-2)}
 .kmine>b{font-family:var(--f-disp);margin-right:2px}
 .kmine span{font-size:.72rem;background:color-mix(in srgb,var(--navy) 12%,var(--surface));border-radius:5px;padding:2px 7px;white-space:nowrap}
 table.ktbl th.kday{min-width:78px;max-width:90px;padding:6px 8px;font-family:var(--f-disp);font-size:.74rem;font-weight:600;color:var(--ink-2);white-space:nowrap}
-table.ktbl th.kday span{font-family:var(--f-mono);font-weight:400;font-size:.7rem;color:var(--k-mute);margin-left:2px}
+table.ktbl th.kday span{font-family:var(--f-mono);font-weight:400;font-size:.7rem;color:var(--ink-3);margin-left:2px}
 table.ktbl th.kday i{display:block;font-style:normal;font-size:.56rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--navy)}
 table.ktbl thead th.kdh{vertical-align:bottom}
 table.ktbl thead th.kmh{text-transform:none;letter-spacing:0;white-space:normal;vertical-align:bottom;min-width:112px;max-width:190px;padding:8px 8px 7px;color:var(--ink)}
@@ -729,7 +733,7 @@ table.ktbl tr.kmon th,table.ktbl tr.kmon td{border-top:2px solid var(--line)}
 table.ktbl tr.ktoday th.kday{color:var(--navy);box-shadow:inset 3px 0 0 var(--navy)}
 table.ktbl tr.kpast th.kday,table.ktbl tr.kpast td.gcell>*{opacity:.55}
 table.ktbl .namecell .ksp{color:var(--ink-3);font-weight:400}
-.knote{font-size:.64rem;font-weight:400;color:var(--k-mute);line-height:1.3;margin-top:2px;white-space:normal}
+.knote{font-size:.64rem;font-weight:400;color:var(--ink-3);line-height:1.3;margin-top:2px;white-space:normal}
 .slotbox .knote{padding:0 7px 5px;margin-top:-2px}
 table.ktbl .namecell.khit,table.ktbl .slotbox.khit{border-color:var(--navy);background:color-mix(in srgb,var(--navy) 16%,var(--surface))}
 table.ktbl .namecell.kdim{opacity:.55}
@@ -751,18 +755,18 @@ table.ktbl .namecell.kcx,.kd li.kcx .kw{text-decoration:line-through;opacity:.55
 /* thumbs: a phone's targets at 38-44px (Apple's 44pt) */
 @media (max-width:640px){
   .kiosk .rollup .rchip{min-height:38px;padding:6px 12px;font-size:.8rem}
-  .kiosk .band-h .seg button{min-height:36px;padding:6px 14px}
+  .kiosk .band-h .seg button{min-height:44px;padding:6px 16px}
   .kiosk .kfold{min-height:44px}
   .kd .kw .slotbox .slotpick{min-height:40px}
   .kmine .linkbtn{min-height:32px;padding:0 6px}
 }
 .kcapbtn{display:block;margin-top:4px;padding:3px 7px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);
   font:inherit;font-size:.7rem;font-weight:600;cursor:pointer;text-align:left;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kcapbtn.none{border-style:dashed;color:var(--k-mute);font-weight:500}
+.kcapbtn.none{border-style:dashed;color:var(--ink-3);font-weight:500}
 .kcapbtn:hover,.kcapbtn.picking{border-color:var(--navy);color:var(--navy)}
 /* a rep's read: names never split mid-name; the phone gets a list of days instead of a table */
 .kn{white-space:nowrap}
-.kiosk .rollup .klbl{font-size:.72rem;color:var(--k-mute);align-self:center;margin-right:2px}
+.kiosk .rollup .klbl{font-size:.72rem;color:var(--ink-3);align-self:center;margin-right:2px}
 .kmine span.past{opacity:.5} .kmine span.now{background:var(--navy);color:var(--on-accent)}
 .kmine .linkbtn{align-self:center}
 .kfold{margin:0 0 10px}
@@ -781,9 +785,9 @@ table.ktbl .namecell.kcx,.kd li.kcx .kw{text-decoration:line-through;opacity:.55
 .kd .km{color:var(--ink-2);font-size:.82rem;min-width:0}
 .kd .kw{font-weight:600;font-size:.92rem;text-align:right;min-width:0}
 .kd .kw .ksp{color:var(--ink-3);font-weight:400}
-.kd .kw .knote{display:block;font-size:.7rem;font-weight:400;color:var(--k-mute)}
+.kd .kw .knote{display:block;font-size:.7rem;font-weight:400;color:var(--ink-3)}
 .kd .kopen{color:var(--ok);font-weight:700}
-.kd .kxw{color:var(--k-mute);font-weight:400}
+.kd .kxw{color:var(--ink-3);font-weight:400}
 .kd li.khit{background:color-mix(in srgb,var(--navy) 16%,var(--surface))}
 .kd li.kdim .kw{opacity:.55}
 .kd .kw .slotbox{min-width:150px;max-width:none}
