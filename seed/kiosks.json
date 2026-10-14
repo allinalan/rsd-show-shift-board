@@ -1,0 +1,563 @@
+[
+ {
+  "id": "2025-chandler-fashion-center",
+  "year": 2025,
+  "name": "Chandler Fashion Center",
+  "cityState": "Chandler, AZ",
+  "status": "Booked",
+  "captain": "J. Parker",
+  "cost": "$7,038 ($230/day)",
+  "startDate": "2025-11-28",
+  "endDate": "2025-12-28",
+  "order": 1,
+  "notes": "",
+  "shifts": {
+   "2025-11-28": {
+    "rep": "Sarah / Rob"
+   },
+   "2025-11-29": {
+    "rep": "Sarah / Rob"
+   },
+   "2025-11-30": {
+    "rep": "Sarah"
+   },
+   "2025-12-01": {
+    "rep": "Sarah"
+   },
+   "2025-12-02": {
+    "rep": "Zach"
+   },
+   "2025-12-03": {
+    "rep": "Zach"
+   },
+   "2025-12-04": {
+    "rep": "Zach"
+   },
+   "2025-12-05": {
+    "rep": "Matt A."
+   },
+   "2025-12-06": {
+    "rep": "Rob / Matt A."
+   },
+   "2025-12-07": {
+    "rep": "Matt A."
+   },
+   "2025-12-08": {
+    "rep": "Kendall"
+   },
+   "2025-12-09": {
+    "rep": "Kendall"
+   },
+   "2025-12-10": {
+    "rep": "Matt A."
+   },
+   "2025-12-11": {
+    "rep": "J. Parker"
+   },
+   "2025-12-12": {
+    "rep": "J. Parker"
+   },
+   "2025-12-13": {
+    "rep": "J. Parker"
+   },
+   "2025-12-14": {
+    "rep": "J. Parker"
+   },
+   "2025-12-15": {
+    "rep": "Roman / Rob"
+   },
+   "2025-12-16": {
+    "rep": "J. Parker"
+   },
+   "2025-12-17": {
+    "rep": "J. Parker"
+   },
+   "2025-12-18": {
+    "rep": "J. Parker"
+   },
+   "2025-12-19": {
+    "rep": "J. Parker"
+   },
+   "2025-12-20": {
+    "rep": "J. Parker"
+   },
+   "2025-12-21": {
+    "rep": "J. Parker"
+   },
+   "2025-12-22": {
+    "rep": "J. Parker"
+   },
+   "2025-12-23": {
+    "rep": "J. Parker"
+   },
+   "2025-12-24": {
+    "rep": "Sarah"
+   },
+   "2025-12-25": {
+    "rep": "__X__",
+    "note": "Christmas"
+   },
+   "2025-12-26": {
+    "rep": "J. Parker"
+   },
+   "2025-12-27": {
+    "rep": "J. Parker"
+   },
+   "2025-12-28": {
+    "rep": "J. Parker"
+   }
+  }
+ },
+ {
+  "id": "2025-sierra-vista",
+  "year": 2025,
+  "name": "Sierra Vista",
+  "cityState": "Sierra Vista, AZ",
+  "status": "Booked",
+  "captain": "Adam J",
+  "cost": "$500 ($31/day)",
+  "startDate": "2025-11-28",
+  "endDate": "2025-12-28",
+  "order": 2,
+  "notes": "",
+  "shifts": {
+   "2025-11-28": {
+    "rep": "Adam J"
+   },
+   "2025-11-29": {
+    "rep": "Adam J"
+   },
+   "2025-11-30": {
+    "rep": "Adam J"
+   },
+   "2025-12-01": {
+    "rep": "Adam J"
+   },
+   "2025-12-05": {
+    "rep": "Sarah"
+   },
+   "2025-12-06": {
+    "rep": "Sarah"
+   },
+   "2025-12-07": {
+    "rep": "Sarah"
+   },
+   "2025-12-11": {
+    "rep": "Adam J"
+   },
+   "2025-12-12": {
+    "rep": "Adam J"
+   },
+   "2025-12-13": {
+    "rep": "Adam J"
+   },
+   "2025-12-14": {
+    "rep": "Adam J"
+   },
+   "2025-12-18": {
+    "rep": "Adam J"
+   },
+   "2025-12-19": {
+    "rep": "Adam J"
+   },
+   "2025-12-20": {
+    "rep": "Adam J"
+   },
+   "2025-12-21": {
+    "rep": "Adam J"
+   },
+   "2025-12-22": {
+    "rep": "Adam J"
+   },
+   "2025-12-25": {
+    "rep": "__X__",
+    "note": "Christmas"
+   }
+  }
+ },
+ {
+  "id": "2025-arrowhead",
+  "year": 2025,
+  "name": "Arrowhead",
+  "cityState": "Glendale, AZ",
+  "status": "Booked",
+  "captain": "Cameron",
+  "cost": "$7,393 ($238/day)",
+  "startDate": "2025-11-28",
+  "endDate": "2025-12-28",
+  "order": 3,
+  "notes": "",
+  "shifts": {
+   "2025-11-28": {
+    "rep": "Cameron"
+   },
+   "2025-11-29": {
+    "rep": "Cameron"
+   },
+   "2025-11-30": {
+    "rep": "Cameron"
+   },
+   "2025-12-01": {
+    "rep": "Cameron"
+   },
+   "2025-12-02": {
+    "rep": "Kendall"
+   },
+   "2025-12-03": {
+    "rep": "Kendall / Cameron"
+   },
+   "2025-12-04": {
+    "rep": "Kendall"
+   },
+   "2025-12-05": {
+    "rep": "Cameron"
+   },
+   "2025-12-06": {
+    "rep": "Cameron"
+   },
+   "2025-12-07": {
+    "rep": "Cameron"
+   },
+   "2025-12-08": {
+    "rep": "Cameron"
+   },
+   "2025-12-09": {
+    "rep": "Zach"
+   },
+   "2025-12-10": {
+    "rep": "Zach"
+   },
+   "2025-12-11": {
+    "rep": "Matt A. / Sarah"
+   },
+   "2025-12-12": {
+    "rep": "Cameron / Matt A."
+   },
+   "2025-12-13": {
+    "rep": "Cameron"
+   },
+   "2025-12-14": {
+    "rep": "Cameron / Matt A."
+   },
+   "2025-12-15": {
+    "rep": "Cameron / Matt A."
+   },
+   "2025-12-16": {
+    "rep": "Matt A. / Sarah"
+   },
+   "2025-12-17": {
+    "rep": "Matt A."
+   },
+   "2025-12-18": {
+    "rep": "Cameron"
+   },
+   "2025-12-19": {
+    "rep": "Cameron / Matt A."
+   },
+   "2025-12-20": {
+    "rep": "Cameron / Roman"
+   },
+   "2025-12-21": {
+    "rep": "Cameron / Sarah"
+   },
+   "2025-12-22": {
+    "rep": "Cameron / Sarah"
+   },
+   "2025-12-23": {
+    "rep": "Cameron / Sarah"
+   },
+   "2025-12-24": {
+    "rep": "Matt A."
+   },
+   "2025-12-25": {
+    "rep": "__X__",
+    "note": "Christmas"
+   },
+   "2025-12-26": {
+    "rep": "Cameron"
+   },
+   "2025-12-27": {
+    "rep": "Cameron"
+   },
+   "2025-12-28": {
+    "rep": "Cameron"
+   }
+  }
+ },
+ {
+  "id": "2025-cielo-vista-mall",
+  "year": 2025,
+  "name": "Cielo Vista Mall",
+  "cityState": "El Paso, TX",
+  "status": "Booked",
+  "captain": "Eli",
+  "cost": "$2,375 ($131.94/day)",
+  "startDate": "2025-11-28",
+  "endDate": "2025-12-28",
+  "order": 4,
+  "notes": "",
+  "shifts": {
+   "2025-12-05": {
+    "rep": "Miguel"
+   },
+   "2025-12-06": {
+    "rep": "Miguel"
+   },
+   "2025-12-07": {
+    "rep": "Miguel"
+   },
+   "2025-12-08": {
+    "rep": "Miguel / Daniel",
+    "note": "Daniel after 5:30"
+   },
+   "2025-12-09": {
+    "rep": "Jerry / Daniel",
+    "note": "Daniel after 5:30"
+   },
+   "2025-12-10": {
+    "rep": "Eli / Daniel",
+    "note": "Daniel after 5:30"
+   },
+   "2025-12-11": {
+    "rep": "Jerry / Miguel"
+   },
+   "2025-12-12": {
+    "rep": "Jerry / Daniel"
+   },
+   "2025-12-13": {
+    "rep": "Jerry / Daniel"
+   },
+   "2025-12-14": {
+    "rep": "Jerry / Daniel"
+   },
+   "2025-12-15": {
+    "rep": "Miguel"
+   },
+   "2025-12-16": {
+    "rep": "Miguel"
+   },
+   "2025-12-17": {
+    "rep": "Miguel / Eli"
+   },
+   "2025-12-18": {
+    "rep": "Jerry / Eli",
+    "note": "Eli gave it to Yamel"
+   },
+   "2025-12-19": {
+    "rep": "Jerry / Eli"
+   },
+   "2025-12-20": {
+    "rep": "Jerry / Eli"
+   },
+   "2025-12-21": {
+    "rep": "Jerry / Eli",
+    "note": "Jerry gave it to Yamel; Eli gave it to Demetrius"
+   },
+   "2025-12-22": {
+    "rep": "Jerry / Eli",
+    "note": "Eli gave it to Yamel"
+   },
+   "2025-12-23": {
+    "rep": "Daniel / Eli"
+   },
+   "2025-12-25": {
+    "rep": "__X__",
+    "note": "Christmas"
+   }
+  }
+ },
+ {
+  "id": "2025-park-place-mall",
+  "year": 2025,
+  "name": "Park Place Mall",
+  "cityState": "Tucson, AZ",
+  "status": "Booked",
+  "captain": "",
+  "cost": "$96.65/day",
+  "startDate": "2025-11-28",
+  "endDate": "2025-12-28",
+  "order": 5,
+  "notes": "",
+  "shifts": {
+   "2025-11-28": {
+    "rep": "Kristin"
+   },
+   "2025-11-29": {
+    "rep": "Kristin / Staci"
+   },
+   "2025-11-30": {
+    "rep": "Kristin"
+   },
+   "2025-12-01": {
+    "rep": "Kristin"
+   },
+   "2025-12-13": {
+    "rep": "Staci"
+   },
+   "2025-12-14": {
+    "rep": "Staci"
+   },
+   "2025-12-18": {
+    "rep": "Zach"
+   },
+   "2025-12-19": {
+    "rep": "Zach"
+   },
+   "2025-12-20": {
+    "rep": "Zach"
+   },
+   "2025-12-21": {
+    "rep": "Zach"
+   },
+   "2025-12-22": {
+    "rep": "Zach"
+   },
+   "2025-12-23": {
+    "rep": "Zach"
+   },
+   "2025-12-24": {
+    "rep": "Zach"
+   },
+   "2025-12-25": {
+    "rep": "__X__",
+    "note": "Christmas"
+   },
+   "2025-12-26": {
+    "rep": "Zach"
+   },
+   "2025-12-27": {
+    "rep": "Zach"
+   },
+   "2025-12-28": {
+    "rep": "Zach"
+   }
+  }
+ },
+ {
+  "id": "2026-chandler-fashion-center",
+  "year": 2026,
+  "name": "Chandler Fashion Center",
+  "cityState": "Chandler, AZ",
+  "status": "Prospective",
+  "captain": "",
+  "cost": "",
+  "startDate": "2026-11-27",
+  "endDate": "2026-12-27",
+  "order": 1,
+  "notes": "",
+  "shifts": {
+   "2026-12-25": {
+    "rep": "__X__",
+    "note": "Christmas"
+   }
+  },
+  "lastYear": {
+   "year": 2025,
+   "status": "Booked",
+   "captain": "J. Parker",
+   "cost": "$7,038 ($230/day)",
+   "days": 30
+  },
+  "rolledFrom": "2025-chandler-fashion-center"
+ },
+ {
+  "id": "2026-sierra-vista",
+  "year": 2026,
+  "name": "Sierra Vista",
+  "cityState": "Sierra Vista, AZ",
+  "status": "Prospective",
+  "captain": "",
+  "cost": "",
+  "startDate": "2026-11-27",
+  "endDate": "2026-12-27",
+  "order": 2,
+  "notes": "",
+  "shifts": {
+   "2026-12-25": {
+    "rep": "__X__",
+    "note": "Christmas"
+   }
+  },
+  "lastYear": {
+   "year": 2025,
+   "status": "Booked",
+   "captain": "Adam J",
+   "cost": "$500 ($31/day)",
+   "days": 16
+  },
+  "rolledFrom": "2025-sierra-vista"
+ },
+ {
+  "id": "2026-arrowhead",
+  "year": 2026,
+  "name": "Arrowhead",
+  "cityState": "Glendale, AZ",
+  "status": "Prospective",
+  "captain": "",
+  "cost": "",
+  "startDate": "2026-11-27",
+  "endDate": "2026-12-27",
+  "order": 3,
+  "notes": "",
+  "shifts": {
+   "2026-12-25": {
+    "rep": "__X__",
+    "note": "Christmas"
+   }
+  },
+  "lastYear": {
+   "year": 2025,
+   "status": "Booked",
+   "captain": "Cameron",
+   "cost": "$7,393 ($238/day)",
+   "days": 30
+  },
+  "rolledFrom": "2025-arrowhead"
+ },
+ {
+  "id": "2026-cielo-vista-mall",
+  "year": 2026,
+  "name": "Cielo Vista Mall",
+  "cityState": "El Paso, TX",
+  "status": "Prospective",
+  "captain": "",
+  "cost": "",
+  "startDate": "2026-11-27",
+  "endDate": "2026-12-27",
+  "order": 4,
+  "notes": "",
+  "shifts": {
+   "2026-12-25": {
+    "rep": "__X__",
+    "note": "Christmas"
+   }
+  },
+  "lastYear": {
+   "year": 2025,
+   "status": "Booked",
+   "captain": "Eli",
+   "cost": "$2,375 ($131.94/day)",
+   "days": 19
+  },
+  "rolledFrom": "2025-cielo-vista-mall"
+ },
+ {
+  "id": "2026-kierland",
+  "year": 2026,
+  "name": "Kierland",
+  "cityState": "Scottsdale, AZ",
+  "status": "Prospective",
+  "captain": "",
+  "cost": "",
+  "startDate": "2026-11-27",
+  "endDate": "2026-12-27",
+  "order": 5,
+  "notes": "Not in yet (Alan, 2026-10-14).",
+  "shifts": {
+   "2026-12-25": {
+    "rep": "__X__",
+    "note": "Christmas"
+   }
+  }
+ }
+]

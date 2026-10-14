@@ -24,6 +24,8 @@
     board history set <baseId> <year> <cpo> [orders]
     board tick [--date 2027-01-08]                      (which routines are due today; "auto": true = runs itself)
     board changelog [--limit 50]
+    board kiosks [--year 2026] [--json]                 (the Kiosk Schedule: each mall's status, captain and days staffed)
+    board kiosks seed                                   (add seed/kiosks.json malls the board doesn't have; never touches one it has)
     board seed [--force]                                (load seed/*.json into an empty database)
     board export [dir]                                  (dump every table to JSON — a backup)
 
@@ -53,7 +55,7 @@ function loadEnv() {
 function die(msg, code = 1) { console.error('board: ' + msg); process.exit(code); }
 
 // ---------- REST ----------
-const TABLES = ['events', 'history', 'settings', 'seasons', 'never_work', 'overrides'];
+const TABLES = ['events', 'history', 'settings', 'seasons', 'never_work', 'overrides', 'kiosks'];
 const CONTACTS = 'event_contacts', PRIVATE = ['contact', 'phone', 'email'];   // own table: shown on the live page, never in `events`, never in the public git seed
 const splitPriv = o => { const pub = {}, priv = {}; for (const k of Object.keys(o || {})) (PRIVATE.includes(k) ? priv : pub)[k] = o[k]; return { pub, priv }; };
 const hasKeys = o => Object.keys(o).length > 0, hasValue = o => Object.values(o).some(v => v != null && String(v).trim() !== '');
@@ -304,6 +306,28 @@ const commands = {
       console.error(`${CONTACTS}: ${docs.length}`);
     } else console.error(`WARNING: ${cf} not found — NO promoter contacts were seeded. Copy it from the mini (or a backup) and run: board seed --force`);
     out('seeded');
+  },
+  // The Kiosk Schedule tab (2026-10-14): one `kiosks` row per mall per season, one shift per day in shifts[date].rep
+  // ("A / B" = a split day, "__X__" = closed). Nothing else in this repo reads the table.
+  async kiosks() {
+    const sub = pos[0] || 'list';
+    if (sub === 'seed') {
+      const docs = JSON.parse(fs.readFileSync(path.join(REPO, 'seed', 'kiosks.json'), 'utf8'));
+      const live = await liveDocs('kiosks'), add = docs.filter(d => !(d.id in live));
+      for (let i = 0; i < add.length; i += 100)
+        await rest('POST', 'kiosks?on_conflict=id', add.slice(i, i + 100).map(({ id, ...data }) => ({ id, data })), { Prefer: 'resolution=ignore-duplicates,return=minimal' });
+      return out(json ? { added: add.map(d => d.id), kept: docs.length - add.length } : `kiosks: added ${add.length}${docs.length - add.length ? `, left ${docs.length - add.length} the board already has as they are` : ''}`);
+    }
+    if (sub !== 'list') die('kiosks [--year 2026] [--json] | kiosks seed');
+    let ks = await rows('kiosks'); if (flags.year) ks = ks.filter(k => +k.year === +flags.year);
+    ks.sort((a, b) => (+a.year - +b.year) || ((+a.order || 99) - (+b.order || 99)) || String(a.name).localeCompare(String(b.name)));
+    const t = iso(today());
+    const brief = k => { const days = Object.entries(k.shifts || {}).filter(([d]) => d >= (k.startDate || '') && d <= (k.endDate || ''));
+      const staffed = days.filter(([, s]) => s && s.rep && s.rep !== '__X__');
+      let open = 0; if (k.status === 'Booked' && k.startDate && k.endDate) for (let d = fromISO(k.startDate); iso(d) <= k.endDate; d = addDays(d, 1)) { const s = (k.shifts || {})[iso(d)]; if (iso(d) >= t && !(s && s.rep)) open++; }
+      return { id: k.id, name: k.name, year: +k.year, status: k.status || 'Prospective', captain: k.captain || '', start: k.startDate || '', end: k.endDate || '', staffed: staffed.length, open,
+        reps: [...new Set(staffed.flatMap(([, s]) => s.rep.split(' / ').map(x => x.trim())))] }; };
+    out(json ? ks.map(brief) : ks.map(brief).map(b => `${b.id}  ${b.status}${b.captain ? ' · captain ' + b.captain : ''} · ${b.start}..${b.end} · ${b.staffed} staffed, ${b.open} open`).join('\n') || 'no malls');
   },
   async export() {
     const dir = pos[0] || path.join(REPO, 'backups', new Date().toISOString().slice(0, 10)); fs.mkdirSync(dir, { recursive: true });

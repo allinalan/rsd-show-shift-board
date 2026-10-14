@@ -12,6 +12,12 @@ routines in `.claude/skills/` keep it true.
 - `supabase/email-templates/magic-link-or-otp.html` — the sign-in email exactly as set in Supabase
   (subject in its header comment). Restore it from here on a rebuild.
 - `config.js` — Supabase URL + anon key for this deployment (public by design; RLS guards writes).
+- The **Kiosk Schedule** tab (Alan, 2026-10-14): the holiday mall kiosks, one `kiosks` row per mall per season, one
+  shift per mall per day. Read the data model below before touching it. `seed/kiosks.json` is the 2025 mall sheet
+  (`2025 Mall Schedule - AZ.xlsx` on Alan's Drive) as worked, plus 2026 as set up that day: Chandler Fashion Center,
+  Sierra Vista, Arrowhead and Cielo Vista Mall rolled from 2025 as Prospective, Kierland new and Prospective ("we are not
+  in yet"), Park Place not back. Nov 27 - Dec 27, Christmas closed. `board kiosks` lists them; `board kiosks seed` adds the
+  seed's malls the board lacks and never touches one it has.
 - `seed/*.json` — the data as of the migration off the Google Sheet. Also what the page shows
   when `config.js` is blank (read-only preview). `seed/private/` (gitignored, mode 600) holds the
   promoter contacts; it exists only on the mini.
@@ -139,7 +145,13 @@ handles that (editors get contacts after sign-in, everyone else gets no rows). T
 page's data layer and the CLI split those three fields out of every `events` write and merge them
 back on read, so everything else treats them as event fields. `history` — results by year per show base. `settings/division` — name, short, code, roster,
 `meetings` (ISO dates of shift-picking meetings). `never_work` — shows we never work again,
-keyed by series key. `editors` — who may write. `changelog` — every write. `sheet_syncs` — a plain table (not
+keyed by series key. `kiosks` — the Kiosk Schedule: id `YYYY-<mall>` (base stable across seasons), `name, year,
+cityState, status (Booked | Prospective | Cancelled), captain, cost (free text, "$7,038 ($230/day)"), startDate, endDate,
+order (column), notes, shifts{ISO date: {rep, note?}}, lastYear{year, status, captain, cost, days}, rolledFrom`. One shift
+per day: `rep` is a roster name, two joined by " / " for a split day, or `__X__` for no shift (the mall is closed; `note`
+says why, e.g. Christmas). Open = a Booked mall's upcoming day with no rep; a Prospective mall has none. The page writes a
+day by re-reading the row and sending the whole `shifts` map through `merge_doc` (shallow), so a concurrent edit to
+another day survives. Its own table on purpose: nothing that reads `events` may ever see a mall. `editors` — who may write. `changelog` — every write. `sheet_syncs` — a plain table (not
 `{id, data}`): one row per Sync press or `--apply` sync run (`status` pending → running → done | stopped | failed,
 `result` = counts and the changed/held/conflict lists, never contacts). Editors read and insert pending rows; only
 the service key moves them on.
@@ -228,6 +240,11 @@ is never left unseen. `python3 deploy/tick.py --status` says which it is right n
 `node tests/run-all.mjs`, `python3 deploy/tick.py --dry`, then `touch PAUSED; launchctl start
 com.allinalan.rsd-board-tick; tail logs/tick.log; rm PAUSED`. If how a job starts changes, update
 `install.sh`, this file and `~/ai-system/REGISTRY.yaml` in the same change.
+
+The `kiosks` table went into the live database on 2026-10-14: the same statements as `supabase/schema.sql`, run as SQL
+(Supabase's migration tool hung on them), then the ten malls from `seed/kiosks.json` (the changelog names
+`service:kiosk-setup`). Checked as anon the same day: reads all rows; an insert and `merge_doc` are refused. No job
+reads or writes it; the tab shows once `main` carries it.
 
 The full spec and clarifications log lives in the RSD Events Team Cowork project
 (`claude/show-shift-board-spec.md`); a copy belongs in `docs/spec.md` once Alan brings it over.

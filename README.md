@@ -56,6 +56,18 @@ October 15, 2026 it also runs that sync by itself every hour, 7am-9pm (`docs/HAN
 
 Meeting dates live in plan mode → Division settings.
 
+## Kiosk Schedule
+
+The **Kiosk Schedule** tab (next to the years) is the holiday mall kiosks: dates down the side, one
+column per mall, **one shift per mall per day**. Two names on a day is a split day (the mall sheet's
+Rep #2). A Prospective mall isn't signed yet, so its empty days are not open shifts; switch it to
+Booked in plan mode once the lease is signed. In plan mode, click a day to put a rep on it, split it
+or mark the mall closed (Christmas is closed already); open a mall below the schedule for its
+captain, cost, dates and notes; **+ Add a mall** adds one, and an empty season offers to roll last
+season's malls forward. 2025 is last year's mall sheet as it was worked. The malls live in their own
+`kiosks` table, so nothing that reads the show board (the event check, the booking sweep, SUNNY)
+ever sees them. `node scripts/board.mjs kiosks` lists them.
+
 ## Editing
 
 Plan mode → your email → type in the code from the email (no password). That device stays signed

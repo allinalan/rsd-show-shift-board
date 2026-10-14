@@ -23,6 +23,9 @@ create table if not exists seasons    (id text primary key, data jsonb not null 
 create table if not exists never_work (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
 create table if not exists overrides  (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
 create table if not exists event_contacts (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());  -- readable on the page, never in git
+-- the Kiosk Schedule tab (2026-10-14): one row per mall per holiday season, id YYYY-<mall>. Its own table so mall
+-- shifts never reach the routines that read `events` (event check, booking sweep, research, Sheet sync, SUNNY).
+create table if not exists kiosks     (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
 
 -- who may edit. Alan adds rows here (or via `board editors add`). role: owner | coordinator
 create table if not exists editors (
@@ -53,7 +56,7 @@ create or replace function touch_updated_at() returns trigger language plpgsql a
 begin new.updated_at = now(); return new; end $$;
 
 do $$ declare t text; begin
-  foreach t in array array['events','history','settings','seasons','never_work','overrides','event_contacts'] loop
+  foreach t in array array['events','history','settings','seasons','never_work','overrides','event_contacts','kiosks'] loop
     execute format('drop trigger if exists %I_touch on %I', t, t);
     execute format('create trigger %I_touch before update on %I for each row execute function touch_updated_at()', t, t);
   end loop;
@@ -81,7 +84,7 @@ begin
 end $$;
 
 do $$ declare t text; begin
-  foreach t in array array['events','history','settings','seasons','never_work','overrides','event_contacts'] loop
+  foreach t in array array['events','history','settings','seasons','never_work','overrides','event_contacts','kiosks'] loop
     execute format('drop trigger if exists %I_log on %I', t, t);
     execute format('create trigger %I_log after insert or update or delete on %I for each row execute function log_change()', t, t);
   end loop;
@@ -93,7 +96,7 @@ create or replace function merge_doc(tbl text, doc_id text, patch jsonb, actor t
 returns jsonb language plpgsql security definer as $$
 declare out jsonb;
 begin
-  if tbl not in ('events','history','settings','seasons','never_work','overrides','event_contacts') then
+  if tbl not in ('events','history','settings','seasons','never_work','overrides','event_contacts','kiosks') then
     raise exception 'unknown table %', tbl;
   end if;
   if not (is_editor() or auth.role() = 'service_role') then
@@ -107,7 +110,7 @@ end $$;
 
 -- ---------- row-level security ----------
 do $$ declare t text; begin
-  foreach t in array array['events','history','settings','seasons','never_work','overrides'] loop
+  foreach t in array array['events','history','settings','seasons','never_work','overrides','kiosks'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists %I_read on %I', t, t);
     execute format('create policy %I_read on %I for select using (true)', t, t);          -- reps read anonymously
@@ -172,6 +175,7 @@ do $$ begin
   begin execute 'alter publication supabase_realtime add table overrides';  exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table event_contacts'; exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table sheet_syncs';    exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table kiosks';         exception when duplicate_object then null; end;
 end $$;
 
 -- ---------- first owner ----------
