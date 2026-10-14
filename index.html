@@ -127,6 +127,7 @@ body.plan .switch{color:var(--navy)}
 .editrow .tagfield input[type=date],.editrow .tagfield input[type=text]{border:0;background:none;padding:0 9px;font-size:.82rem;font-weight:600;color:var(--ink);min-width:0;width:150px}
 .danger{color:var(--pend);background:none;border:1px dashed var(--line);border-radius:7px;padding:5px 10px;font-size:.74rem;cursor:pointer;margin-top:10px}
 .danger:hover{border-color:var(--pend)}
+.danger.arm{background:var(--pend);color:var(--on-pend);border:1px solid var(--pend);font-weight:600}
 .empty-season{text-align:center;padding:40px 16px;color:var(--ink-3);font-size:.9rem;display:flex;flex-direction:column;gap:10px;align-items:center}
 .empty-season b{color:var(--ink);font-family:var(--f-disp)}
 .plan-only{display:none !important}
@@ -998,7 +999,7 @@ let boardEvents=[];               // every board-sourced event, all years
 let histMap={};                   // baseId -> {year: {cpo, orders}}
 let ovMap={};                     // sheet event id -> shared field overrides
 let kiosks=[], kioskState='loading';   // `kiosks` docs, all years · loading | ready | missing (no kiosks table in the database yet)
-let kYearSel=null, kRep='', kShowPast=false;   // the kiosk season on screen (not remembered: the tab opens on this season) · rep highlighted · the days already gone unfolded
+let kYearSel=null, kRep='', kShowPast=false, kDelArmed=null;   // kDelArmed {id, at}: Remove tapped once, still armed after a redraw   // the kiosk season on screen (not remembered: the tab opens on this season) · rep highlighted · the days already gone unfolded
 const kOpen=new Set();
 const F={q:'',rep:'',lvl:'',bk:'',state:new Set(),tier:new Set()};
 const open=new Set(), pastClosed=new Set(); let pastAllOpen=false;
@@ -1477,7 +1478,9 @@ function kBody(k,P){
    <div class="detail">${f('Mall name','name')}<div class="dl"><dt>Captain</dt><dd><button class="slotpick kcapbtn wide${k.captain?'':' none'}" data-kcap="${esc(k.id)}" aria-haspopup="listbox">${k.captain?esc(k.captain):'+ Assign a captain'}</button></dd></div>${f('Cost for the season','cost','$7,300')}<div class="dl"><dt>${pd&&!pd.est?'Cost per day':'Est. cost per day'}</dt><dd class="mono${perTxt?'':' empty'}">${perTxt?esc(perTxt):'set the cost first'}</dd></div>${f('First day','startDate','','date')}${f('Last day','endDate','','date')}${f('City, state','cityState','Chandler, AZ')}${f('Column','order','1 = first','number')}
     <div class="dl wide"><dt>Notes</dt><dd><textarea class="fld" data-kf="notes" rows="3" placeholder="Kiosk location, lease terms, what the captain needs to know">${esc(k.notes||'')}</textarea></dd></div></div>
    <p class="legend">Shifts are set in the schedule above: click a day. Two names on a day is a split. The cost per day is the season's cost over the days the kiosk is open; mark a day closed and it goes up.</p>
-   <div class="lifecycle"><div class="lifecycle-btns"><button class="danger" data-kdel="1">Remove ${esc(k.name)} from ${esc(k.year)}</button></div></div>`;
+   <div class="lifecycle"><div class="lifecycle-btns">${kArmed(k.id)
+      ?`<button class="danger arm" data-kdel="2">Tap again to remove ${esc(k.name)} and every shift on it</button><button class="linkbtn" data-kdelno="1">keep it</button>`
+      :`<button class="danger" data-kdel="1">Remove ${esc(k.name)} from ${esc(k.year)}</button>`}</div></div>`;
 }
 function kFocusKey(){
   const a=document.activeElement; if(!a||!a.closest||!a.closest('#board')) return null;
@@ -1485,7 +1488,8 @@ function kFocusKey(){
   if(d.kday) return {sel:`.slotpick[data-kid="${d.kid}"][data-kday="${d.kday}"]`};
   if(d.kcap) return {sel:`${card?`#kc-${d.kcap} `:'.kmh '}.kcapbtn[data-kcap="${d.kcap}"]`};
   if(d.kf&&card) return {sel:`#${card.id} [data-kf="${d.kf}"]`,value:a.value,start:a.selectionStart,end:a.selectionEnd};
-  for(const k of ['krep','kyear','kgo','kpast','kdel']) if(d[k]!=null) return {sel:`[data-${k}="${d[k]}"]`};
+  if(d.kdel!=null&&card) return {sel:`#${card.id} [data-kdel]`};
+  for(const k of ['krep','kyear','kgo','kpast']) if(d[k]!=null) return {sel:`[data-${k}="${d[k]}"]`};
   if(card&&a.classList.contains('ev-h')) return {sel:`#${card.id} .ev-h`};
   return null;
 }
@@ -1494,6 +1498,8 @@ function kRestoreFocus(f){
   if(f.value!=null&&el.value!==f.value&&'value' in el&&el.tagName!=='SELECT'){ el.value=f.value; try{ el.setSelectionRange(f.start,f.end); }catch(e){} }
   el.focus({preventScroll:true});
 }
+const KDEL_MS=10e3;
+const kArmed=id=>!!kDelArmed&&kDelArmed.id===id&&Date.now()-kDelArmed.at<KDEL_MS;
 function renderKiosks(){
   setTimeout(()=>{syncTopH();pinHeads();drawColRules();},0);
   const keepFocus=kFocusKey();
@@ -2033,9 +2039,18 @@ board.addEventListener('click',async ev=>{
   const card=t.closest('article[data-kid]'); if(!card) return;
   const id=card.dataset.kid, k=kiosks.find(x=>x.id===id); if(!k) return;
   if(t.closest('.ev-h')){ kOpen.has(id)?kOpen.delete(id):kOpen.add(id); build(); return; }
-  const del=t.closest('[data-kdel]');
-  if(del){ if(del.dataset.kdel==='1'){ del.dataset.kdel='2'; del.textContent='Tap again to remove '+k.name+' and every shift on it'; return; }
-    try{ await db.doc('kiosks/'+id).delete(); kiosks=kiosks.filter(x=>x.id!==id); kOpen.delete(id); toast('Removed '+k.name+' from '+k.year); build(); }catch(err){ toast(kErr(err)); } return; }
+  if(t.closest('[data-kdelno]')){ kDelArmed=null; build(); return; }
+  if(t.closest('[data-kdel]')){
+    if(!kArmed(id)){ const at=Date.now(); kDelArmed={id,at}; build();
+      setTimeout(()=>{ if(kDelArmed&&kDelArmed.at===at){ kDelArmed=null; build(); } },KDEL_MS+50); return; }   // ten seconds to change your mind
+    kDelArmed=null;
+    try{
+      await db.doc('kiosks/'+id).delete();
+      /* gone means gone from the database, not just from this screen */
+      if(db.client){ const {data}=await db.client.from('kiosks').select('id').eq('id',id).maybeSingle(); if(data){ toast('Couldn\'t remove '+k.name+' — check your edit access'); build(); return; } }
+      kiosks=kiosks.filter(x=>x.id!==id); kOpen.delete(id); toast('Removed '+k.name+' from '+k.year); build();
+    }catch(err){ toast(kErr(err)); build(); }
+    return; }
 });
 board.addEventListener('change',async ev=>{
   if(!viewKiosk()) return;
