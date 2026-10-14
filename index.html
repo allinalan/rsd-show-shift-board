@@ -792,7 +792,7 @@ table.ktbl .namecell.kcx,.kd li.kcx .kw{text-decoration:line-through;opacity:.55
 .kd li.khit{background:color-mix(in srgb,var(--navy) 16%,var(--surface))}
 .kd li.kdim .kw{opacity:.55}
 .kd .kw .slotbox{min-width:150px;max-width:none}
-table.ktbl .slotbox.kprosp .slotpick{color:var(--ink-3);opacity:.6}   /* not in yet: an empty day there isn't an open shift */
+table.ktbl .slotbox.kprosp .slotpick{color:var(--ink-3);opacity:.6}   /* Prospective: an empty day there isn't an open shift */
 body.kioskv #syncLine,body.kioskv #syncPanel{display:none !important}   /* renderSync rewrites the line's classes */
 @media (max-width:520px){ table.ktbl{width:max(100%,calc(70px + var(--kn,5) * 100px))} table.ktbl thead th.kdh{width:70px} table.ktbl th.kday{min-width:0;padding:5px 6px} }
 @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
@@ -1410,7 +1410,7 @@ const kNames=v=>kReps(v).map(n=>`<span class="kn">${esc(n)}</span>`).join('<span
 const kDow=d=>fromISO(d).toLocaleDateString('en-US',{weekday:'short'});
 function kHead(k,P){
   const s=kStats(k), st=kStatus(k), sk=KSKEY[st], pd=kPerDay(k);
-  const flags=(st==='Booked'?(s.open?`<span class="st st-open mini">${s.open} open</span>`:''):`<span class="bk p-${sk}">${P?esc(st):st==='Prospective'?'not in yet':'cancelled'}</span>`);
+  const flags=(st==='Booked'?(s.open?`<span class="st st-open mini">${s.open} open</span>`:''):`<span class="bk p-${sk}">${esc(st)}</span>`);
   const cap=P?`<button class="slotpick kcapbtn${k.captain?'':' none'}" data-kcap="${esc(k.id)}" aria-haspopup="listbox" title="Pick the captain">${k.captain?'Captain '+esc(k.captain):'+ Assign a captain'}</button>`
     :(k.captain?`<span class="kcap">Captain <span class="kn">${esc(k.captain)}</span></span>`:'');
   const cost=P?kCostTxt(k):(pd?`${pd.est?'est. ':''}${kMoney(pd.per)}/day`:'');
@@ -1549,7 +1549,7 @@ function renderKiosks(){
     return `<tr class="${cls}"><th class="gname kday" scope="row">${kDow(d)}<span>${fdate(d)}</span>${d===td?'<i>today</i>':''}</th>`+
       list.map(k=>kIn(k,d)?`<td class="gcell">${kCell(k,d,P)}</td>`:`<td class="gcell na"></td>`).join('')+`</tr>`; }).join('');
   board.innerHTML=`<section class="band kiosk">${head(sub,cov)}
-    <p class="legend">Who's working each mall's kiosk, day by day. Two names on a day share it (a split day).${notIn.length?` Not in yet: ${esc(notIn.join(', '))}.`:''}${P?' Click a day to put someone on it, split it, or mark the mall closed.':''}</p>
+    <p class="legend">Who's working each mall's kiosk, day by day. Two names on a day share it (a split day).${notIn.length?` Prospective: ${esc(notIn.join(', '))}.`:''}${P?' Click a day to put someone on it, split it, or mark the mall closed.':''}</p>
     ${chips}${mine}${fold}
     <div class="gridwrap gridwrap-w kgrid"><table class="wgrid ktbl" style="--kn:${list.length}"><caption class="ksr">Kiosk schedule ${Y}: who works each mall's kiosk each day</caption><thead>${thead}</thead><tbody>${rows}</tbody></table></div>
     <div class="kdays">${!P&&!booked&&!filledN?`<div class="empty-season"><b>Nothing booked for ${Y} yet.</b><span>The days show up here once a mall is booked and people are on them.</span></div>`
