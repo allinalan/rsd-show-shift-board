@@ -325,9 +325,15 @@ const commands = {
     const brief = k => { const days = Object.entries(k.shifts || {}).filter(([d]) => d >= (k.startDate || '') && d <= (k.endDate || ''));
       const staffed = days.filter(([, s]) => s && s.rep && s.rep !== '__X__');
       let open = 0; if (k.status === 'Booked' && k.startDate && k.endDate) for (let d = fromISO(k.startDate); iso(d) <= k.endDate; d = addDays(d, 1)) { const s = (k.shifts || {})[iso(d)]; if (iso(d) >= t && !(s && s.rep)) open++; }
+      // the page's cost per day: the season's cost over its days not marked closed; once the season is over, over the days worked
+      const cm = k.costNum != null && k.costNum !== '' ? +k.costNum : (String(k.cost || '').match(/\d[\d,]*(?:\.\d+)?/) || [])[0];
+      const cost = cm == null ? null : +String(cm).replace(/,/g, '');
+      let season = 0, closed = 0; if (k.startDate && k.endDate) for (let d = fromISO(k.startDate); iso(d) <= k.endDate; d = addDays(d, 1)) { season++; if (((k.shifts || {})[iso(d)] || {}).rep === '__X__') closed++; }
+      const over = !!k.endDate && k.endDate < t, perDays = over ? staffed.length : season - closed;
       return { id: k.id, name: k.name, year: +k.year, status: k.status || 'Prospective', captain: k.captain || '', start: k.startDate || '', end: k.endDate || '', staffed: staffed.length, open,
+        cost, perDay: cost != null && perDays ? Math.round(cost / perDays * 100) / 100 : null, perDays,
         reps: [...new Set(staffed.flatMap(([, s]) => s.rep.split(' / ').map(x => x.trim())))] }; };
-    out(json ? ks.map(brief) : ks.map(brief).map(b => `${b.id}  ${b.status}${b.captain ? ' · captain ' + b.captain : ''} · ${b.start}..${b.end} · ${b.staffed} staffed, ${b.open} open`).join('\n') || 'no malls');
+    out(json ? ks.map(brief) : ks.map(brief).map(b => `${b.id}  ${b.status}${b.captain ? ' · captain ' + b.captain : ''} · ${b.start}..${b.end} · ${b.staffed} staffed, ${b.open} open${b.cost != null ? ` · $${b.cost}${b.perDay != null ? ` ($${Math.round(b.perDay)}/day over ${b.perDays})` : ''}` : ''}`).join('\n') || 'no malls');
   },
   async export() {
     const dir = pos[0] || path.join(REPO, 'backups', new Date().toISOString().slice(0, 10)); fs.mkdirSync(dir, { recursive: true });

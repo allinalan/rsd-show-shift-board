@@ -727,6 +727,13 @@ table.ktbl .namecell.kdim{opacity:.4}
 .kiosk-only{display:none !important}
 body.kioskv.plan .btn.kiosk-only:not([hidden]){display:inline-block !important}
 body.kioskv .ev-only.ev-only{display:none !important}
+.kmh .kcost{display:block;font-family:var(--f-mono);font-size:.66rem;color:var(--ink-2);margin-top:3px;font-variant-numeric:tabular-nums}
+.kmh .kedit{font-size:.7rem;color:var(--ink-3);margin-left:5px;font-weight:400}
+.kmh .glink:hover .kedit{color:var(--navy)}
+.kcapbtn{display:block;margin-top:4px;padding:3px 7px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);
+  font:inherit;font-size:.7rem;font-weight:600;cursor:pointer;text-align:left;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kcapbtn.none{border-style:dashed;color:var(--ink-3);font-weight:500}
+.kcapbtn:hover,.kcapbtn.picking{border-color:var(--navy);color:var(--navy)}
 table.ktbl .slotbox.kprosp .slotpick{color:var(--ink-3);opacity:.6}   /* not in yet: an empty day there isn't an open shift */
 body.kioskv #syncLine,body.kioskv #syncPanel{display:none !important}   /* renderSync rewrites the line's classes */
 @media (max-width:520px){ table.ktbl{width:max(100%,calc(70px + var(--kn,5) * 100px))} table.ktbl thead th.kdh{width:70px} table.ktbl th.kday{min-width:0;padding:5px 6px} }
@@ -1317,6 +1324,19 @@ function kStats(k){
   kDates([k]).forEach(d=>{ const v=(kDay(k,d)||{}).rep||''; if(v==='__X__') return; if(v) filled++; else if(kStatus(k)==='Booked'&&!kPast(d)) open++; });
   return {filled,open};
 }
+/* the season's cost spread over its days. Before and during the season: every day in its dates that isn't marked
+   closed (an estimate: mark a day closed and it rises). Once the season is over: the days somebody worked, which is
+   how the mall sheet's $/day was figured (Sierra Vista 2025: $500 over 16 days = $31). */
+const kCostNum=k=>{ if(k.costNum!=null&&k.costNum!==''&&!isNaN(+k.costNum)) return +k.costNum; const m=String(k.cost||'').match(/\d[\d,]*(?:\.\d+)?/); return m?parseFloat(m[0].replace(/,/g,'')):null; };
+function kPerDay(k){
+  const c=kCostNum(k), dates=kDates([k]); if(c==null||!dates.length) return null;
+  const over=dates[dates.length-1]<iso(TODAY);
+  const n=over?kStats(k).filled:dates.filter(d=>((kDay(k,d)||{}).rep||'')!=='__X__').length;
+  return n?{per:c/n,n,est:!over,total:c}:null;
+}
+const kMoney=v=>'$'+Math.round(v).toLocaleString('en-US');
+function kCostTxt(k,long){ const c=kCostNum(k); if(c==null) return ''; const p=kPerDay(k);
+  return kMoney(c)+(p?` · ${p.est?'est. ':''}${kMoney(p.per)}/day${long?` over ${p.n} ${p.est?'open':'worked'} day${p.n===1?'':'s'}`:''}`:''); }
 const blackFriday=Y=>{ const d=new Date(Y,10,1); while(d.getDay()!==4) d.setDate(d.getDate()+1); return addDays(d,22); };
 function kDefaultRange(Y){
   const mode=a=>{ const c={}; a.filter(Boolean).forEach(x=>c[x]=(c[x]||0)+1); return Object.keys(c).sort((x,y)=>c[y]-c[x])[0]||''; };
@@ -1327,11 +1347,13 @@ function kDefaultRange(Y){
 const kErr=err=>err&&err.code==='read_only'?'Read-only preview — this copy isn\'t connected to the database yet':err&&err.code==='invalid_argument'?'You don\'t have edit access to this board':'Couldn\'t save — try again';
 const kNames=v=>kReps(v).map(esc).join('<span class="ksp"> / </span>');
 const kDow=d=>fromISO(d).toLocaleDateString('en-US',{weekday:'short'});
-function kHead(k){
-  const s=kStats(k), st=kStatus(k), sk=KSKEY[st];
-  return `<th class="kmh k-${sk}"><button class="glink" data-kgo="${esc(k.id)}" title="${esc(k.name)} details"><span class="gn">${esc(k.name)}</span></button>`+
+function kHead(k,P){
+  const s=kStats(k), st=kStatus(k), sk=KSKEY[st], cost=kCostTxt(k);
+  const cap=P?`<button class="slotpick kcapbtn${k.captain?'':' none'}" data-kcap="${esc(k.id)}" aria-haspopup="listbox" title="Pick the captain">${k.captain?'Captain '+esc(k.captain):'+ Assign a captain'}</button>`
+    :`<span class="kcap">${k.captain?'Captain '+esc(k.captain):st==='Prospective'?'not in yet':''}</span>`;
+  return `<th class="kmh k-${sk}"><button class="glink" data-kgo="${esc(k.id)}" title="${P?'Rename it, or set its cost, dates and notes':esc(k.name)+' details'}"><span class="gn">${esc(k.name)}${P?'<span class="kedit" aria-hidden="true">&#9998;</span>':''}</span></button>`+
     `<span class="gsub"><span class="bk p-${sk}">${esc(st)}</span>${st==='Booked'&&s.open?`<span class="st st-open mini">Open ${s.open}</span>`:''}</span>`+
-    `<span class="kcap">${k.captain?'Captain '+esc(k.captain):st==='Prospective'?'not in yet':''}</span></th>`;
+    cap+(cost?`<span class="kcost">${esc(cost)}</span>`:'')+`</th>`;
 }
 function kCell(k,d,P){
   const day=kDay(k,d)||{}, v=day.rep||'', st=kStatus(k), hit=!!kRep&&kReps(v).includes(kRep);
@@ -1348,13 +1370,14 @@ function kCell(k,d,P){
 function kCard(k,P){
   const s=kStats(k), st=kStatus(k), sk=KSKEY[st], isOpen=kOpen.has(k.id), ly=k.lastYear;
   const range=k.startDate&&k.endDate?`${kDow(k.startDate)} ${fdate(k.startDate)} – ${kDow(k.endDate)} ${fdate(k.endDate)}`:'dates TBD';
-  const lyTxt=!ly?'':ly.days?[ly.captain?'Captain '+esc(ly.captain):'',ly.cost?esc(ly.cost):'',ly.days+' day'+(ly.days===1?'':'s')+' worked'].filter(Boolean).join(' · '):'not worked'+(ly.status&&ly.status!=='Booked'?' ('+esc(ly.status)+')':'');
+  const lyc=ly?kCostNum(ly):null;
+  const lyTxt=!ly?'':ly.days?[ly.captain?'Captain '+esc(ly.captain):'',lyc!=null?kMoney(lyc):'',ly.days+' day'+(ly.days===1?'':'s')+' worked',lyc!=null?kMoney(lyc/ly.days)+'/day':''].filter(Boolean).join(' · '):'not worked'+(ly.status&&ly.status!=='Booked'?' ('+esc(ly.status)+')':'');
   return `<article class="ev kcard ks-${sk}${isOpen?' open':''}" data-kid="${esc(k.id)}" id="kc-${esc(k.id)}">
    <button class="ev-h" aria-expanded="${isOpen}">
     <span class="ev-main">
      <span class="ev-name">${esc(k.name)}</span>
      <span class="ev-meta"><span class="mono">${range}</span>${k.cityState?`<span class="sep">&bull;</span><span>${esc(k.cityState)}</span>`:''}${k.captain?`<span class="sep">&bull;</span><span>Captain ${esc(k.captain)}</span>`:''}</span>
-     <span class="resline">${k.cost?`<span class="res"><b>Cost</b> ${esc(k.cost)}</span>`:''}<span class="res"><b>Filled</b> ${s.filled} day${s.filled===1?'':'s'}</span>${lyTxt?`<span class="res"><b>${esc(ly.year||'Last yr')}</b> <i>${lyTxt}</i></span>`:''}</span>
+     <span class="resline">${kCostTxt(k)?`<span class="res"><b>Cost</b> ${esc(kCostTxt(k,true))}</span>`:''}<span class="res"><b>Filled</b> ${s.filled} day${s.filled===1?'':'s'}</span>${lyTxt?`<span class="res"><b>${esc(ly.year||'Last yr')}</b> <i>${lyTxt}</i></span>`:''}</span>
     </span>
     <span class="ev-right"><span class="bk p-${sk}">${esc(st)}</span>${st==='Booked'&&s.open?`<span class="st st-open">Open <b>${s.open}</b></span>`:''}</span>
     <svg class="caret" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6l4 4 4-4"/></svg>
@@ -1365,13 +1388,14 @@ function kCard(k,P){
 function kBody(k,P){
   const st=kStatus(k);
   const d=(label,v,mono)=>`<div class="dl"><dt>${label}</dt><dd class="${mono?'mono':''}${v?'':' empty'}">${v?esc(v):'not set yet'}</dd></div>`;
-  if(!P) return `<div class="detail">${d('Status',st)}${d('Captain',k.captain)}${d('City, state',k.cityState)}${d('Cost',k.cost,true)}${d('First day',k.startDate?fdate(k.startDate):'',true)}${d('Last day',k.endDate?fdate(k.endDate):'',true)}`+
+  const pd=kPerDay(k), perTxt=pd?`${kMoney(pd.per)} over ${pd.n} ${pd.est?'open':'worked'} day${pd.n===1?'':'s'}`:'';
+  if(!P) return `<div class="detail">${d('Status',st)}${d('Captain',k.captain)}${d('City, state',k.cityState)}${d('Cost for the season',kCostNum(k)!=null?kMoney(kCostNum(k)):k.cost,true)}${d(pd&&!pd.est?'Cost per day':'Est. cost per day',perTxt,true)}${d('First day',k.startDate?fdate(k.startDate):'',true)}${d('Last day',k.endDate?fdate(k.endDate):'',true)}`+
     `${k.notes?`<div class="dl wide"><dt>Notes</dt><dd class="notes">${esc(k.notes)}</dd></div>`:''}</div>`;
   const f=(label,key,ph,type)=>`<div class="dl"><dt>${label}</dt><dd><input class="fld" type="${type||'text'}" data-kf="${key}" value="${esc(k[key]==null?'':k[key])}" placeholder="${esc(ph||'')}"${key==='captain'?' list="kRoster" autocomplete="off"':''}></dd></div>`;
   return `<div class="tagrow"><label class="tagfield"><span>Status</span><select data-kf="status" aria-label="Status">${KSTATUS.map(s=>`<option${s===st?' selected':''}>${s}</option>`).join('')}</select></label></div>
-   <div class="detail">${f('Mall','name')}${f('City, state','cityState','Chandler, AZ')}${f('Captain','captain','who runs this kiosk')}${f('Cost','cost','$7,038 ($230/day)')}${f('First day','startDate','','date')}${f('Last day','endDate','','date')}${f('Column','order','1 = first','number')}
+   <div class="detail">${f('Mall name','name')}${f('Captain','captain','who runs this kiosk')}${f('Cost for the season','cost','$7,300')}<div class="dl"><dt>${pd&&!pd.est?'Cost per day':'Est. cost per day'}</dt><dd class="mono${perTxt?'':' empty'}">${perTxt?esc(perTxt):'set the cost first'}</dd></div>${f('First day','startDate','','date')}${f('Last day','endDate','','date')}${f('City, state','cityState','Chandler, AZ')}${f('Column','order','1 = first','number')}
     <div class="dl wide"><dt>Notes</dt><dd><textarea class="fld" data-kf="notes" rows="3" placeholder="Kiosk location, lease terms, what the captain needs to know">${esc(k.notes||'')}</textarea></dd></div></div>
-   <p class="legend">Shifts are set in the schedule above: click a day. Two names on a day is a split.</p>
+   <p class="legend">Shifts are set in the schedule above: click a day. Two names on a day is a split. The cost per day is the season's cost over the days the kiosk is open; mark a day closed and it goes up.</p>
    <div class="lifecycle"><div class="lifecycle-btns"><button class="danger" data-kdel="1">Remove ${esc(k.name)} from ${esc(k.year)}</button></div></div>`;
 }
 function renderKiosks(){
@@ -1411,7 +1435,7 @@ function renderKiosks(){
     dates.forEach(d=>live.forEach(k=>{ const s=kDay(k,d); if(!kIn(k,d)||!s) return; const r=kReps(s.rep); if(!r.includes(kRep)) return;
       const w=r.filter(x=>x!==kRep); items.push(`<span>${kDow(d)} ${fdate(d)} · ${esc(k.name)}${w.length?' · split with '+esc(w.join(' & ')):''}</span>`); }));
     mine=`<div class="kmine"><b>${esc(kRep)}</b>${items.join('')}</div>`; }
-  const thead=`<tr><th class="gname kdh">Day</th>${list.map(kHead).join('')}</tr>`;
+  const thead=`<tr><th class="gname kdh">Day</th>${list.map(k=>kHead(k,P)).join('')}</tr>`;
   const rows=dates.map(d=>{ const dt=fromISO(d), dw=dt.getDay();
     const cls=[dw===0||dw===6?'kwe':'',dw===1&&d!==dates[0]?'kmon':'',d===td?'ktoday':'',running&&d<td?'kpast':''].filter(Boolean).join(' ');
     return `<tr class="${cls}"><th class="gname kday">${kDow(d)}<span>${fdate(d)}</span>${d===td?'<i>today</i>':''}</th>`+
@@ -1448,8 +1472,8 @@ function kRollDoc(k,Y){
   const start=mv(k.startDate), end=mv(k.endDate), shifts={};
   Object.entries(k.shifts||{}).forEach(([d,v])=>{ if(v&&v.rep==='__X__'&&!/christmas/i.test(v.note||'')) shifts[mv(d)]=v.note?{rep:'__X__',note:v.note}:{rep:'__X__'}; });
   const xmas=Y+'-12-25'; if(start&&end&&xmas>=start&&xmas<=end) shifts[xmas]={rep:'__X__',note:'Christmas'};
-  return {year:Y,name:k.name,cityState:k.cityState||'',status:'Prospective',captain:'',cost:'',startDate:start,endDate:end,order:k.order||99,notes:k.notes||'',shifts,
-    lastYear:{year:+k.year,status:kStatus(k),captain:k.captain||'',cost:k.cost||'',days:kStats(k).filled},rolledFrom:k.id,createdAt:new Date().toISOString()};
+  return {year:Y,name:k.name,cityState:k.cityState||'',status:'Prospective',captain:'',cost:'',costNum:null,startDate:start,endDate:end,order:k.order||99,notes:k.notes||'',shifts,
+    lastYear:{year:+k.year,status:kStatus(k),captain:k.captain||'',cost:k.cost||'',costNum:kCostNum(k),days:kStats(k).filled},rolledFrom:k.id,createdAt:new Date().toISOString()};
 }
 async function rollKiosks(Y){
   const have=new Set(kiosks.map(k=>k.id));
@@ -1471,7 +1495,7 @@ async function addKiosk(){
   const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'mall';
   let id=Y+'-'+slug; if(kiosks.some(k=>k.id===id)) id+='-'+Math.random().toString(36).slice(2,6);
   const xmas=Y+'-12-25', shifts=xmas>=s&&xmas<=e?{[xmas]:{rep:'__X__',note:'Christmas'}}:{};
-  const doc={year:Y,name,cityState:city,status:'Prospective',captain:'',cost:'',startDate:s,endDate:e,order:Math.max(0,...kList(Y).map(k=>+k.order||0))+1,notes:'',shifts,createdAt:new Date().toISOString()};
+  const doc={year:Y,name,cityState:city,status:'Prospective',captain:'',cost:'',costNum:null,startDate:s,endDate:e,order:Math.max(0,...kList(Y).map(k=>+k.order||0))+1,notes:'',shifts,createdAt:new Date().toISOString()};
   try{ await db.doc('kiosks/'+id).set(doc); kiosks.push(Object.assign({id},doc)); toast('Added '+name+' to '+Y+' as Prospective'); P_('kaName').value=''; P_('kaCity').value=''; closePanels(); build(); }
   catch(err){ toast(kErr(err)); }
 }
@@ -1479,7 +1503,7 @@ function kioskSummary(){
   const Y=kYear();
   return kList(Y).map(k=>{ const st=kStatus(k);
     const lines=kDates([k]).map(d=>{ const s=kDay(k,d)||{}, v=s.rep||''; return '  '+kDow(d)+' '+fdate(d)+': '+(v==='__X__'?(s.note||'closed'):(v||(st==='Booked'?'OPEN':'—'))); });
-    return k.name+'  ['+st+(k.captain?' · Captain '+k.captain:'')+(k.cost?' · '+k.cost:'')+']\n'+lines.join('\n'); }).join('\n\n');
+    return k.name+'  ['+st+(k.captain?' · Captain '+k.captain:'')+(kCostTxt(k)?' · '+kCostTxt(k):'')+']\n'+lines.join('\n'); }).join('\n\n');
 }
 /* ---- who's on this weekend ---- */
 function rollup(evs){
@@ -1895,7 +1919,9 @@ board.addEventListener('click',async ev=>{
   const t=ev.target;
   const yb=t.closest('[data-kyear]'); if(yb){ kYearSel=+yb.dataset.kyear; kOpen.clear(); kRep=''; build(); return; }
   const rc=t.closest('[data-krep]'); if(rc){ kRep=kRep===rc.dataset.krep?'':rc.dataset.krep; build(); return; }
-  const go=t.closest('[data-kgo]'); if(go){ const id=go.dataset.kgo; kOpen.add(id); build(); const el=document.getElementById('kc-'+id); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); return; }
+  const go=t.closest('[data-kgo]'); if(go){ const id=go.dataset.kgo; kOpen.add(id); build(); const el=document.getElementById('kc-'+id); if(!el) return;
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    const nm=plan()&&el.querySelector('input[data-kf="name"]'); if(nm){ nm.focus({preventScroll:true}); nm.select(); } return; }
   if(t.closest('[data-kroll]')){ t.closest('[data-kroll]').disabled=true; await rollKiosks(kYear()); return; }
   if(t.closest('[data-kadd]')){ openKAdd(); return; }
   const card=t.closest('article[data-kid]'); if(!card) return;
@@ -1914,6 +1940,9 @@ board.addEventListener('change',async ev=>{
   if(key==='startDate'||key==='endDate'){ const s=key==='startDate'?v:k.startDate, e=key==='endDate'?v:k.endDate;
     if(!v||(s&&e&&s>e)){ toast('The last day has to be on or after the first day'); f.value=k[key]||''; return; } }
   if(key==='order') v=v===''?99:+v;
+  if(key==='cost'){ const m=v.match(/\d[\d,]*(?:\.\d+)?/), n=m?parseFloat(m[0].replace(/,/g,'')):null;
+    if(n!=null&&/^\$?\s*[\d,]+(\.\d+)?$/.test(v)) v='$'+n.toLocaleString('en-US',{maximumFractionDigits:2});
+    await patchKiosk(k,{cost:v,costNum:n}); return; }
   if(key==='captain'&&v) v=splitRep(v).rep;   // the roster's spelling, the way a shift is stored
   await patchKiosk(k,{[key]:v});
 });
@@ -1983,7 +2012,8 @@ function renderPickList(){
   /* taking a rep off is the clear row, named for who comes off; it says nothing on a day already open */
   const rep=pickCtx?pickCtx.rep:'', se=!!(pickCtx&&pickCtx.se);
   let u='';
-  if(pickCtx&&pickCtx.kind==='kiosk'){
+  if(pickCtx&&pickCtx.kind==='kcap'){ if(rep) u+=`<button class="pickrow util" data-v="" role="option">Take ${esc(rep)} off — no captain yet</button>`; }
+  else if(pickCtx&&pickCtx.kind==='kiosk'){
     /* a kiosk day is one shift: a name replaces whoever had it; a split is asked for, never implied */
     const reps=rep==='__X__'?[]:kReps(rep);
     if(pickCtx.split) u+=`<button class="pickrow util" data-v="__NOSPLIT__" role="option">Splitting with ${esc(pickCtx.split)}: pick who takes the other half, or tap here to cancel</button>`;
@@ -2013,6 +2043,9 @@ function placePop(){
   pop.style.top=top+'px';
 }
 function openPick(btn){
+  if(btn.dataset.kcap){ const k=kiosks.find(x=>x.id===btn.dataset.kcap); if(!k) return;
+    pickCtx={kind:'kcap',id:k.id,btn,v:k.captain||'',rep:k.captain||'',se:false};
+    btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus(); return; }
   if(btn.dataset.kday){ const k=kiosks.find(x=>x.id===btn.dataset.kid); if(!k) return; const rep=(kDay(k,btn.dataset.kday)||{}).rep||'';
     pickCtx={kind:'kiosk',id:k.id,date:btn.dataset.kday,btn,v:rep,rep,se:false,split:''};
     btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus(); return; }
@@ -2024,6 +2057,11 @@ function openPick(btn){
 }
 function closePick(){ pop.hidden=true; const b=pickCtx&&pickCtx.btn; pickCtx=null; if(b){ b.classList.remove('picking'); if(document.contains(b)) b.focus(); } }
 async function applyPick(v){
+  if(pickCtx&&pickCtx.kind==='kcap'){
+    const c=pickCtx, typed=popQ.value; closePick();
+    let cap=v==='__USE__'?splitRep(typed).rep:v; if(cap==='__X__') cap='';
+    const k=kiosks.find(x=>x.id===c.id); if(k&&cap!==(k.captain||'')) await patchKiosk(k,{captain:cap}); return;
+  }
   if(pickCtx&&pickCtx.kind==='kiosk'){
     const c=pickCtx;
     if(v==='__SPLIT__'){ c.split=kReps(c.rep)[0]||''; popQ.value=''; renderPickList(); popQ.focus(); return; }
