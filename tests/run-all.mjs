@@ -170,6 +170,35 @@ try {
     ok((await due('2027-01-08')).join() === 'date-research', 'seed: tick still reports the date research due afterwards');
   });
 
+  await section('board.mjs: kiosks (the Kiosk Schedule tab)', async () => {
+    const seed = JSON.parse(fs.readFileSync(path.join(REPO, 'seed/kiosks.json'), 'utf8'));
+    // ---- the public seed: one shift per mall per day, inside the mall's own dates, nothing private
+    ok(seed.every(k => k.id.startsWith(k.year + '-') && k.name && k.startDate <= k.endDate), 'kiosks seed: every mall has a YYYY- id, a name and its dates in order');
+    ok(seed.every(k => Object.entries(k.shifts || {}).every(([d, s]) => d >= k.startDate && d <= k.endDate && typeof s.rep === 'string' && s.rep)), 'kiosks seed: every shift sits inside its mall\'s dates and names someone (or __X__ = closed)');
+    ok(seed.every(k => !PRIV.some(p => p in k)), 'kiosks seed: no contact fields');
+    ok(seed.filter(k => k.year === 2026).every(k => k.status === 'Prospective' && k.shifts['2026-12-25']?.rep === '__X__'), 'kiosks seed: 2026 malls start Prospective, Christmas closed');
+    ok(!seed.some(k => k.id === '2026-park-place-mall') && seed.some(k => k.id === '2026-kierland'), 'kiosks seed: Park Place is not back in 2026; Kierland is, Prospective (Alan, 2026-10-14)');
+
+    // ---- kiosks seed adds what is missing and never touches a mall the board already has
+    T('kiosks').clear();
+    r = await board(['kiosks', 'seed']); ok(r.code === 0 && T('kiosks').size === seed.length, 'kiosks seed: loads every mall into an empty table: ' + r.stderr);
+    const ah = T('kiosks').get('2026-arrowhead');
+    T('kiosks').set('2026-arrowhead', { ...ah, status: 'Booked', shifts: { ...ah.shifts, '2026-11-27': { rep: 'Cameron' } } });
+    T('kiosks').delete('2026-kierland');
+    r = await board(['kiosks', 'seed']);
+    ok(r.code === 0 && /added 1\b/.test(r.stdout), 'kiosks seed: adds only the missing mall: ' + r.stdout);
+    ok(T('kiosks').get('2026-arrowhead').status === 'Booked' && T('kiosks').get('2026-arrowhead').shifts['2026-11-27'].rep === 'Cameron', 'kiosks seed: an edited mall is left as the board has it');
+
+    // ---- list: staffed and open days per mall
+    r = await board(['kiosks', '--year', '2026', '--json', '--date', '2026-11-01']); const l = JSON.parse(r.stdout);
+    ok(l.length === 5 && l.every(k => k.year === 2026), 'kiosks: --year lists that season only');
+    const a = l.find(k => k.id === '2026-arrowhead');
+    ok(a && a.staffed === 1 && a.open === 29 && a.reps.join() === 'Cameron', 'kiosks: a booked mall counts staffed and open days, and Christmas (closed) is neither');
+    ok(l.find(k => k.id === '2026-kierland')?.open === 0, 'kiosks: a Prospective mall has no open shifts (not in yet)');
+    r = await board(['kiosks', '--year', '2025', '--json']); const c = JSON.parse(r.stdout).find(k => k.id === '2025-chandler-fashion-center');
+    ok(c && c.staffed === 30 && c.reps.includes('J. Parker'), 'kiosks: 2025 Chandler, 30 staffed days, as the mall sheet had them');
+  });
+
   await section('deploy/tick.py', async () => {
     // ---- deploy/tick.py --dry: decides and prints, never sends. HOME is the temp dir, so it reads a fake board.env.
     // The launcher runs from a staged copy: tick.py takes its root from where it sits, so the stage has its own

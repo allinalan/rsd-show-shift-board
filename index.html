@@ -688,6 +688,48 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
 .syncsec{font-family:var(--f-disp);font-weight:600;font-size:.82rem;margin-top:2px}
 .synclist{margin:0;padding-left:18px;font-size:.8rem;color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
 .synclist ul{margin:2px 0 0;padding-left:16px;color:var(--ink-3);font-size:.76rem}
+/* ---- Kiosk Schedule (2026-10-14): one shift per mall per day, dates down, malls across, like the mall sheet ---- */
+.seg button.tab-kiosk{color:var(--key)} .seg button.tab-kiosk[aria-selected="true"]{background:var(--key);color:#fff}
+body.kioskv .wrap,body.kioskv .top-in{max-width:1320px}
+.kiosk .band-h{border-bottom-color:var(--key)} .kiosk .band-h h2{color:var(--key)}
+.kiosk .band-h .seg{margin-left:auto}
+.kiosk .band-h .seg button[aria-selected="true"]{background:var(--key);color:#fff}
+.kiosk .legend{margin:-4px 0 10px}
+.kmine{display:flex;flex-wrap:wrap;gap:5px;align-items:baseline;margin:-4px 0 12px;font-size:.78rem;color:var(--ink-2)}
+.kmine>b{font-family:var(--f-disp);margin-right:2px}
+.kmine span{font-size:.72rem;background:color-mix(in srgb,var(--navy) 12%,var(--surface));border-radius:5px;padding:2px 7px;white-space:nowrap}
+table.ktbl th.kday{min-width:78px;max-width:90px;padding:6px 8px;font-family:var(--f-disp);font-size:.74rem;font-weight:600;color:var(--ink-2);white-space:nowrap}
+table.ktbl th.kday span{font-family:var(--f-mono);font-weight:400;font-size:.7rem;color:var(--ink-3);margin-left:2px}
+table.ktbl th.kday i{display:block;font-style:normal;font-size:.56rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--navy)}
+table.ktbl thead th.kdh{vertical-align:bottom}
+table.ktbl thead th.kmh{text-transform:none;letter-spacing:0;white-space:normal;vertical-align:bottom;min-width:112px;max-width:190px;padding:8px 8px 7px;color:var(--ink)}
+.kmh .gsub{margin-top:4px}
+.kmh .kcap{display:block;font-family:var(--f-body);font-size:.68rem;font-weight:500;color:var(--ink-3);margin-top:3px}
+.kmh.k-CX .gn{text-decoration:line-through;opacity:.6}
+.p-CX{color:var(--ink-3);background:var(--mute-bg);text-decoration:line-through}
+table.ktbl{table-layout:fixed;width:max(100%,calc(86px + var(--kn,5) * 118px))}   /* every mall the same width */
+table.ktbl thead th.kdh{width:86px}
+table.ktbl td.gcell{min-width:0}
+table.ktbl tr.kwe th.kday{background:color-mix(in srgb,var(--navy) 8%,var(--surface))}
+table.ktbl tr.kmon th,table.ktbl tr.kmon td{border-top:2px solid var(--line)}
+table.ktbl tr.ktoday th.kday{color:var(--navy);box-shadow:inset 3px 0 0 var(--navy)}
+table.ktbl tr.kpast th.kday,table.ktbl tr.kpast td.gcell>*{opacity:.55}
+table.ktbl .namecell .ksp{color:var(--ink-3);font-weight:400}
+.knote{font-size:.64rem;font-weight:400;color:var(--ink-3);line-height:1.3;margin-top:2px;white-space:normal}
+.slotbox .knote{padding:0 7px 5px;margin-top:-2px}
+table.ktbl .namecell.khit,table.ktbl .slotbox.khit{border-color:var(--navy);background:color-mix(in srgb,var(--navy) 16%,var(--surface))}
+table.ktbl .namecell.kdim{opacity:.4}
+.kcard.ks-Booked{--tier:var(--ok)} .kcard.ks-Prospective{--tier:var(--mute)} .kcard.ks-CX{--tier:var(--line)}
+.kcard.ks-CX .ev-name{text-decoration:line-through;opacity:.6}
+.kmalls{margin-top:18px}
+.kmalls>.sec-l{margin-bottom:9px}
+.kcard .ev-b .detail:first-child{margin-top:0;padding-top:0;border-top:0}
+.kiosk-only{display:none !important}
+body.kioskv.plan .btn.kiosk-only:not([hidden]){display:inline-block !important}
+body.kioskv .ev-only.ev-only{display:none !important}
+table.ktbl .slotbox.kprosp .slotpick{color:var(--ink-3);opacity:.6}   /* not in yet: an empty day there isn't an open shift */
+body.kioskv #syncLine,body.kioskv #syncPanel{display:none !important}   /* renderSync rewrites the line's classes */
+@media (max-width:520px){ table.ktbl{width:max(100%,calc(70px + var(--kn,5) * 100px))} table.ktbl thead th.kdh{width:70px} table.ktbl th.kday{min-width:0;padding:5px 6px} }
 @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 </style>
 
@@ -697,7 +739,7 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
    <span class="mark"><span class="glyph" id="glyph">RSD</span><h1 id="title">Show Shift Board</h1></span>
    <span class="season" id="divchip">Rising Sun Division</span>
    <div class="seg" id="seasonSeg" role="tablist"></div>
-   <div class="seg" id="viewSeg" role="tablist"><button role="tab" data-view="cards" aria-selected="true">Cards</button><button role="tab" data-view="grid" aria-selected="false">Grid</button></div>
+   <div class="seg ev-only" id="viewSeg" role="tablist"><button role="tab" data-view="cards" aria-selected="true">Cards</button><button role="tab" data-view="grid" aria-selected="false">Grid</button></div>
    <label class="switch" title="Coordinator tools: staffing, tier and access, roll forward, settings">
     <input type="checkbox" id="planMode"><span class="knob"></span><span class="sw-l">Plan mode</span>
    </label>
@@ -708,7 +750,7 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
 
 <div class="wrap">
  <div class="controls">
-  <div class="ctl-row">
+  <div class="ctl-row ev-only">
    <label class="field">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
     <input id="q" type="search" placeholder="Event, city, promoter&hellip;" autocomplete="off">
@@ -722,19 +764,20 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
     <select class="pick" id="bk"><option value="">Any booking status</option></select>
    </div>
   </div>
-  <div class="chips ctl-more" id="stateChips"></div>
-  <div class="chips ctl-more" id="tierChips"></div>
-  <p class="legend ctl-more" id="legend"></p>
+  <div class="chips ctl-more ev-only" id="stateChips"></div>
+  <div class="chips ctl-more ev-only" id="tierChips"></div>
+  <p class="legend ctl-more ev-only" id="legend"></p>
   <div class="ctl-row plan-only" id="planBar">
-   <a class="sheetlink" id="sheetTop" href="https://docs.google.com/spreadsheets/d/10p5Ro2WpeJ7mMOyS92OWIT3w3Nl-KGX4vBMkXJoOCTs/edit?gid=1119870878#gid=1119870878" target="_blank" rel="noopener">Open the Sheet &#8599;</a>
-   <button class="btn ghost" id="btnSync" hidden title="Carry the Sheet's latest changes onto the board now, the same sync the Wednesday job runs">Sync from the Sheet</button>
-   <button class="btn ghost" id="btnQuickAdd" hidden>+ Add event</button>
-   <button class="btn ghost" id="btnRoll" hidden>Roll forward</button>
-   <button class="btn ghost" id="btnImport" hidden>Import results</button>
+   <a class="sheetlink ev-only" id="sheetTop" href="https://docs.google.com/spreadsheets/d/10p5Ro2WpeJ7mMOyS92OWIT3w3Nl-KGX4vBMkXJoOCTs/edit?gid=1119870878#gid=1119870878" target="_blank" rel="noopener">Open the Sheet &#8599;</a>
+   <button class="btn ghost ev-only" id="btnSync" hidden title="Carry the Sheet's latest changes onto the board now, the same sync the Wednesday job runs">Sync from the Sheet</button>
+   <button class="btn ghost ev-only" id="btnQuickAdd" hidden>+ Add event</button>
+   <button class="btn ghost ev-only" id="btnRoll" hidden>Roll forward</button>
+   <button class="btn ghost ev-only" id="btnImport" hidden>Import results</button>
+   <button class="btn ghost kiosk-only" id="btnKAdd" hidden>+ Add a mall</button>
    <button class="btn ghost" id="btnSettings">Division settings</button>
    <span id="authBox" class="authbox"></span>
   </div>
-  <div class="syncline plan-only" id="syncLine" hidden aria-live="polite"><span id="syncText"></span><button class="linkbtn" id="syncMore" hidden>what it did</button></div>
+  <div class="syncline plan-only ev-only" id="syncLine" hidden aria-live="polite"><span id="syncText"></span><button class="linkbtn" id="syncMore" hidden>what it did</button></div>
   <div class="panel" id="syncPanel" hidden>
    <div class="panel-h">The last sync from the Sheet</div>
    <div id="syncBody"></div>
@@ -802,6 +845,20 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
     <button class="btn ghost" id="qaCancel">Cancel</button>
    </div>
   </div>
+  <div class="panel" id="kAddPanel" hidden>
+   <div class="panel-h">Add a mall to the <b id="kaYear">2026</b> kiosk season</div>
+   <div class="form">
+    <label>Mall<input id="kaName" type="text" placeholder="Kierland"></label>
+    <label>City, state<input id="kaCity" type="text" placeholder="Scottsdale, AZ"></label>
+    <label>First day<input id="kaStart" type="date"></label>
+    <label>Last day<input id="kaEnd" type="date"></label>
+   </div>
+   <p class="hint">It starts as Prospective with every day empty, Christmas marked closed. One shift per day. Switch it to Booked once the lease is signed.</p>
+   <div class="panel-actions">
+    <button class="btn" id="kaGo">Add mall</button>
+    <button class="btn ghost" id="kaCancel">Cancel</button>
+   </div>
+  </div>
   <div class="panel" id="impPanel" hidden>
    <div class="panel-h">Import results from the VC export</div>
    <p>One show per line: <b>event name, year, CPO, orders</b> (orders optional). Tabs or commas. CPO can be <b>17k</b> or <b>17000</b>. Names match the board exactly (ignoring case and punctuation); anything that doesn't match is listed so you can fix it.</p>
@@ -827,12 +884,12 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
     <button class="btn ghost" id="stCancel">Cancel</button>
    </div>
   </div>
-  <div class="note plan-only" id="planNote"></div>
+  <div class="note plan-only ev-only" id="planNote"></div>
  </div>
  <div id="board"></div>
  <div class="foot">
   <button class="btn plan-only" id="copy">Copy staffing summary</button>
-  <button class="btn ghost plan-only" id="reset" hidden>Reset my scratchpad</button>
+  <button class="btn ghost plan-only ev-only" id="reset" hidden>Reset my scratchpad</button>
   <span id="footNote"></span>
  </div>
 </div>
@@ -876,10 +933,14 @@ const neverKeys=()=>new Set(neverList.map(n=>n.seriesKey).filter(Boolean));
 let boardEvents=[];               // every board-sourced event, all years
 let histMap={};                   // baseId -> {year: {cpo, orders}}
 let ovMap={};                     // sheet event id -> shared field overrides
+let kiosks=[], kioskState='loading';   // `kiosks` docs, all years · loading | ready | missing (no kiosks table in the database yet)
+let kYearSel=null, kRep='';            // the kiosk season on screen (not remembered: the tab opens on this season) · rep highlighted
+const kOpen=new Set();
 const F={q:'',rep:'',lvl:'',bk:'',state:new Set(),tier:new Set()};
 const open=new Set(), pastClosed=new Set(); let pastAllOpen=false;
 const plan=()=>!!store.plan && (dbKind!=='supabase' || isEditor);
 const viewNever=()=>store.year==='never';
+const viewKiosk=()=>store.year==='kiosk';
 const gridView=()=>store.view==='grid';
 const year=()=>{ const y=+(store.year||2026); return isNaN(y)?2026:y; };
 const yearOf=e=>+(e.year||e.season||0);
@@ -1107,7 +1168,8 @@ function renderHeader(){
   document.getElementById('divchip').textContent=settings.name||'';
   const seg=document.getElementById('seasonSeg');
   seg.innerHTML=years().map(y=>{const n=eventsIn(y).length;
-    return `<button role="tab" data-year="${y}" aria-selected="${!viewNever()&&y===year()}">${y}${n?` <small>${n}</small>`:''}</button>`;}).join('')
+    return `<button role="tab" data-year="${y}" aria-selected="${!viewNever()&&!viewKiosk()&&y===year()}">${y}${n?` <small>${n}</small>`:''}</button>`;}).join('')
+    +(()=>{ const n=kList(kYear()).length; return `<button role="tab" data-year="kiosk" class="tab-kiosk" aria-selected="${viewKiosk()}" title="Mall kiosks: one shift per mall per day">Kiosk Schedule${n?` <small>${n}</small>`:''}</button>`; })()
     +`<button role="tab" data-year="never" class="tab-never" aria-selected="${viewNever()}" title="Events we never work again">Never${neverList.length?` <small>${neverList.length}</small>`:''}</button>`;
   const nS=cur().filter(e=>e.source==='sheet').length, nB=cur().filter(e=>e.source==='board').length;
   const st=document.getElementById('stamp');
@@ -1164,9 +1226,11 @@ function build(){
   document.querySelector('.controls').hidden=false;
   document.body.classList.toggle('plan',plan());
   document.body.classList.toggle('gridv',gridView());
+  document.body.classList.toggle('kioskv',viewKiosk());
   { const n=(F.rep?1:0)+(F.lvl?1:0)+(F.bk?1:0)+F.state.size+F.tier.size, b=document.getElementById('ctlN'); if(b){ b.hidden=!n; b.textContent=n; } }
   renderHeader();
   if(viewNever()){ renderNever(); return; }
+  if(viewKiosk()){ renderKiosks(); return; }
   refreshFilters();
   const EV=cur(); const list=EV.filter(matches);
   renderTally(list);
@@ -1221,6 +1285,201 @@ function renderNever(){
    ${neverList.length?`<div class="nw-wrap"><table class="nwtbl"><thead><tr><th>Event</th><th>Last worked</th><th>Why</th><th>Added</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
      :`<div class="empty-season"><b>Nothing here yet.</b><span>Open any event in plan mode and choose <em>Never work this event again</em>.</span></div>`}
   </section>`;
+}
+/* ---- Kiosk Schedule (2026-10-14) ----
+   The malls the division runs a holiday kiosk in, one `kiosks` row per mall per season (id YYYY-<mall>). Its
+   own table, so mall shifts never reach the routines that read `events` (event check, booking sweep, research,
+   the Sheet sync, SUNNY). One shift per mall per day: shifts[date].rep. Two names ("Sarah / Rob") is a split
+   day, the way the mall sheet's Rep #2 column was used. "__X__" = no shift that day (the mall is closed:
+   Christmas). A Prospective mall is not signed yet, so its empty days are not open shifts. */
+const KSTATUS=['Booked','Prospective','Cancelled'];
+const KSKEY={Booked:'Booked',Prospective:'Prospective',Cancelled:'CX'};
+const P_=id=>document.getElementById(id);   // P() is taken below by the panels, and P means plan() inside these functions
+const kStatus=k=>KSTATUS.includes(k.status)?k.status:'Prospective';
+const kBase=id=>String(id).replace(/^\d{4}-/,'');
+const kList=Y=>kiosks.filter(k=>+k.year===Y).sort((a,b)=>(+a.order||99)-(+b.order||99)||String(a.name).localeCompare(String(b.name)));
+/* the season on screen: the one picked, else the latest season up to this year (in January that is still December's) */
+function kYear(){ if(kYearSel) return kYearSel; const have=kiosks.map(k=>+k.year).filter(y=>y&&y<=TODAY.getFullYear()); return have.length?Math.max(...have):TODAY.getFullYear(); }
+function kYears(){ const s=new Set(kiosks.map(k=>+k.year).filter(Boolean)); s.add(kYear()); s.add(TODAY.getFullYear()); if(plan()) s.add(Math.max(...s)+1); return [...s].sort(); }
+const kDay=(k,d)=>(k.shifts&&k.shifts[d])||null;
+const kIn=(k,d)=>!!(k.startDate&&k.endDate&&d>=k.startDate&&d<=k.endDate);
+const kReps=v=>String(v||'').split(' / ').map(s=>s.trim()).filter(Boolean);
+const kPast=d=>fromISO(d)<TODAY;
+function kDates(list){
+  const s=list.map(k=>k.startDate).filter(Boolean).sort()[0], e=list.map(k=>k.endDate).filter(Boolean).sort().pop(), out=[];
+  if(!s||!e) return out;
+  for(let d=fromISO(s);d&&iso(d)<=e&&out.length<120;d=addDays(d,1)) out.push(iso(d));
+  return out;
+}
+/* filled = days with a name on them; open = a booked mall's upcoming days with nobody yet */
+function kStats(k){
+  let filled=0, open=0;
+  kDates([k]).forEach(d=>{ const v=(kDay(k,d)||{}).rep||''; if(v==='__X__') return; if(v) filled++; else if(kStatus(k)==='Booked'&&!kPast(d)) open++; });
+  return {filled,open};
+}
+const blackFriday=Y=>{ const d=new Date(Y,10,1); while(d.getDay()!==4) d.setDate(d.getDate()+1); return addDays(d,22); };
+function kDefaultRange(Y){
+  const mode=a=>{ const c={}; a.filter(Boolean).forEach(x=>c[x]=(c[x]||0)+1); return Object.keys(c).sort((x,y)=>c[y]-c[x])[0]||''; };
+  const l=kList(Y), s=mode(l.map(k=>k.startDate)), e=mode(l.map(k=>k.endDate));
+  if(s&&e) return [s,e];
+  const x=new Date(Y,11,25); return [iso(blackFriday(Y)),iso(addDays(x,(7-x.getDay())%7||7))];   // Black Friday to the Sunday after Christmas, like 2025
+}
+const kErr=err=>err&&err.code==='read_only'?'Read-only preview — this copy isn\'t connected to the database yet':err&&err.code==='invalid_argument'?'You don\'t have edit access to this board':'Couldn\'t save — try again';
+const kNames=v=>kReps(v).map(esc).join('<span class="ksp"> / </span>');
+const kDow=d=>fromISO(d).toLocaleDateString('en-US',{weekday:'short'});
+function kHead(k){
+  const s=kStats(k), st=kStatus(k), sk=KSKEY[st];
+  return `<th class="kmh k-${sk}"><button class="glink" data-kgo="${esc(k.id)}" title="${esc(k.name)} details"><span class="gn">${esc(k.name)}</span></button>`+
+    `<span class="gsub"><span class="bk p-${sk}">${esc(st)}</span>${st==='Booked'&&s.open?`<span class="st st-open mini">Open ${s.open}</span>`:''}</span>`+
+    `<span class="kcap">${k.captain?'Captain '+esc(k.captain):st==='Prospective'?'not in yet':''}</span></th>`;
+}
+function kCell(k,d,P){
+  const day=kDay(k,d)||{}, v=day.rep||'', st=kStatus(k), hit=!!kRep&&kReps(v).includes(kRep);
+  const note=day.note&&v!=='__X__'?`<div class="knote">${esc(day.note)}</div>`:'';
+  if(!P||st==='Cancelled'){
+    if(v==='__X__') return `<div class="namecell is-x">${esc(day.note||'closed')}</div>`;
+    if(!v) return st==='Booked'&&!kPast(d)?`<div class="namecell is-open">open</div>`:`<div class="namecell is-x">—</div>`;
+    return `<div class="namecell${hit?' khit':kRep?' kdim':''}">${kNames(v)}${note}</div>`;
+  }
+  const txt=v==='__X__'?(day.note||'closed'):(v||(st==='Booked'?'open':'—'));
+  const cls=v==='__X__'?'xd':(v?'filled':'open-slot'+(st==='Booked'?'':' kprosp'));
+  return `<div class="slotbox ${cls}${hit?' khit':''}"><button class="slotpick" data-kid="${esc(k.id)}" data-kday="${d}" aria-haspopup="listbox" aria-label="${esc(k.name)} ${kDow(d)} ${fdate(d)} — ${esc(txt)}">${esc(txt)}</button>${note}</div>`;
+}
+function kCard(k,P){
+  const s=kStats(k), st=kStatus(k), sk=KSKEY[st], isOpen=kOpen.has(k.id), ly=k.lastYear;
+  const range=k.startDate&&k.endDate?`${kDow(k.startDate)} ${fdate(k.startDate)} – ${kDow(k.endDate)} ${fdate(k.endDate)}`:'dates TBD';
+  const lyTxt=!ly?'':ly.days?[ly.captain?'Captain '+esc(ly.captain):'',ly.cost?esc(ly.cost):'',ly.days+' day'+(ly.days===1?'':'s')+' worked'].filter(Boolean).join(' · '):'not worked'+(ly.status&&ly.status!=='Booked'?' ('+esc(ly.status)+')':'');
+  return `<article class="ev kcard ks-${sk}${isOpen?' open':''}" data-kid="${esc(k.id)}" id="kc-${esc(k.id)}">
+   <button class="ev-h" aria-expanded="${isOpen}">
+    <span class="ev-main">
+     <span class="ev-name">${esc(k.name)}</span>
+     <span class="ev-meta"><span class="mono">${range}</span>${k.cityState?`<span class="sep">&bull;</span><span>${esc(k.cityState)}</span>`:''}${k.captain?`<span class="sep">&bull;</span><span>Captain ${esc(k.captain)}</span>`:''}</span>
+     <span class="resline">${k.cost?`<span class="res"><b>Cost</b> ${esc(k.cost)}</span>`:''}<span class="res"><b>Filled</b> ${s.filled} day${s.filled===1?'':'s'}</span>${lyTxt?`<span class="res"><b>${esc(ly.year||'Last yr')}</b> <i>${lyTxt}</i></span>`:''}</span>
+    </span>
+    <span class="ev-right"><span class="bk p-${sk}">${esc(st)}</span>${st==='Booked'&&s.open?`<span class="st st-open">Open <b>${s.open}</b></span>`:''}</span>
+    <svg class="caret" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6l4 4 4-4"/></svg>
+   </button>
+   <div class="ev-b">${isOpen?kBody(k,P):''}</div>
+  </article>`;
+}
+function kBody(k,P){
+  const st=kStatus(k);
+  const d=(label,v,mono)=>`<div class="dl"><dt>${label}</dt><dd class="${mono?'mono':''}${v?'':' empty'}">${v?esc(v):'not set yet'}</dd></div>`;
+  if(!P) return `<div class="detail">${d('Status',st)}${d('Captain',k.captain)}${d('City, state',k.cityState)}${d('Cost',k.cost,true)}${d('First day',k.startDate?fdate(k.startDate):'',true)}${d('Last day',k.endDate?fdate(k.endDate):'',true)}`+
+    `${k.notes?`<div class="dl wide"><dt>Notes</dt><dd class="notes">${esc(k.notes)}</dd></div>`:''}</div>`;
+  const f=(label,key,ph,type)=>`<div class="dl"><dt>${label}</dt><dd><input class="fld" type="${type||'text'}" data-kf="${key}" value="${esc(k[key]==null?'':k[key])}" placeholder="${esc(ph||'')}"${key==='captain'?' list="kRoster" autocomplete="off"':''}></dd></div>`;
+  return `<div class="tagrow"><label class="tagfield"><span>Status</span><select data-kf="status" aria-label="Status">${KSTATUS.map(s=>`<option${s===st?' selected':''}>${s}</option>`).join('')}</select></label></div>
+   <div class="detail">${f('Mall','name')}${f('City, state','cityState','Chandler, AZ')}${f('Captain','captain','who runs this kiosk')}${f('Cost','cost','$7,038 ($230/day)')}${f('First day','startDate','','date')}${f('Last day','endDate','','date')}${f('Column','order','1 = first','number')}
+    <div class="dl wide"><dt>Notes</dt><dd><textarea class="fld" data-kf="notes" rows="3" placeholder="Kiosk location, lease terms, what the captain needs to know">${esc(k.notes||'')}</textarea></dd></div></div>
+   <p class="legend">Shifts are set in the schedule above: click a day. Two names on a day is a split.</p>
+   <div class="lifecycle"><div class="lifecycle-btns"><button class="danger" data-kdel="1">Remove ${esc(k.name)} from ${esc(k.year)}</button></div></div>`;
+}
+function renderKiosks(){
+  setTimeout(()=>{syncTopH();pinHeads();drawColRules();},0);
+  const Y=kYear(), list=kList(Y), live=list.filter(k=>kStatus(k)!=='Cancelled'), P=plan(), board=document.getElementById('board');
+  let openN=0, filledN=0; live.forEach(k=>{ const s=kStats(k); openN+=s.open; filledN+=s.filled; });
+  const booked=list.filter(k=>kStatus(k)==='Booked').length, prosp=list.filter(k=>kStatus(k)==='Prospective').length;
+  document.getElementById('tally').innerHTML=`<div class="t-open"><b>${openN}</b><span>Open shifts</span></div><div><b>${filledN}</b><span>Filled</span></div>`+
+    `<div class="t-booked"><b>${booked}</b><span>Malls booked</span></div><div><b>${prosp}</b><span>Prospective</span></div>`;
+  document.getElementById('stamp').innerHTML=list.length?`<span>${list.length} mall${list.length===1?'':'s'} in ${Y} · ${dbKind==='supabase'?'live':'read-only preview'}</span>`:'';
+  document.getElementById('footNote').textContent='One shift per mall per day; two names is a split day. Open means a booked mall with nobody on that day yet. Board changes are shared live.';
+  P_('btnKAdd').hidden=!(dbState==='ready'&&kioskState==='ready');
+  const yseg=`<div class="seg" role="tablist">${kYears().map(y=>`<button role="tab" data-kyear="${y}" aria-selected="${y===Y}">${y}</button>`).join('')}</div>`;
+  const head=(sub,cov)=>`<div class="band-h"><h2>Kiosk Schedule</h2>${sub?`<span class="sub">${sub}</span>`:''}${yseg}${cov||''}</div>`;
+  const roster=`<datalist id="kRoster">${ROSTER().map(r=>`<option value="${esc(r)}">`).join('')}</datalist>`;
+  if(kioskState!=='ready'||dbState==='none'){
+    board.innerHTML=`<section class="band kiosk">${head()}<div class="empty-season">${dbState==='none'?'<b>The board couldn\'t reach its database.</b><span>Check config.js and the README.</span>'
+      :kioskState==='missing'?`<b>The Kiosk Schedule isn't set up in the database yet.</b><span>${isOwner?'Run supabase/schema.sql once in the Supabase SQL editor (it adds the kiosks table), then <code>node scripts/board.mjs kiosks seed</code>.':'Alan is setting it up.'}</span>`
+      :'<span>Loading the kiosks…</span>'}</div></section>`; return;
+  }
+  if(!list.length){
+    const prev=kList(Y-1).filter(k=>kStatus(k)!=='Cancelled').length;
+    board.innerHTML=`<section class="band kiosk">${head()}<div class="empty-season"><b>No malls in ${Y} yet.</b><span>${P?(prev?`Roll ${Y-1}'s ${prev} mall${prev===1?'':'s'} forward (as Prospective, shifts empty), or add malls one at a time.`:'Add the malls one at a time.'):'Turn on Plan mode to add malls.'}</span>`+
+      (P&&dbState==='ready'?`<span>${prev?`<button class="btn" data-kroll="1">Roll ${Y-1} forward</button> `:''}<button class="btn ghost" data-kadd="1">+ Add a mall</button></span>`:'')+`</div></section>`; return;
+  }
+  const dates=kDates(list), td=iso(TODAY), running=dates.length&&dates[0]<=td&&td<=dates[dates.length-1];
+  const sub=dates.length?`${kDow(dates[0])} ${fdate(dates[0])} – ${kDow(dates[dates.length-1])} ${fdate(dates[dates.length-1])}`:'';
+  const cov=openN?`<span class="cov cov-open">${openN} open shift${openN===1?'':'s'}</span>`:`<span class="cov">${booked?'Full':'nothing booked yet'}</span>`;
+  /* who's on, and how many days: tap a name to light up their days */
+  const counts={};
+  live.forEach(k=>Object.entries(k.shifts||{}).forEach(([d,s])=>{ if(!kIn(k,d)||!s||!s.rep||s.rep==='__X__') return; kReps(s.rep).forEach(n=>counts[n]=(counts[n]||0)+1); }));
+  if(kRep&&!(kRep in counts)) kRep='';
+  const names=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]||a.localeCompare(b));
+  const chips=names.length?`<div class="rollup">${names.map(n=>`<button class="rchip${kRep===n?' on':''}" data-krep="${esc(n)}">${esc(n)} <b>×${counts[n]}</b></button>`).join('')}</div>`:'';
+  let mine='';
+  if(kRep){ const items=[];
+    dates.forEach(d=>live.forEach(k=>{ const s=kDay(k,d); if(!kIn(k,d)||!s) return; const r=kReps(s.rep); if(!r.includes(kRep)) return;
+      const w=r.filter(x=>x!==kRep); items.push(`<span>${kDow(d)} ${fdate(d)} · ${esc(k.name)}${w.length?' · split with '+esc(w.join(' & ')):''}</span>`); }));
+    mine=`<div class="kmine"><b>${esc(kRep)}</b>${items.join('')}</div>`; }
+  const thead=`<tr><th class="gname kdh">Day</th>${list.map(kHead).join('')}</tr>`;
+  const rows=dates.map(d=>{ const dt=fromISO(d), dw=dt.getDay();
+    const cls=[dw===0||dw===6?'kwe':'',dw===1&&d!==dates[0]?'kmon':'',d===td?'ktoday':'',running&&d<td?'kpast':''].filter(Boolean).join(' ');
+    return `<tr class="${cls}"><th class="gname kday">${kDow(d)}<span>${fdate(d)}</span>${d===td?'<i>today</i>':''}</th>`+
+      list.map(k=>kIn(k,d)?`<td class="gcell">${kCell(k,d,P)}</td>`:`<td class="gcell na"></td>`).join('')+`</tr>`; }).join('');
+  board.innerHTML=`<section class="band kiosk">${head(sub,cov)}
+    <p class="legend">One shift per mall per day. Two names on a day is a split. A Prospective mall isn't signed yet, so its empty days aren't open shifts.${P?' Click a day to put someone on it, split it, or mark the mall closed.':''}</p>
+    ${chips}${mine}
+    <div class="gridwrap gridwrap-w"><table class="wgrid ktbl" style="--kn:${list.length}"><thead>${thead}</thead><tbody>${rows}</tbody></table></div>
+    <div class="kmalls"><div class="sec-l">The malls</div>${list.map(k=>kCard(k,P)).join('')}</div>${P?roster:''}
+  </section>`;
+}
+async function patchKiosk(k,patch){
+  if(!db){toast('Shared storage not available');return false;}
+  try{ await db.doc('kiosks/'+k.id).update(patch); Object.assign(k,patch); build(); return true; }
+  catch(err){ toast(kErr(err)); build(); return false; }
+}
+/* one day of one mall. It re-reads the mall's row first and writes the whole day map back: another editor
+   staffing a different day a moment ago is kept, not overwritten by this tab's older copy. */
+async function setKioskDay(id,date,rep){
+  const k=kiosks.find(x=>x.id===id); if(!k) return;
+  if(!db){toast('Shared storage not available');return;}
+  try{
+    let base=k.shifts||{};
+    if(db.client){ const {data,error}=await db.client.from('kiosks').select('data').eq('id',id).maybeSingle(); if(!error&&data&&data.data) base=data.data.shifts||{}; }
+    const shifts=Object.assign({},base), prev=base[date]||{};
+    if(!rep) delete shifts[date];
+    else shifts[date]=Object.assign({rep},rep===prev.rep&&prev.note?{note:prev.note}:{});
+    await db.doc('kiosks/'+id).update({shifts});
+    k.shifts=shifts; build();
+  }catch(err){ toast(kErr(err)); }
+}
+function kRollDoc(k,Y){
+  const n=Math.max(1,Y-(+k.year)), mv=s=>s?iso(addDays(fromISO(s),364*n)):'';   // 364 days keeps the weekday: Black Friday lands on Black Friday
+  const start=mv(k.startDate), end=mv(k.endDate), shifts={};
+  Object.entries(k.shifts||{}).forEach(([d,v])=>{ if(v&&v.rep==='__X__'&&!/christmas/i.test(v.note||'')) shifts[mv(d)]=v.note?{rep:'__X__',note:v.note}:{rep:'__X__'}; });
+  const xmas=Y+'-12-25'; if(start&&end&&xmas>=start&&xmas<=end) shifts[xmas]={rep:'__X__',note:'Christmas'};
+  return {year:Y,name:k.name,cityState:k.cityState||'',status:'Prospective',captain:'',cost:'',startDate:start,endDate:end,order:k.order||99,notes:k.notes||'',shifts,
+    lastYear:{year:+k.year,status:kStatus(k),captain:k.captain||'',cost:k.cost||'',days:kStats(k).filled},rolledFrom:k.id,createdAt:new Date().toISOString()};
+}
+async function rollKiosks(Y){
+  const have=new Set(kiosks.map(k=>k.id));
+  const todo=kList(Y-1).filter(k=>kStatus(k)!=='Cancelled'&&!have.has(Y+'-'+kBase(k.id)));
+  if(!todo.length){ toast('Nothing new to roll into '+Y); return; }
+  let done=0;
+  for(const k of todo){ const id=Y+'-'+kBase(k.id), doc=kRollDoc(k,Y);
+    try{ await db.doc('kiosks/'+id).set(doc); kiosks.push(Object.assign({id},doc)); done++; }catch(err){ toast(kErr(err)); break; } }
+  if(done) toast(`Rolled ${done} mall${done===1?'':'s'} into ${Y} as Prospective`);
+  build();
+}
+function openKAdd(){ closePanels(); const Y=kYear(), [s,e]=kDefaultRange(Y);
+  P_('kaYear').textContent=Y; P_('kaStart').value=s; P_('kaEnd').value=e; P_('kAddPanel').hidden=false;
+  P_('kAddPanel').scrollIntoView({behavior:'smooth',block:'nearest'}); P_('kaName').focus({preventScroll:true}); }
+async function addKiosk(){
+  const Y=kYear(), name=P_('kaName').value.trim(), city=P_('kaCity').value.trim(), s=P_('kaStart').value, e=P_('kaEnd').value;
+  if(!name||!s||!e){ toast('Mall name, first day and last day are needed'); return; }
+  if(s>e){ toast('The last day has to be on or after the first day'); return; }
+  const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'mall';
+  let id=Y+'-'+slug; if(kiosks.some(k=>k.id===id)) id+='-'+Math.random().toString(36).slice(2,6);
+  const xmas=Y+'-12-25', shifts=xmas>=s&&xmas<=e?{[xmas]:{rep:'__X__',note:'Christmas'}}:{};
+  const doc={year:Y,name,cityState:city,status:'Prospective',captain:'',cost:'',startDate:s,endDate:e,order:Math.max(0,...kList(Y).map(k=>+k.order||0))+1,notes:'',shifts,createdAt:new Date().toISOString()};
+  try{ await db.doc('kiosks/'+id).set(doc); kiosks.push(Object.assign({id},doc)); toast('Added '+name+' to '+Y+' as Prospective'); P_('kaName').value=''; P_('kaCity').value=''; closePanels(); build(); }
+  catch(err){ toast(kErr(err)); }
+}
+function kioskSummary(){
+  const Y=kYear();
+  return kList(Y).map(k=>{ const st=kStatus(k);
+    const lines=kDates([k]).map(d=>{ const s=kDay(k,d)||{}, v=s.rep||''; return '  '+kDow(d)+' '+fdate(d)+': '+(v==='__X__'?(s.note||'closed'):(v||(st==='Booked'?'OPEN':'—'))); });
+    return k.name+'  ['+st+(k.captain?' · Captain '+k.captain:'')+(k.cost?' · '+k.cost:'')+']\n'+lines.join('\n'); }).join('\n\n');
 }
 /* ---- who's on this weekend ---- */
 function rollup(evs){
@@ -1630,6 +1889,34 @@ board.addEventListener('click',async ev=>{
     return; }
 });
 board.addEventListener('keydown',ev=>{ if((ev.key==='Enter'||ev.key===' ')&&ev.target.closest('.band.past .band-h')){ev.preventDefault();ev.target.click();} });
+/* the Kiosk Schedule's own clicks and edits (a day's name picker opens from the handler above, like a show's) */
+board.addEventListener('click',async ev=>{
+  if(!viewKiosk()) return;
+  const t=ev.target;
+  const yb=t.closest('[data-kyear]'); if(yb){ kYearSel=+yb.dataset.kyear; kOpen.clear(); kRep=''; build(); return; }
+  const rc=t.closest('[data-krep]'); if(rc){ kRep=kRep===rc.dataset.krep?'':rc.dataset.krep; build(); return; }
+  const go=t.closest('[data-kgo]'); if(go){ const id=go.dataset.kgo; kOpen.add(id); build(); const el=document.getElementById('kc-'+id); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); return; }
+  if(t.closest('[data-kroll]')){ t.closest('[data-kroll]').disabled=true; await rollKiosks(kYear()); return; }
+  if(t.closest('[data-kadd]')){ openKAdd(); return; }
+  const card=t.closest('article[data-kid]'); if(!card) return;
+  const id=card.dataset.kid, k=kiosks.find(x=>x.id===id); if(!k) return;
+  if(t.closest('.ev-h')){ kOpen.has(id)?kOpen.delete(id):kOpen.add(id); build(); return; }
+  const del=t.closest('[data-kdel]');
+  if(del){ if(del.dataset.kdel==='1'){ del.dataset.kdel='2'; del.textContent='Tap again to remove '+k.name+' and every shift on it'; return; }
+    try{ await db.doc('kiosks/'+id).delete(); kiosks=kiosks.filter(x=>x.id!==id); kOpen.delete(id); toast('Removed '+k.name+' from '+k.year); build(); }catch(err){ toast(kErr(err)); } return; }
+});
+board.addEventListener('change',async ev=>{
+  if(!viewKiosk()) return;
+  const f=ev.target.closest('[data-kf]'); if(!f) return;
+  const card=f.closest('[data-kid]'), k=card&&kiosks.find(x=>x.id===card.dataset.kid); if(!k) return;
+  const key=f.dataset.kf; let v=f.value.trim();
+  if(key==='name'&&!v){ toast('A mall needs a name'); f.value=k.name||''; return; }
+  if(key==='startDate'||key==='endDate'){ const s=key==='startDate'?v:k.startDate, e=key==='endDate'?v:k.endDate;
+    if(!v||(s&&e&&s>e)){ toast('The last day has to be on or after the first day'); f.value=k[key]||''; return; } }
+  if(key==='order') v=v===''?99:+v;
+  if(key==='captain'&&v) v=splitRep(v).rep;   // the roster's spelling, the way a shift is stored
+  await patchKiosk(k,{[key]:v});
+});
 board.addEventListener('click',async ev=>{
   const r=ev.target.closest('[data-restore]'); if(!r||!plan())return;
   const n=neverList.find(x=>x.id===r.dataset.restore); if(!n)return;
@@ -1696,9 +1983,22 @@ function renderPickList(){
   /* taking a rep off is the clear row, named for who comes off; it says nothing on a day already open */
   const rep=pickCtx?pickCtx.rep:'', se=!!(pickCtx&&pickCtx.se);
   let u='';
+  if(pickCtx&&pickCtx.kind==='kiosk'){
+    /* a kiosk day is one shift: a name replaces whoever had it; a split is asked for, never implied */
+    const reps=rep==='__X__'?[]:kReps(rep);
+    if(pickCtx.split) u+=`<button class="pickrow util" data-v="__NOSPLIT__" role="option">Splitting with ${esc(pickCtx.split)}: pick who takes the other half, or tap here to cancel</button>`;
+    else {
+      if(rep==='__X__') u+=`<button class="pickrow util" data-v="" role="option">Open this day back up</button>`;
+      if(reps.length===1) u+=`<button class="pickrow util" data-v="__SPLIT__" role="option">Split this day: ${esc(reps[0])} + someone</button>`;
+      if(reps.length>1) reps.forEach((r,i)=>{ u+=`<button class="pickrow util" data-v="__DROP${i}__" role="option">Take ${esc(r)} off — ${esc(reps.filter((_,j)=>j!==i).join(' / '))} keeps the day</button>`; });
+      if(reps.length) u+=`<button class="pickrow util" data-v="" role="option">Remove ${esc(reps.join(' and '))} — leave it open</button>`;
+      if(rep!=='__X__') u+=`<button class="pickrow util" data-v="__X__" role="option">Closed — no shift this day</button>`;
+    }
+  } else {
   if(rep==='__X__') u+=`<button class="pickrow util" data-v="" role="option">${se?'Nobody':'Open this day back up'}</button>`;
   else if(rep) u+=`<button class="pickrow util" data-v="" role="option">Remove ${esc(rep)}${se?'':' — leave it open'}</button>`;
   if(rep!=='__X__') u+=`<button class="pickrow util" data-v="__X__" role="option">No shift this day</button>`;
+  }
   popUtil.innerHTML=u;
   const first=popList.querySelector('.pickrow:not(.util)')||pop.querySelector('.pickrow');
   if(first) first.classList.add('on');
@@ -1713,6 +2013,9 @@ function placePop(){
   pop.style.top=top+'px';
 }
 function openPick(btn){
+  if(btn.dataset.kday){ const k=kiosks.find(x=>x.id===btn.dataset.kid); if(!k) return; const rep=(kDay(k,btn.dataset.kday)||{}).rep||'';
+    pickCtx={kind:'kiosk',id:k.id,date:btn.dataset.kday,btn,v:rep,rep,se:false,split:''};
+    btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus(); return; }
   const art=btn.closest('[data-id]'); const e=cur().find(x=>x.id===art.dataset.id); if(!e)return;
   const bi=+btn.dataset.b, si=+btn.dataset.s, di=+btn.dataset.d;
   const b=boothsOf(e)[bi], sl=(b&&b.shifts[si]&&b.shifts[si].slots[di])||{rep:''};
@@ -1721,6 +2024,18 @@ function openPick(btn){
 }
 function closePick(){ pop.hidden=true; const b=pickCtx&&pickCtx.btn; pickCtx=null; if(b){ b.classList.remove('picking'); if(document.contains(b)) b.focus(); } }
 async function applyPick(v){
+  if(pickCtx&&pickCtx.kind==='kiosk'){
+    const c=pickCtx;
+    if(v==='__SPLIT__'){ c.split=kReps(c.rep)[0]||''; popQ.value=''; renderPickList(); popQ.focus(); return; }
+    if(v==='__NOSPLIT__'){ c.split=''; renderPickList(); popQ.focus(); return; }
+    const typed=popQ.value; closePick();
+    let rep;
+    if(v==='__USE__'){ rep=splitRep(typed).rep; if(!rep) return; }
+    else if(/^__DROP\d__$/.test(v)){ const i=+v.slice(6,-2); rep=kReps(c.rep).filter((_,j)=>j!==i).join(' / '); }
+    else rep=v;                                     // a name, '' (clear) or '__X__' (closed)
+    if(c.split&&rep&&rep!=='__X__') rep=kReps(c.split+' / '+rep).filter((x,i,a)=>a.indexOf(x)===i).join(' / ');
+    await setKioskDay(c.id,c.date,rep); return;
+  }
   if(!pickCtx) return; const {id,bi,si,di}=pickCtx, typed=popQ.value;
   const e=cur().find(x=>x.id===id); closePick(); if(!e)return;
   const B=e.source==='board';
@@ -1746,7 +2061,7 @@ pop.addEventListener('keydown',ev=>{
 document.addEventListener('mousedown',ev=>{ if(pickCtx&&!pop.contains(ev.target)&&!ev.target.closest('.slotpick')) closePick(); });
 addEventListener('resize',()=>{ if(pickCtx) closePick(); });
 addEventListener('scroll',()=>{ if(pickCtx) placePop(); },true);
-document.getElementById('seasonSeg').addEventListener('click',e=>{const b=e.target.closest('[data-year]'); if(!b)return; store.year=b.dataset.year==='never'?'never':+b.dataset.year; save(); open.clear(); build();});
+document.getElementById('seasonSeg').addEventListener('click',e=>{const b=e.target.closest('[data-year]'); if(!b)return; const y=b.dataset.year; store.year=(y==='never'||y==='kiosk')?y:+y; save(); open.clear(); build();});
 document.getElementById('q').addEventListener('input',e=>{F.q=e.target.value;build();});
 document.getElementById('rep').addEventListener('change',e=>{F.rep=e.target.value;build();});
 document.getElementById('lvl').addEventListener('change',e=>{F.lvl=e.target.value;build();});
@@ -1759,7 +2074,7 @@ bindChips('stateChips',F.state); bindChips('tierChips',F.tier);
 
 /* panels */
 const P=id=>document.getElementById(id);
-function closePanels(){['rollPanel','addPanel','setPanel','impPanel','authPanel','syncPanel'].forEach(i=>P(i).hidden=true);}
+function closePanels(){['rollPanel','addPanel','setPanel','impPanel','authPanel','syncPanel','kAddPanel'].forEach(i=>P(i).hidden=true);}
 function refreshRoll(){ const inc=P('rollDead').checked, {Y,todo,skipped,held}=rollPlan(inc); P('rollHeld').textContent=held?`${held} held back (skip-next or never-work).`:'';
   P('rollFrom').textContent=Y-1; P('rollTarget').textContent=Y; P('rollN').textContent=todo.length;
   P('rollDeadN').textContent=eventsIn(Y-1).filter(e=>e.dead).length;
@@ -1789,6 +2104,10 @@ P('qaGo').addEventListener('click',async()=>{
   try{ const ref=await db.collection('events').add(doc); toast('Added '+name+' to '+Y); ['qaName','qaStart','qaEnd','qaCity','qaLoc','qaAddr','qaSetting','qaPromoter','qaContact','qaPhone','qaEmail','qaWeb','qaCost','qaApply','qaApplyBy','qaNotes'].forEach(i=>P(i).value=''); P('qaMore').open=false; closePanels(); open.add(ref.id); if(Y!==year()){store.year=Y;save();} }
   catch(err){ toast(err&&err.code==='quota_exceeded'?'The board is full — remove some events first':'Couldn\'t add — check your edit access'); }
 });
+P('btnKAdd').addEventListener('click',openKAdd);
+P('kaCancel').addEventListener('click',closePanels);
+P('kaGo').addEventListener('click',async()=>{ P('kaGo').disabled=true; await addKiosk(); P('kaGo').disabled=false; });
+P('kaName').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); P('kaGo').click(); } });
 P('btnImport').addEventListener('click',()=>{ closePanels(); P('impPanel').hidden=false; P('impText').focus(); });
 P('impCancel').addEventListener('click',closePanels);
 P('impGo').addEventListener('click',async()=>{
@@ -1822,6 +2141,8 @@ P('stGo').addEventListener('click',async()=>{
 });
 
 P('copy').addEventListener('click',()=>{
+  if(viewKiosk()){ navigator.clipboard.writeText((settings.short||'RSD')+' Kiosk Schedule — '+kYear()+' — '+new Date().toLocaleDateString()+'\n\n'+kioskSummary())
+    .then(()=>toast('Kiosk schedule copied'),()=>toast('Copy blocked by browser')); return; }
   const out=[];
   cur().filter(matches).filter(e=>!wkPast(e.weekend)).forEach(e=>{
     const rows=[];
@@ -2047,6 +2368,11 @@ async function checkEditor(){
   db.doc('settings/division').onSnapshot(s=>{ if(s.exists) settings=Object.assign({},DEFAULT_SETTINGS,s.data()); build(); },()=>{});
   db.collection('overrides').onSnapshot(snap=>{ ovMap={}; snap.docs.forEach(d=>{ovMap[d.id]=d.data()||{};}); build(); },()=>{});
   db.collection('history').onSnapshot(snap=>{ histMap={}; snap.docs.forEach(d=>{const x=d.data()||{}; histMap[d.id]=x.years||{};}); build(); },()=>{});
+  db.collection('kiosks').onSnapshot(snap=>{
+    kiosks=snap.docs.map(d=>Object.assign({id:d.id},d.data()||{}));
+    kiosks.forEach(k=>{ k.year=+(k.year||0); k.shifts=k.shifts||{}; });
+    kioskState='ready'; build();
+  },()=>{ kioskState='missing'; build(); });   // no kiosks table yet: the tab says so, the rest of the board is untouched
   db.collection('events').onSnapshot(snap=>{
     boardEvents=snap.docs.map(d=>Object.assign({id:d.id,source:'board'},d.data()));
     boardEvents.forEach(e=>{ e.booths=e.booths||[]; e.days=e.days||[]; e.dates=e.dates||[]; e.year=+(e.year||e.season||0); });
