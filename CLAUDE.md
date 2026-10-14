@@ -196,8 +196,8 @@ the service key moves them on.
   and `board list --upcoming` use it; the check lists the cells it set aside in `flags.dateCellsOff` (the upcoming
   ones reach Alan's Wednesday report). rsd-shift-picking also never names a show whose dates have passed.
   To correct only the cells, patch them (`patchEvent`, lib/board-api.mjs): `board set <id> startDate=…` moves the
-  whole show (re-dates every booth from its day names, resets the weekend and End Date, clears `datesNote`). The 7
-  staffed rows were corrected that way on 2026-10-14 (changelog actor `service:date-cells-fix`).
+  whole show (re-dates every booth from its day names, resets the weekend and End Date, clears `datesNote`). All 13
+  rows with stale cells were corrected that way on 2026-10-14 (changelog actor `service:date-cells-fix`).
 - A shift is a slot with a `rep` that isn't empty or `__X__`. **SE days are never shifts.**
 - **Tier rules** (config/event-check.json `tierRules`, Alan 2026-09-24): every show named Maricopa is Elite, except the
   Maricopa County Fair. The Sheet sync creates new shows with the rule's tier, and the research runs and the booking
