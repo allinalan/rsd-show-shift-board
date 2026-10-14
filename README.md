@@ -59,7 +59,9 @@ Meeting dates live in plan mode → Division settings.
 ## Kiosk Schedule
 
 The **Kiosk Schedule** tab (next to the years) is the holiday mall kiosks: dates down the side, one
-column per mall, **one shift per mall per day**. Two names on a day is a split day (the mall sheet's
+column per mall, **one shift per mall per day**. On a phone it is a list of days instead, each with
+the malls and who is on them, so nothing scrolls sideways. During the season it opens on today (the
+days already gone fold into one line), and a rep taps their name to see their own days. Two names on a day is a split day (the mall sheet's
 Rep #2). A Prospective mall isn't signed yet, so its empty days are not open shifts; switch it to
 Booked in plan mode once the lease is signed. Under each mall: its captain and its cost with the cost per day (the season's cost
 over the days the kiosk is open, "est." until the season is over). In plan mode, click a day to put
