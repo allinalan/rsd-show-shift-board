@@ -23,9 +23,7 @@ routines in `.claude/skills/` keep it true.
   today; names under "Tap your name" are alphabetical; the header tags only what isn't Booked. UI pass the same day: phone
   targets 38-44px, a redraw keeps keyboard focus and half-typed card fields (`kFocusKey`), the season tabs scroll on a
   small phone instead of pushing Never off screen, and the captain is the same picker on the card and header. Removing a
-  mall is two taps; the first arms it in the page (`kDelArmed`, 10 s, "keep it" backs out), not in the button, because
-  any save redraws the board half a second later and a redraw used to disarm it (Park Place 2025, 2026-10-14: the second
-  tap only re-armed it and nothing was sent). After the delete the page reads the row back, so "Removed" means removed. `board kiosks` lists them; `board kiosks seed` adds the
+  mall is two taps, armed in the page (rule below). After the delete the page reads the row back, so "Removed" means removed. `board kiosks` lists them; `board kiosks seed` adds the
   seed's malls the board lacks and never touches one it has.
 - `seed/*.json` — the data as of the migration off the Google Sheet. Also what the page shows
   when `config.js` is blank (read-only preview). `seed/private/` (gitignored, mode 600) holds the
@@ -175,6 +173,15 @@ the service key moves them on.
   `--mute` were darkened to get there; grey text is never faded further with `opacity` (the old tab counts, stamp and legend
   were, and fell under 3:1). The one exception on purpose: a closed or cancelled show's card recedes. On a phone the season
   tabs, Cards/Grid and the Plan mode switch are 44px tall (Apple's minimum touch target).
+
+- **A two-tap remove is armed in the page, never in the button** (`armed`, `arm()`, `isArmed()` in index.html; 10 s,
+  "keep it" backs out). Any save redraws the board half a second later, and a button that kept its own "tap again" was
+  reset by it, so the second tap only armed it again and nothing was removed (Park Place 2025, 2026-10-14; the show
+  board's Remove, remove booth and shift-row x had the same flaw until the same day). On the show board the key carries
+  what the booth or row holds as well as its place (`armKey`), so a row someone else removes meanwhile can't hand the
+  "tap again" to the row that slides into its place, and the armed button is redrawn in place (`armRedraw`), not the
+  board, which would drop what is half-typed in another field. A removed show is read back like a mall: a delete the
+  database refuses comes back without an error.
 
 - A shift is a slot with a `rep` that isn't empty or `__X__`. **SE days are never shifts.**
 - **Tier rules** (config/event-check.json `tierRules`, Alan 2026-09-24): every show named Maricopa is Elite, except the
