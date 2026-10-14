@@ -22,7 +22,10 @@ routines in `.claude/skills/` keep it true.
   table (`.kgrid`), both rendered and one shown by CSS at 640px; in season the days already gone fold away so it opens on
   today; names under "Tap your name" are alphabetical; the header tags only what isn't Booked. UI pass the same day: phone
   targets 38-44px, a redraw keeps keyboard focus and half-typed card fields (`kFocusKey`), the season tabs scroll on a
-  small phone instead of pushing Never off screen, and the captain is the same picker on the card and header. `board kiosks` lists them; `board kiosks seed` adds the
+  small phone instead of pushing Never off screen, and the captain is the same picker on the card and header. Removing a
+  mall is two taps; the first arms it in the page (`kDelArmed`, 10 s, "keep it" backs out), not in the button, because
+  any save redraws the board half a second later and a redraw used to disarm it (Park Place 2025, 2026-10-14: the second
+  tap only re-armed it and nothing was sent). After the delete the page reads the row back, so "Removed" means removed. `board kiosks` lists them; `board kiosks seed` adds the
   seed's malls the board lacks and never touches one it has.
 - `seed/*.json` — the data as of the migration off the Google Sheet. Also what the page shows
   when `config.js` is blank (read-only preview). `seed/private/` (gitignored, mode 600) holds the
