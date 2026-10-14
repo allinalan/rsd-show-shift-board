@@ -128,6 +128,8 @@ body.plan .switch{color:var(--navy)}
 .danger{color:var(--pend);background:none;border:1px dashed var(--line);border-radius:7px;padding:5px 10px;font-size:.74rem;cursor:pointer;margin-top:10px}
 .danger:hover{border-color:var(--pend)}
 .danger.arm{background:var(--pend);color:var(--on-pend);border:1px solid var(--pend);font-weight:600}
+.armslot{display:contents}
+.linkbtn.arm{color:var(--pend);font-weight:600}
 .empty-season{text-align:center;padding:40px 16px;color:var(--ink-3);font-size:.9rem;display:flex;flex-direction:column;gap:10px;align-items:center}
 .empty-season b{color:var(--ink);font-family:var(--f-disp)}
 .plan-only{display:none !important}
@@ -672,6 +674,7 @@ table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2
 .lifecycle{margin-top:16px;padding-top:12px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:10px}
 .lifecycle .ck{font-size:.82rem;color:var(--ink-2)}
 .lifecycle-btns{display:flex;gap:8px;flex-wrap:wrap} .lifecycle .danger{margin-top:0}
+@media (max-width:640px){ .lifecycle-btns .linkbtn{min-height:44px;padding:0 10px} }   /* "keep it" under an armed Remove */
 .neverform{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--pend-bg);border:1px solid color-mix(in srgb,var(--pend) 30%,transparent);border-radius:8px;padding:10px}
 .neverform input{flex:1 1 240px;font:inherit;font-size:.86rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
 .neverform .btn{background:var(--pend);color:#fff}
@@ -999,10 +1002,18 @@ let boardEvents=[];               // every board-sourced event, all years
 let histMap={};                   // baseId -> {year: {cpo, orders}}
 let ovMap={};                     // sheet event id -> shared field overrides
 let kiosks=[], kioskState='loading';   // `kiosks` docs, all years · loading | ready | missing (no kiosks table in the database yet)
-let kYearSel=null, kRep='', kShowPast=false, kDelArmed=null;   // kDelArmed {id, at}: Remove tapped once, still armed after a redraw   // the kiosk season on screen (not remembered: the tab opens on this season) · rep highlighted · the days already gone unfolded
+let kYearSel=null, kRep='', kShowPast=false;   // the kiosk season on screen (not remembered: the tab opens on this season) · rep highlighted · the days already gone unfolded
 const kOpen=new Set();
 const F={q:'',rep:'',lvl:'',bk:'',state:new Set(),tier:new Set()};
 const open=new Set(), pastClosed=new Set(); let pastAllOpen=false;
+/* A two-tap remove (a show, a booth, a shift row, a mall) is armed here in the page, not in the button: a save redraws
+   the board half a second later, and a button that kept its own "tap again" was reset by it, so the second tap only
+   armed it again and nothing was removed (Park Place 2025, 2026-10-14). Ten seconds to change your mind. */
+let armed=null;   // {key, at, redraw}: one at a time; arming another puts the first back
+const ARM_MS=10e3;
+const isArmed=key=>!!armed&&armed.key===key&&Date.now()-armed.at<ARM_MS;
+function arm(key,redraw){ const prev=armed, at=Date.now(); armed={key,at,redraw}; if(prev&&prev.key!==key) prev.redraw(); redraw();
+  setTimeout(()=>{ if(armed&&armed.at===at){ armed=null; redraw(); } },ARM_MS+50); }
 const plan=()=>!!store.plan && (dbKind!=='supabase' || isEditor);
 const viewNever=()=>store.year==='never';
 const viewKiosk=()=>store.year==='kiosk';
@@ -1478,7 +1489,7 @@ function kBody(k,P){
    <div class="detail">${f('Mall name','name')}<div class="dl"><dt>Captain</dt><dd><button class="slotpick kcapbtn wide${k.captain?'':' none'}" data-kcap="${esc(k.id)}" aria-haspopup="listbox">${k.captain?esc(k.captain):'+ Assign a captain'}</button></dd></div>${f('Cost for the season','cost','$7,300')}<div class="dl"><dt>${pd&&!pd.est?'Cost per day':'Est. cost per day'}</dt><dd class="mono${perTxt?'':' empty'}">${perTxt?esc(perTxt):'set the cost first'}</dd></div>${f('First day','startDate','','date')}${f('Last day','endDate','','date')}${f('City, state','cityState','Chandler, AZ')}${f('Column','order','1 = first','number')}
     <div class="dl wide"><dt>Notes</dt><dd><textarea class="fld" data-kf="notes" rows="3" placeholder="Kiosk location, lease terms, what the captain needs to know">${esc(k.notes||'')}</textarea></dd></div></div>
    <p class="legend">Shifts are set in the schedule above: click a day. Two names on a day is a split. The cost per day is the season's cost over the days the kiosk is open; mark a day closed and it goes up.</p>
-   <div class="lifecycle"><div class="lifecycle-btns">${kArmed(k.id)
+   <div class="lifecycle"><div class="lifecycle-btns">${isArmed('kiosk:'+k.id)
       ?`<button class="danger arm" data-kdel="2">Tap again to remove ${esc(k.name)} and every shift on it</button><button class="linkbtn" data-kdelno="1">keep it</button>`
       :`<button class="danger" data-kdel="1">Remove ${esc(k.name)} from ${esc(k.year)}</button>`}</div></div>`;
 }
@@ -1498,8 +1509,6 @@ function kRestoreFocus(f){
   if(f.value!=null&&el.value!==f.value&&'value' in el&&el.tagName!=='SELECT'){ el.value=f.value; try{ el.setSelectionRange(f.start,f.end); }catch(e){} }
   el.focus({preventScroll:true});
 }
-const KDEL_MS=10e3;
-const kArmed=id=>!!kDelArmed&&kDelArmed.id===id&&Date.now()-kDelArmed.at<KDEL_MS;
 function renderKiosks(){
   setTimeout(()=>{syncTopH();pinHeads();drawColRules();},0);
   const keepFocus=kFocusKey();
@@ -1791,18 +1800,47 @@ function resultsLine(e){
   if(seN) parts.push(`<span class="res se" title="${SETIP}"><b>SE</b> ${seN} sharpening</span>`);
   return `<span class="resline">${parts.join('')}</span>`;
 }
+/* An armed show-board remove names its booth or row by what is in it as well as where it is, so a row someone else
+   removes meanwhile can't pass the "tap again" to the row that slides into its place. The button is redrawn in place,
+   not the board: a full redraw would drop what is half-typed in another field. */
+const sig=o=>{ const s=JSON.stringify(o)||''; let h=5381; for(let i=0;i<s.length;i++) h=(Math.imul(h,33)^s.charCodeAt(i))>>>0; return h.toString(36); };
+const armKey={ ev:e=>'ev:'+e.id, booth:(e,bi)=>`booth:${e.id}:${bi}:${sig(e.booths[bi])}`, row:(e,bi,si)=>`row:${e.id}:${bi}:${si}:${sig(e.booths[bi].shifts[si])}` };
+function staffedIn(b,rows){ const days=b.days||[]; let on=0, sharp=0;
+  rows.forEach(r=>(r.slots||[]).forEach((sl,di)=>{ if(!sl||!sl.rep||sl.rep==='__X__') return; if(isSE(days[di])) sharp++; else on++; }));
+  return [on?`${on} staffed shift${on>1?'s':''}`:'', sharp?`${sharp} sharpening day${sharp>1?'s':''}`:''].filter(Boolean).join(' + '); }
+function rowDelBtn(e,bi,si){ const b=e.booths[bi], s=b&&b.shifts[si]; if(!s) return '';
+  const key=armKey.row(e,bi,si), lose=staffedIn(b,[s]), txt=lose?`tap again: removes ${lose}`:'tap again to remove';
+  return isArmed(key)
+    ?`<button class="rowdel arm" data-del-shift="${bi}:${si}" data-armslot="${key}" aria-label="${txt} (${esc(s.label)})">${txt}</button>`
+    :`<button class="rowdel" data-del-shift="${bi}:${si}" data-armslot="${key}" title="Remove this shift row" aria-label="Remove ${esc(s.label)}">&times;</button>`; }
+function boothDelBtn(e,bi){ const b=e.booths[bi]; if(!b) return '';
+  const key=armKey.booth(e,bi), lose=staffedIn(b,b.shifts);
+  return isArmed(key)
+    ?`<button class="linkbtn arm" data-del-booth="${bi}" data-armslot="${key}">tap again to remove ${esc(b.label||'this booth')}${lose?` and its ${lose}`:''}</button>`
+    :`<button class="linkbtn" data-del-booth="${bi}" data-armslot="${key}">remove booth</button>`; }
+function evDelBtns(e){ const key=armKey.ev(e);
+  return `<span class="armslot" data-armslot="${key}">`+(isArmed(key)
+    ?`<button class="danger arm" data-del="2">Tap again to remove ${esc(e.name)} and every shift on it</button><button class="linkbtn" data-delno="1">keep it</button>`
+    :`<button class="danger" data-del="1">Remove from ${yearOf(e)}</button>`)+`</span>`; }
+function armRedraw(key,html){
+  document.querySelectorAll(`#board [data-armslot="${key}"]`).forEach(el=>{
+    const art=el.closest('[data-id]'), e=art&&cur().find(x=>x.id===art.dataset.id), h=e&&html(e); if(!h) return;
+    const t=document.createElement('template'); t.innerHTML=h; const n=t.content.firstElementChild, had=el.contains(document.activeElement);
+    el.replaceWith(n); if(had){ const f=n.matches('button')?n:n.querySelector('button'); f&&f.focus({preventScroll:true}); }
+  });
+}
 function grid(e,b,bi,ps,P){
   const B=e.source==='board', multi=e.booths.length>1, canDel=P&&B&&b.shifts.length>1;
   const head=`<tr><th class="rowlbl"></th>${b.days.map((d,i)=>{ const se=isSE(d);
     return `<th${se?` class="se-col" title="${SETIP}"`:''}>${esc(d.replace(/\s*\(?\bSE\b\)?/i,'').trim()||'SE')}${se?'<span class="setag">SE</span>':''}<span class="d">${fdate(b.dates[i])||'&nbsp;'}</span></th>`;}).join('')}</tr>`;
   const rows=b.shifts.map((s,si)=>`<tr><th${s.labelInferred?' title="No label for this shift row on the Sheet — the board numbered it."':''}>${esc(s.label)}${s.labelInferred?'<span class="inflbl">*</span>':''}`+
-    (canDel?`<button class="rowdel" data-del-shift="${bi}:${si}" title="Remove this shift row" aria-label="Remove ${esc(s.label)}">&times;</button>`:'')+`</th>`+s.slots.map((sl,di)=>
+    (canDel?rowDelBtn(e,bi,si):'')+`</th>`+s.slots.map((sl,di)=>
     `<td class="slot${isSE(b.days[di])?' se-col':''}">${cellFor(e,b,bi,s,si,di,ps,P,true)}</td>`
   ).join('')+`</tr>`).join('');
   let bh='';
   if(P&&B&&(multi||b.label)){
     bh=`<div class="boothh edit"><input type="text" data-booth-label="${bi}" value="${esc(b.label)}" placeholder="Booth #${bi+1}" aria-label="Booth name">`+
-       (multi?`<button class="linkbtn" data-del-booth="${bi}">remove booth</button>`:'')+`</div>`;
+       (multi?boothDelBtn(e,bi):'')+`</div>`;
   } else if(b.label){
     bh=`<div class="boothh"><span>${boothTitle(b,bi)}</span>${b.status?`<span class="bstat">${esc(b.status)}</span>`:''}</div>`;
   }
@@ -1861,7 +1899,7 @@ function bodyHtml(e){
      <label class="ck"><input type="checkbox" data-skipnext ${e.skipNext?'checked':''}> Skip next year — don't roll this into ${yearOf(e)+1}${e.skipNext?'':' (it can still roll the year after)'}</label>
      <div class="lifecycle-btns">
       <button class="danger" data-never="1">Never work this event again</button>
-      <button class="danger" data-del="1">Remove from ${yearOf(e)}</button>
+      ${evDelBtns(e)}
      </div>
      <div class="neverform" hidden><input type="text" data-never-why placeholder="Why? (shows on the Never list — optional)"><button class="btn" data-never-go="1">Confirm — never again</button><button class="btn ghost" data-never-cancel="1">Cancel</button></div>
     </div>`:''}`;
@@ -1981,25 +2019,23 @@ board.addEventListener('click',async ev=>{
   }
   const db_=ev.target.closest('[data-del-booth]');
   if(db_&&e.source==='board'){
-    if(db_.dataset.confirm!=='1'){db_.dataset.confirm='1';db_.textContent='tap again to remove this booth';return;}
-    const bi=+db_.dataset.delBooth;
+    const bi=+db_.dataset.delBooth; if(!e.booths[bi]||e.booths.length<2) return;
+    const key=armKey.booth(e,bi);
+    if(!isArmed(key)){ arm(key,()=>armRedraw(key,x=>boothDelBtn(x,bi))); return; }
+    armed=null;
     const booths=withBooths(e,bs=>{bs.splice(bi,1); if(bs.length===1&&/^Booth #\d+$/.test(bs[0].label||'')) bs[0].label='';});
-    await patchEvent(id,{booths}); return;
+    if(!await patchEvent(id,{booths})) armRedraw(key,x=>boothDelBtn(x,bi)); return;
   }
   const dsh=ev.target.closest('[data-del-shift]');
   if(dsh&&e.source==='board'){
     const [bi,si]=dsh.dataset.delShift.split(':').map(Number), row=e.booths[bi]&&e.booths[bi].shifts[si];
     if(!row||e.booths[bi].shifts.length<2) return;
-    if(dsh.dataset.confirm!=='1'){
-      const days=e.booths[bi].days||[]; let on=0, sharp=0;
-      (row.slots||[]).forEach((sl,di)=>{ if(!sl||!sl.rep||sl.rep==='__X__') return; if(isSE(days[di])) sharp++; else on++; });
-      const lose=[on?`${on} staffed shift${on>1?'s':''}`:'', sharp?`${sharp} sharpening day${sharp>1?'s':''}`:''].filter(Boolean);
-      dsh.dataset.confirm='1'; dsh.classList.add('arm');
-      dsh.textContent=lose.length?`tap again: removes ${lose.join(' + ')}`:'tap again to remove'; return;
-    }
+    const key=armKey.row(e,bi,si);
+    if(!isArmed(key)){ arm(key,()=>armRedraw(key,x=>rowDelBtn(x,bi,si))); return; }
+    armed=null;
     /* "Shift 3" after Shift 2 is gone would be a second Shift 3 on the next add: plain numbers close up */
     const booths=withBooths(e,bs=>{ const sh=bs[bi].shifts; sh.splice(si,1); sh.forEach((x,k)=>{ if(/^Shift \d+$/.test(x.label||'')) x.label='Shift '+(k+1); }); });
-    await patchEvent(id,{booths}); return;
+    if(!await patchEvent(id,{booths})) armRedraw(key,x=>rowDelBtn(x,bi,si)); return;
   }
   const ha=ev.target.closest('[data-hist-add]');
   if(ha){ const w=ha.closest('.hist'); const y=w.querySelector('[data-hist-newyear]').value.trim(), c=w.querySelector('[data-hist-newcpo]').value, o=w.querySelector('[data-hist-neworders]').value;
@@ -2007,9 +2043,18 @@ board.addEventListener('click',async ev=>{
     await saveHist(e,y,c,o); return; }
   const hd=ev.target.closest('[data-hist-del]');
   if(hd){ await saveHist(e,hd.dataset.histDel,null,null,true); return; }
+  if(ev.target.closest('[data-delno]')){ const key=armKey.ev(e); armed=null; armRedraw(key,evDelBtns); return; }
   const del=ev.target.closest('[data-del]');
-  if(del){ if(del.dataset.del==='1'){del.dataset.del='2';del.textContent='Tap again to remove '+e.name;return;}
-    try{ await db.doc('events/'+id).delete(); open.delete(id); toast('Removed'); }catch(err){toast('Couldn\'t remove');} return; }
+  if(del){ const key=armKey.ev(e);
+    if(!isArmed(key)){ arm(key,()=>armRedraw(key,evDelBtns)); return; }
+    armed=null;
+    try{
+      await db.doc('events/'+id).delete();
+      /* gone means gone from the database: a delete the database refuses comes back without an error */
+      if(db.client){ const {data}=await db.client.from('events').select('id').eq('id',id).maybeSingle(); if(data){ toast('Couldn\'t remove '+e.name+' — check your edit access'); armRedraw(key,evDelBtns); return; } }
+      boardEvents=boardEvents.filter(x=>x.id!==id); open.delete(id); toast('Removed '+e.name+' from '+yearOf(e)); build();
+    }catch(err){ toast(err&&err.code==='read_only'?'Read-only preview — this copy isn\'t connected to the database yet':'Couldn\'t remove — check your edit access'); armRedraw(key,evDelBtns); }
+    return; }
   if(ev.target.closest('[data-never]')){ const f=art.querySelector('.neverform'); f.hidden=false; f.querySelector('input').focus(); return; }
   if(ev.target.closest('[data-never-cancel]')){ art.querySelector('.neverform').hidden=true; return; }
   if(ev.target.closest('[data-never-go]')){
@@ -2039,11 +2084,10 @@ board.addEventListener('click',async ev=>{
   const card=t.closest('article[data-kid]'); if(!card) return;
   const id=card.dataset.kid, k=kiosks.find(x=>x.id===id); if(!k) return;
   if(t.closest('.ev-h')){ kOpen.has(id)?kOpen.delete(id):kOpen.add(id); build(); return; }
-  if(t.closest('[data-kdelno]')){ kDelArmed=null; build(); return; }
+  if(t.closest('[data-kdelno]')){ armed=null; build(); return; }
   if(t.closest('[data-kdel]')){
-    if(!kArmed(id)){ const at=Date.now(); kDelArmed={id,at}; build();
-      setTimeout(()=>{ if(kDelArmed&&kDelArmed.at===at){ kDelArmed=null; build(); } },KDEL_MS+50); return; }   // ten seconds to change your mind
-    kDelArmed=null;
+    if(!isArmed('kiosk:'+id)){ arm('kiosk:'+id,build); return; }
+    armed=null;
     try{
       await db.doc('kiosks/'+id).delete();
       /* gone means gone from the database, not just from this screen */
