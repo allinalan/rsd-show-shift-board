@@ -72,7 +72,11 @@ routines in `.claude/skills/` keep it true.
   vcNumber / status / dead back (past events: vcStatus and vcNumber only), **and the cost** (Alan, 2026-10-06: "Rule is
   to ALWAYS go off of VC"): a matched show's `cost` / `costNum` become VC's Event Cost in whole dollars, past or upcoming,
   with `costSource: VC` and the old figure in `costWas`. Not when VC has no cost yet, not when several board rows share
-  one VC record, never Mesa. From then on the Sheet sync leaves that cost alone (the Sheet's cost cell no longer carries
+  one VC record, never Mesa. **Mesa** (Alan, 2026-10-14: "Mesa should be listed as an event"): VC keeps one Mesa
+  record per calendar month, so each Mesa weekend gets that month's `vcNumber` / `vcStatus`, plus `vcMonths` (day
+  ranges, each with its month's number) when the weekend runs into the next month; status, cost and reps are left
+  alone and Mesa is still never judged or texted about. The report names the months VC does not show as Booked and the
+  months with no record yet. SUNNY reads these to give a rep the number to tab a Mesa order under. From then on the Sheet sync leaves that cost alone (the Sheet's cost cell no longer carries
   and is never a conflict). More than `checkWrite.maxCostChanges` (80) differences in one run changes none and says so. Alan's global "not-worked" rulings
   (rsd-shift-picking data/event-rulings.json, `--rulings`) outrank VC: the show is dead on the board, VC's
   status is kept beside it, and the rep text uses the ruling's repReason. Refuses to write when the pull

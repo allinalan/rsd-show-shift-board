@@ -38,7 +38,9 @@ the work list, grouped by what unblocks each show.
 ## Rules that do not change
 
 - A name on the board is a promise; a VC row is a booking; Prospective and OK to Book are not committed.
-- Mesa Market Place Swapmeet is handled outside VC: never checked, never flagged.
+- Mesa Market Place Swapmeet is never checked or flagged as booked or not. Each Mesa weekend does carry its month's
+  VC number and status (VC books Mesa one record per calendar month; Alan, 2026-10-14), and `vcMonths` when the
+  weekend runs into the next month. The board status Alan set is never changed for Mesa.
 - Queen Creek matches on the exact date; the placeholder 00092192 (11/1-11/30) books no date. Never submit
   a booking request against a date it covers without Alan or Olean.
 - A cancelled show never means a weekend needs refilling.

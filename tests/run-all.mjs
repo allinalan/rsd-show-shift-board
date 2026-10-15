@@ -784,6 +784,11 @@ def post(route, text, mention=None, fallback=True, **k):
     e('2026-m', 'Mu Pageant', '2026-11-27', ['Sarah'], { status: 'Booking Request Submitted', vcRequestedAt: '2026-09-01' });
     e('2026-n', 'Nu Artisan Fair', '2026-09-18', ['Adam'], { startDate: '2026-10-20', endDate: '2026-10-20', vcNumber: '00300012', vcStatus: 'Promoter Cancelled Event', status: 'Cancelled', dead: true });
     e('2026-o', 'Omicron Balloon Fest', '2026-10-23', ['Sarah'], { startDate: '2025-10-24', endDate: '2025-10-26', vcNumber: '00300013', vcStatus: 'Booked', status: 'Booked', days: ['Friday', 'Saturday', 'Sunday'], dates: ['2026-10-23', '2026-10-24', '2026-10-25'] });
+    // Mesa: VC keeps one record per calendar month, the board one per weekend (Alan, 2026-10-14: "Mesa should be listed as an event")
+    const fss = ['Friday', 'Saturday', 'Sunday'];
+    e('2026-p', 'Mesa Market Place Swapmeet', '2026-10-30', ['Foss'], { days: fss, dates: ['2026-10-30', '2026-10-31', '2026-11-01'], endDate: '2026-11-01' });
+    e('2026-q', 'Mesa Market Place Swapmeet', '2026-12-11', ['Sean'], { days: fss, dates: ['2026-12-11', '2026-12-12', '2026-12-13'] });
+    e('2026-r', 'Mesa Market Place Swapmeet', '2026-11-13', ['Kendall'], { days: fss, dates: ['2026-11-13', '2026-11-14', '2026-11-15'], vcNumber: '00300099', vcMonths: [{ from: 'x' }] });
     const filler = Array.from({ length: 22 }, (_, i) => ({ eventNumber: String(310000 + i), name: `Filler Show ${String.fromCharCode(65 + i)}`, status: 'Booked', startDate: '2026-12-0' + (1 + (i % 9)), endDate: '2026-12-0' + (1 + (i % 9)) }));
     const rows = [
       { eventNumber: '00300001', name: 'Alpha Days', status: 'Booked', startDate: '2026-10-09', endDate: '2026-10-11', eventCost: 450.4 },
@@ -794,6 +799,8 @@ def post(route, text, mention=None, fallback=True, **k):
       { eventNumber: '00300011', name: 'Cochise County Fair', status: 'OK to Book - Need Contract', startDate: '2026-10-01', endDate: '2026-10-04' },
       { eventNumber: '00300012', name: 'Nu Artisan Fair', status: 'Promoter Cancelled Event', startDate: '2026-09-18', endDate: '2026-09-20' },
       { eventNumber: '00300013', name: 'Omicron Balloon Fest', status: 'Booked', startDate: '2026-10-23', endDate: '2026-10-25' },
+      { eventNumber: '00300020', name: 'Mesa Market Place Swapmeet - October', status: 'Booked', startDate: '2026-10-01', endDate: '2026-10-31', eventCost: 2089 },
+      { eventNumber: '00300021', name: 'Mesa Market Place Swapmeet - November', status: 'Prospective', startDate: '2026-11-01', endDate: '2026-11-30' },
       ...filler];
     const vcFile = path.join(home, 'ec-vc.json'); fs.writeFileSync(vcFile, JSON.stringify({ coordinator: 'Matt Foss', rows }));
     const outd = path.join(home, 'ec-out');
@@ -810,7 +817,18 @@ def post(route, text, mention=None, fallback=True, **k):
     const A = T('events').get('2026-a'), B = T('events').get('2026-b'), C = T('events').get('2026-c'), D = T('events').get('2026-d'), E = T('events').get('2026-e'), F = T('events').get('2026-f');
     ok(A.vcStatus === 'Booked' && A.status === 'Booked' && A.vcCheckedAt === '2026-10-01', 'event-check: a status change is written in VC\'s words and the board\'s');
     ok(B.vcNumber === '00300002' && B.status === 'Pending Promoter Acceptance', 'event-check: a name match gets its VC number and status');
-    ok(!C.vcCheckedAt && C.status === 'Booked', 'event-check: Mesa is never touched');
+    ok(C.vcNumber === '00300020' && C.vcStatus === 'Booked' && C.vcCheckedAt === '2026-10-01' && C.status === 'Booked' && C.cost === undefined && C.vcMonths === undefined,
+      'event-check: a Mesa weekend gets its month\'s VC number and status, and nothing else');
+    const P = T('events').get('2026-p'), Q = T('events').get('2026-q'), Rm = T('events').get('2026-r');
+    ok(P.vcNumber === '00300020' && P.vcStatus === 'Booked' && JSON.stringify(P.vcMonths) === JSON.stringify([
+      { from: '2026-10-30', to: '2026-10-31', vcNumber: '00300020', vcStatus: 'Booked' }, { from: '2026-11-01', to: '2026-11-01', vcNumber: '00300021', vcStatus: 'Prospective' }]),
+      'event-check: a Mesa weekend that runs into the next month carries both months, day by day: ' + JSON.stringify(P.vcMonths));
+    ok(!Q.vcCheckedAt && !Q.vcNumber, 'event-check: a Mesa weekend whose month has no VC record yet is left alone');
+    ok(Rm.vcNumber === '00300021' && Rm.vcStatus === 'Prospective' && Rm.status === 'Booked' && Rm.vcMonths === null,
+      'event-check: a wrong Mesa number is corrected, the board status Alan set is kept, and a stale month split is cleared');
+    const ecMd = fs.readFileSync(path.join(outd, 'reports', 'event-check-2026-10-01.md'), 'utf8');
+    ok(/Mesa Swapmeet: 3 weekend\(s\) carry their month's VectorConnect number/.test(ecMd) && /November 00300021 is Prospective/.test(ecMd) && /No VectorConnect Mesa record yet for December 2026 \(1 weekend\)/.test(ecMd),
+      'event-check: the report says which Mesa months VC has, which are not Booked, and which weekends have no month yet');
     ok(A.cost === '$450' && A.costNum === 450 && A.costSource === 'VC' && A.costWas === '$300', 'event-check: VC\'s Event Cost replaces the board\'s, in whole dollars, and the old one is kept beside it');
     ok(D.cost === '$200' && D.costNum === 200 && D.costSource === 'VC', 'event-check: a finished show gets VC\'s cost too');
     ok(B.cost === undefined && F.cost === undefined, 'event-check: a VC record with no cost yet leaves the board\'s cost alone');

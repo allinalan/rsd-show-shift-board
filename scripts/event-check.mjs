@@ -14,7 +14,8 @@
     upcoming events: vcNumber, vcStatus (verbatim), status (the board's vocabulary), dead, vcCheckedAt
     past events:     vcNumber, vcStatus, vcCheckedAt (a finished show that VC has since closed out must
                      not turn into "Cancelled" on the board)
-  Never writes Mesa (handled outside VC), a number two unrelated events both claim, or an event whose
+  Mesa weekends: only their month's VC number and status (vcNumber, vcStatus, vcMonths when a weekend runs into the
+  next month); Mesa is never judged booked or not. Never writes a number two unrelated events both claim, or an event whose
   board VC number is missing from the pull (flagged instead). The Sheet is never written (Alan,
   2026-09-23: the board carries VC status now).
   A show the booking sweep requested ("Booking Request Submitted", vcRequestedAt) keeps that status while
@@ -60,6 +61,17 @@ export function leadReps(e) {
     for (const one of r.split(' / ')) if (t(one) && !out.includes(t(one))) out.push(t(one));
   });
   return out;
+}
+/** The selling days of one board record (never SE days, never a stale cell outside the show's own run), sorted. */
+export function sellingDays(e) {
+  const first = effectiveDate(e, CFG.effectiveDateMaxDrift), last = lastDay(e, CFG.effectiveDateMaxDrift) || first;
+  if (!first) return [];
+  const out = new Set();
+  const take = (days, dates) => (dates || []).forEach((d, i) => { if (d && d >= first && d <= last && !isSEday((days || [])[i])) out.add(d); });
+  take(e.days, e.dates);
+  for (const b of e.booths || []) take(b.days || e.days, (b.dates && b.dates.length) ? b.dates : e.dates);
+  if (!out.size) out.add(first);
+  return [...out].sort();
 }
 const shiftCount = e => (e.booths || []).reduce((n, b) => n + (b.shifts || []).reduce((m, s) => m + (s.slots || []).filter((sl, i) => t(sl.rep) && t(sl.rep) !== '__X__' && !isSEday((b.days || [])[i])).length, 0), 0);
 
@@ -195,6 +207,47 @@ async function main() {
     if (Object.keys(patch).length) { patch.vcCheckedAt = TODAY; patches.push({ id: e.id, name: e.name, patch, before: { status: t(e.status), vcStatus: t(e.vcStatus), vcNumber: t(e.vcNumber), dead: !!e.dead } }); }
   }
 
+  // ---- Mesa: one VC record per calendar month, one board record per weekend (Alan, 2026-10-14: "Mesa should be
+  // listed as an event"). Each Mesa weekend gets the VC number and status of the month its days are in, so SUNNY can
+  // give a rep the number to tab an order under (Leslie Van Hoy could not, 2026-10-10). A weekend that runs into the
+  // next month (Oct 30 - Nov 1) also carries vcMonths, day by day: each shift is tabbed in the month of its own date
+  // (the shift cost agent's rule). The board status, the cost and the reps are left as they are: Mesa is a standing
+  // contract set by hand and the series shares one cost. Mesa is still never judged booked or not here (no JP list,
+  // no texts, not in result.events); a month VC does not show as Booked is reported instead.
+  const mesaRows = rows.filter(r => MESA.test(r.name) && !(CFG.placeholders || []).includes(r.eventNumber));
+  const monthOf = d => { const hits = mesaRows.filter(r => r.startDate <= d && d <= (r.endDate || r.startDate)); return hits.length > 1 ? 'ambiguous' : hits[0] || null; };
+  const mesa = { weekends: 0, carrying: 0, months: new Map(), noMonth: [], ambiguous: [] };
+  for (const f of facts.filter(x => x.mesa && !x.e.dead)) {
+    const e = f.e, days = sellingDays(e);
+    if (!days.length) continue;
+    mesa.weekends++;
+    const spans = [];
+    let unclear = false;
+    for (const d of days) {
+      const r = monthOf(d);
+      if (r === 'ambiguous') { unclear = true; break; }
+      const num = r ? r.eventNumber : '', status = r ? t(r.status) : '';
+      if (r) mesa.months.set(r.eventNumber, r);
+      const last = spans[spans.length - 1];
+      if (last && last.vcNumber === num) last.to = d; else spans.push({ from: d, to: d, vcNumber: num, vcStatus: status });
+    }
+    if (unclear) { mesa.ambiguous.push({ id: e.id, weekend: e.weekend }); continue; }
+    if (!spans[0].vcNumber) { mesa.noMonth.push({ id: e.id, weekend: e.weekend }); continue; }
+    mesa.carrying++;
+    const patch = {};
+    if (t(e.vcNumber) !== spans[0].vcNumber) patch.vcNumber = spans[0].vcNumber;
+    if (t(e.vcStatus) !== spans[0].vcStatus) patch.vcStatus = spans[0].vcStatus;
+    const split = spans.length > 1 ? spans : null;
+    if (JSON.stringify(e.vcMonths ?? null) !== JSON.stringify(split)) patch.vcMonths = split;
+    if (Object.keys(patch).length) { patch.vcCheckedAt = TODAY; patches.push({ id: e.id, name: e.name, patch, before: { status: t(e.status), vcStatus: t(e.vcStatus), vcNumber: t(e.vcNumber), dead: !!e.dead } }); }
+  }
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  result.mesa = {
+    weekends: mesa.weekends, carrying: mesa.carrying,
+    months: [...mesa.months.values()].sort((a, b) => a.startDate.localeCompare(b.startDate)).map(r => ({ month: MONTHS[+r.startDate.slice(5, 7) - 1], vcNumber: r.eventNumber, status: t(r.status), booked: statusCategory(t(r.status)) === 'booked', from: r.startDate, to: r.endDate })),
+    noMonth: mesa.noMonth, ambiguous: mesa.ambiguous,
+  };
+
   // ---- alias candidates: an unmatched staffed show sharing a weekend and a city with an unclaimed VC row
   const claimed = new Set([...claims.keys()]);
   const cityOf = s => normName(String(s || '').split(',')[0]);
@@ -291,7 +344,17 @@ export function summaryMd(r) {
   if (r.stopped) md.push(`**STOPPED:** ${r.stopped}`, '');
   if (h.staffedUpcoming != null) {
     md.push(`**${h.noBooking}** staffed upcoming shows have no booking in VectorConnect. **${h.notFullyBooked}** of ${h.staffedUpcoming} are not fully booked.`);
-    md.push(`${h.deadWithReps} dead show(s) still have reps on them. Mesa Swapmeet excluded (${h.mesaExcluded} staffed weekends). VC pull: ${r.vc.rows} rows for ${r.vc.coordinator}.`);
+    md.push(`${h.deadWithReps} dead show(s) still have reps on them. Mesa Swapmeet is not judged here (${h.mesaExcluded} staffed weekends). VC pull: ${r.vc.rows} rows for ${r.vc.coordinator}.`);
+    const ms = r.mesa;
+    if (ms) {
+      md.push(`Mesa Swapmeet: ${ms.carrying} weekend(s) carry their month's VectorConnect number${ms.months.length ? ` (${ms.months.map(m => `${m.month} ${m.vcNumber} ${m.status}`).join(', ')})` : ''}.`);
+      for (const m of ms.months.filter(x => !x.booked)) md.push(`- ${m.month} ${m.vcNumber} is ${m.status} in VectorConnect; the board keeps the status set by hand.`);
+      // one line per month, not per weekend: December through February would be 13 lines every Wednesday
+      const waiting = new Map();
+      for (const x of ms.noMonth) { const k = String(x.weekend).slice(0, 7); waiting.set(k, (waiting.get(k) || 0) + 1); }
+      if (waiting.size) md.push(`- No VectorConnect Mesa record yet for ${[...waiting].map(([k, n]) => `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][+k.slice(5, 7) - 1]} ${k.slice(0, 4)} (${n} weekend${n === 1 ? '' : 's'})`).join(', ')}; those weekends get the number once it is there.`);
+      for (const x of ms.ambiguous) md.push(`- ${x.weekend} Mesa Market Place Swapmeet: two VectorConnect records cover the same day; not written.`);
+    }
     if (h.openQuestions) md.push(`${h.openQuestions} open question(s) (placeholder records), not counted as missing.`);
     if (h.requestsPending) md.push(`${h.requestsPending} booking request(s) submitted and waiting on Olean, not counted as missing.`);
     md.push('', '## Since last week');
@@ -347,7 +410,7 @@ async function writeXlsx(r, out, defs) {
     ['Staffed upcoming shows checked', h.staffedUpcoming],
     ['Dead shows with reps still on them', h.deadWithReps],
     ['Open questions (placeholder records)', h.openQuestions],
-    ['Mesa Market Place Swapmeet weekends excluded (handled outside VC)', h.mesaExcluded],
+    ['Mesa Market Place Swapmeet weekends not judged (each carries its month\'s VC number)', h.mesaExcluded],
     [], ['What unblocks it', 'Count'], ...Object.entries(r.byCategory).map(([k, n]) => [CATEGORY_LABEL[k], n]),
     [], ['VC pull', `${r.vc.rows} rows, ${r.vc.coordinator}, End Date ${r.vc.window ? r.vc.window.from + ' to ' + r.vc.window.to : '?'}`],
     ['Board written', r.written ? 'yes' : `no${r.stopped ? ': ' + r.stopped : ''}`],
