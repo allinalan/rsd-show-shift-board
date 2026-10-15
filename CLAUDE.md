@@ -189,6 +189,17 @@ the service key moves them on.
   were, and fell under 3:1). The one exception on purpose: a closed or cancelled show's card recedes. On a phone the season
   tabs, Cards/Grid and the Plan mode switch are 44px tall (Apple's minimum touch target).
 
+- **The HIG pass (Alan, 2026-10-15) is the page's design system; the block of that name near the end of the CSS.**
+  Type is the `--t-*` scale only (Apple's Dynamic Type at Large: 11, 12, 13, 15, 17, 22, 28px); nothing under 11px.
+  Bricolage (`--f-disp`) is for titles and the big numbers only; everything else is `--f-body` (system-ui: SF Pro on an
+  iPhone), numbers use `--f-num` with tabular figures, `--f-code` only for the sign-in code and the import box. Labels
+  are sentence case; caps only on the small badges (tier, access, SE). On a touch screen every field is 16px
+  (`pointer:coarse`), or iOS zooms the whole page when it is tapped and leaves it zoomed. The header pins only its
+  last row (`.segrow`, plus `.modes` beside it on a wide screen): it sticks at a negative top that `syncTopH()`
+  measures into `--stick`, and `--topH` is the part left in sight, which the Grid day row and the cards view's weekend
+  headers pin under; put nothing below `.segrow`. Failures go through `toastErr()` (red, `role=alert`, 6 s), news
+  through `toast()`. Motion uses the `--ease-*` / `--d-*` tokens; under reduced motion no animation runs, so nothing
+  may wait on `animationend` without checking `RM` first.
 - **A two-tap remove is armed in the page, never in the button** (`armed`, `arm()`, `isArmed()` in index.html; 10 s,
   "keep it" backs out). Any save redraws the board half a second later, and a button that kept its own "tap again" was
   reset by it, so the second tap only armed it again and nothing was removed (Park Place 2025, 2026-10-14; the show

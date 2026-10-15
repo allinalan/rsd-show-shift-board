@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <!-- Home Screen app: an iPhone icon keeps its own sign-in, apart from Safari's, and Safari's
      seven-day wipe of site data does not touch it. Sign in inside the icon with the emailed code. -->
@@ -20,7 +20,9 @@
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<!-- Bricolage is the board's display face: titles and the big numbers. Everything else is the device's own
+     system face (SF Pro on an iPhone), with tabular figures so counts and dates line up (Alan, 2026-10-15). -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&display=swap">
 <style>
 :root{
   /* Almanac: warm stone ground, brass chrome. Brass is the only colour that means nothing —
@@ -38,8 +40,18 @@
   --shadow:0 1px 0 rgba(90,70,30,.06),0 8px 20px -14px rgba(60,45,20,.28);
   --r:8px;
   --f-disp:"Bricolage Grotesque",system-ui,sans-serif;
-  --f-body:"Source Sans 3",system-ui,sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+  --f-body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;   /* SF Pro on an iPhone, with its own optical sizes */
+  --f-num:var(--f-body);                                            /* counts and dates: the body face, tabular figures */
+  --f-code:ui-monospace,"SF Mono",Menlo,Consolas,monospace;         /* only what is typed or matched character by character */
+  /* Type scale (Alan, 2026-10-15): Apple's Dynamic Type sizes at Large. Nothing on the board is smaller than 11px.
+     Leading 11/13 12/16 13/18 15/20 17/22 22/28 28/34; tracking tightens as the size grows (see the HIG pass). */
+  --t-cap2:.6875rem; --t-cap:.75rem; --t-foot:.8125rem; --t-sub:.9375rem; --t-head:1.0625rem; --t-title2:1.375rem; --t-title1:1.75rem;
+  /* Motion: presses land at once, releases spring back, things slide in from where they come from */
+  --ease-spring:cubic-bezier(.32,.72,0,1);   /* the iOS sheet curve: quick start, long soft settle */
+  --ease-pop:cubic-bezier(.34,1.36,.64,1);   /* a slight overshoot: release, switch thumb */
+  --ease-exit:cubic-bezier(.4,0,1,1);        /* leaving: accelerate away */
+  --d-fast:180ms; --d-base:320ms; --d-sheet:480ms; --d-exit:200ms;
+  --hair:1px;
 }
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
   --ground:#171310; --surface:#211c17; --surface-2:#2a231c;
@@ -80,12 +92,12 @@ button,select,input{font:inherit;color:inherit}
 .top-in{max-width:1080px;margin:0 auto;padding:14px 16px 0}
 .brandrow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 h1{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
-.season{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-3);
+.season{font-family:var(--f-num);font-size:var(--t-cap);color:var(--ink-3);
   border:1px solid var(--line);border-radius:99px;padding:2px 8px}
-.sheetlink{font-size:.76rem;font-weight:600;color:var(--slate);text-decoration:none;
+.sheetlink{font-size:var(--t-cap);font-weight:600;color:var(--slate);text-decoration:none;
   border:1px solid var(--line);border-radius:99px;padding:4px 10px;white-space:nowrap;font-family:var(--f-disp)}
 .sheetlink:hover{border-color:var(--navy)}
-.switch{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-size:.74rem;
+.switch{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-size:var(--t-cap);
   color:var(--ink-3);font-weight:500}
 .switch input{position:absolute;opacity:0;width:0;height:0}
 .switch .knob{width:30px;height:17px;border-radius:99px;background:var(--line);position:relative;
@@ -96,41 +108,41 @@ h1{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
 .switch input:checked+.knob::after{transform:translateX(13px)}
 .switch input:focus-visible+.knob{outline:2px solid var(--navy);outline-offset:2px}
 body.plan .switch{color:var(--navy)}
-.stamp{font-family:var(--f-mono);font-size:.66rem;color:var(--ink-3);padding:7px 2px 9px;display:flex;gap:12px;flex-wrap:wrap}
+.stamp{font-family:var(--f-num);font-size:var(--t-cap2);color:var(--ink-3);padding:7px 2px 9px;display:flex;gap:12px;flex-wrap:wrap}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--surface-2)}
-.seg button{border:0;background:none;padding:5px 12px;font-family:var(--f-disp);font-size:.74rem;font-weight:600;
+.seg button{border:0;background:none;padding:5px 12px;font-family:var(--f-disp);font-size:var(--t-cap);font-weight:600;
   color:var(--ink-3);cursor:pointer;display:flex;align-items:center;gap:6px}
 .seg button[aria-selected="true"]{background:var(--navy);color:var(--on-accent)}
-.seg button small{font-family:var(--f-mono);font-weight:400;font-size:.62rem}
+.seg button small{font-family:var(--f-num);font-weight:400;font-size:var(--t-cap2)}
 .seg button:disabled{opacity:.45;cursor:default}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);
   display:flex;flex-direction:column;gap:10px}
-.panel-h{font-family:var(--f-disp);font-weight:600;font-size:.95rem}
-.panel p{margin:0;font-size:.84rem;color:var(--ink-2);max-width:62ch}
-.panel .hint{font-size:.76rem;color:var(--ink-3)}
+.panel-h{font-family:var(--f-disp);font-weight:600;font-size:var(--t-sub)}
+.panel p{margin:0;font-size:var(--t-foot);color:var(--ink-2);max-width:62ch}
+.panel .hint{font-size:var(--t-cap);color:var(--ink-3)}
 .panel-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.ck{display:flex;align-items:center;gap:8px;font-size:.84rem;cursor:pointer}
+.ck{display:flex;align-items:center;gap:8px;font-size:var(--t-foot);cursor:pointer}
 .ck input{width:16px;height:16px;accent-color:var(--navy)}
 .form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
-.form label,.panel label.full{display:flex;flex-direction:column;gap:4px;font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;
+.form label,.panel label.full{display:flex;flex-direction:column;gap:4px;font-size:var(--t-cap2);text-transform:uppercase;letter-spacing:.04em;
   color:var(--ink-3);font-family:var(--f-disp);font-weight:600}
-.form input,.form select,.panel textarea{font:inherit;font-family:var(--f-body);font-size:.88rem;text-transform:none;letter-spacing:0;
+.form input,.form select,.panel textarea{font:inherit;font-family:var(--f-body);font-size:var(--t-sub);text-transform:none;letter-spacing:0;
   color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
-.panel textarea{resize:vertical;font-family:var(--f-mono);font-size:.82rem}
+.panel textarea{resize:vertical;font-family:var(--f-num);font-size:var(--t-foot)}
 .progress{height:8px;border-radius:99px;background:var(--line-soft);position:relative;overflow:hidden}
 .progress i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ok);transition:width .2s;border-radius:99px}
-.progress span{position:absolute;right:0;top:12px;font-family:var(--f-mono);font-size:.66rem;color:var(--ink-3)}
+.progress span{position:absolute;right:0;top:12px;font-family:var(--f-num);font-size:var(--t-cap2);color:var(--ink-3)}
 .progress:not([hidden]){margin-bottom:14px}
-.src{font-family:var(--f-mono);font-size:.6rem;color:var(--ink-3);border:1px solid var(--line);border-radius:3px;padding:0 4px;text-transform:uppercase;letter-spacing:.05em}
-.est{font-family:var(--f-mono);font-size:.62rem;color:var(--warn);border:1px dashed var(--warn);border-radius:3px;padding:0 4px}
+.src{font-family:var(--f-num);font-size:var(--t-cap2);color:var(--ink-3);border:1px solid var(--line);border-radius:3px;padding:0 4px;text-transform:uppercase;letter-spacing:.04em}
+.est{font-family:var(--f-num);font-size:var(--t-cap2);color:var(--warn);border:1px dashed var(--warn);border-radius:3px;padding:0 4px}
 .editrow{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;margin-bottom:12px}
-.editrow .tagfield input[type=date],.editrow .tagfield input[type=text]{border:0;background:none;padding:0 9px;font-size:.82rem;font-weight:600;color:var(--ink);min-width:0;width:150px}
-.danger{color:var(--pend);background:none;border:1px dashed var(--line);border-radius:7px;padding:5px 10px;font-size:.74rem;cursor:pointer;margin-top:10px}
+.editrow .tagfield input[type=date],.editrow .tagfield input[type=text]{border:0;background:none;padding:0 9px;font-size:var(--t-foot);font-weight:600;color:var(--ink);min-width:0;width:150px}
+.danger{color:var(--pend);background:none;border:1px dashed var(--line);border-radius:7px;padding:5px 10px;font-size:var(--t-cap);cursor:pointer;margin-top:10px}
 .danger:hover{border-color:var(--pend)}
 .danger.arm{background:var(--pend);color:var(--on-pend);border:1px solid var(--pend);font-weight:600}
 .armslot{display:contents}
 .linkbtn.arm{color:var(--pend);font-weight:600}
-.empty-season{text-align:center;padding:40px 16px;color:var(--ink-3);font-size:.9rem;display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty-season{text-align:center;padding:40px 16px;color:var(--ink-3);font-size:var(--t-sub);display:flex;flex-direction:column;gap:10px;align-items:center}
 .empty-season b{color:var(--ink);font-family:var(--f-disp)}
 .plan-only{display:none !important}
 body.plan .plan-only{display:flex !important}
@@ -142,7 +154,7 @@ body.plan .btn.plan-only{display:inline-block !important}
 .tally div:last-child{border-right:0}
 .tally b{display:block;font-family:var(--f-disp);font-size:1.25rem;font-weight:600;
   font-variant-numeric:tabular-nums;line-height:1.1}
-.tally span{display:block;font-size:.66rem;text-transform:uppercase;letter-spacing:.07em;
+.tally span{display:block;font-size:var(--t-cap2);text-transform:uppercase;letter-spacing:.04em;
   color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .t-open b{color:var(--ok)} .t-soon b{color:var(--ink-3)}
 
@@ -151,19 +163,19 @@ body.plan .btn.plan-only{display:inline-block !important}
 .ctl-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .field{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);
   border-radius:var(--r);padding:0 10px;height:38px;flex:1 1 180px;min-width:0}
-.field input{border:0;background:none;width:100%;min-width:0;outline:none;font-size:.9rem}
+.field input{border:0;background:none;width:100%;min-width:0;outline:none;font-size:var(--t-sub)}
 .field svg{flex:none;color:var(--ink-3)}
 .pick{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);height:38px;
-  padding:0 30px 0 10px;font-size:.88rem;flex:0 1 auto;appearance:none;cursor:pointer;
+  padding:0 30px 0 10px;font-size:var(--t-sub);flex:0 1 auto;appearance:none;cursor:pointer;
   background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
   background-position:calc(100% - 15px) 17px,calc(100% - 10px) 17px;
   background-size:5px 5px,5px 5px;background-repeat:no-repeat}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;
-  padding:5px 11px;font-size:.76rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;
+  padding:5px 11px;font-size:var(--t-cap);font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;
   transition:border-color .12s,background .12s}
 .chip .dot{width:7px;height:7px;border-radius:99px;background:currentColor;flex:none}
-.chip .n{font-family:var(--f-mono);font-size:.7rem;color:var(--ink-3)}
+.chip .n{font-family:var(--f-num);font-size:var(--t-cap2);color:var(--ink-3)}
 .chip[aria-pressed="true"]{border-color:currentColor;background:var(--surface-2)}
 .chip[aria-pressed="true"] .n{color:inherit}
 .chip:hover{border-color:var(--steel)}
@@ -171,7 +183,7 @@ body.plan .btn.plan-only{display:inline-block !important}
 .c-BRN{color:var(--warn)} .c-BRS{color:var(--info)} .c-OTB{color:var(--info)} .c-PPA{color:var(--pend)} .c-PCO{color:var(--info)} .c-SF{color:var(--mute)} .c-CX{color:var(--ink-3)}
 .c-open{color:var(--ok)} .c-full{color:var(--mute)} .c-closed{color:var(--ink-3)}
 .c-Elite{color:var(--elite)} .c-Key{color:var(--key)} .c-Traditional{color:var(--trad)} .c-Untagged{color:var(--untag)}
-.note{font-size:.74rem;color:var(--ink-3);display:flex;gap:7px;align-items:flex-start;
+.note{font-size:var(--t-cap);color:var(--ink-3);display:flex;gap:7px;align-items:flex-start;
   background:var(--surface-2);border:1px dashed var(--line);border-radius:var(--r);padding:8px 11px}
 .note b{color:var(--ink-2);font-weight:600}
 
@@ -179,18 +191,18 @@ body.plan .btn.plan-only{display:inline-block !important}
 .band{margin-top:22px}
 .band-h{display:flex;align-items:baseline;gap:10px;padding:0 2px 8px;
   border-bottom:2px solid var(--navy);margin-bottom:12px;flex-wrap:wrap}
-.band-h h2{font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--navy)}
-.band-h .sub{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-3)}
-.band-h .cov{margin-left:auto;font-family:var(--f-mono);font-size:.72rem;color:var(--ink-3)}
+.band-h h2{font-size:var(--t-foot);font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--navy)}
+.band-h .sub{font-family:var(--f-num);font-size:var(--t-cap);color:var(--ink-3)}
+.band-h .cov{margin-left:auto;font-family:var(--f-num);font-size:var(--t-cap);color:var(--ink-3)}
 .band-h .cov-open{color:var(--ok);font-weight:600}
 .rollup{display:flex;flex-wrap:wrap;gap:5px;margin:-4px 0 12px}
-.rchip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:3px 9px;font-size:.72rem;
+.rchip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:3px 9px;font-size:var(--t-cap);
   font-weight:500;cursor:pointer;color:var(--ink-2);display:inline-flex;align-items:center;gap:4px}
-.rchip b{font-family:var(--f-mono);font-weight:500;font-size:.66rem;color:var(--ink-3)}
+.rchip b{font-family:var(--f-num);font-weight:500;font-size:var(--t-cap2);color:var(--ink-3)}
 .rchip:hover{border-color:var(--steel)}
 .rchip.on{border-color:var(--navy);background:var(--navy);color:var(--on-accent)} .rchip.on b{color:var(--on-accent);opacity:.8}
-.rchip.open{color:var(--ok);background:var(--ok-bg);border-color:transparent;font-family:var(--f-mono);cursor:default}
-.rchip.full{color:var(--mute);background:var(--mute-bg);border-color:transparent;font-family:var(--f-mono);cursor:default}
+.rchip.open{color:var(--ok);background:var(--ok-bg);border-color:transparent;font-family:var(--f-num);cursor:default}
+.rchip.full{color:var(--mute);background:var(--mute-bg);border-color:transparent;font-family:var(--f-num);cursor:default}
 /* weekend grid */
 .gridwrap-w{margin:0 0 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:0}
 table.wgrid{border-collapse:separate;border-spacing:0;min-width:100%}
@@ -199,12 +211,12 @@ table.wgrid th,table.wgrid td{padding:0;text-align:left;vertical-align:top}
    position:sticky day row sticks to the wrapper and scrolls away with it. The header is pinned by
    translating the real <thead> instead — same element, so the columns can never drift out of line. */
 table.wgrid thead{position:relative;z-index:14}
-table.wgrid thead th{font-family:var(--f-disp);font-size:.64rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+table.wgrid thead th{font-family:var(--f-disp);font-size:var(--t-cap2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;
   color:var(--ink-3);padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2)}
-table.wgrid thead.pinned th{box-shadow:0 6px 12px -8px rgba(0,20,45,.35)}
+table.wgrid thead.pinned th{box-shadow:0 6px 12px -8px rgba(40,28,10,.3)}
 table.wgrid thead th.se-col{background:color-mix(in srgb,var(--info) 9%,var(--surface-2))}
 table.wgrid th.gname{position:sticky;left:0;z-index:3;background:var(--surface);min-width:136px;max-width:190px;padding:8px 10px;
-  border-right:1px solid var(--line);border-bottom:1px solid var(--line-soft);font-weight:500;text-transform:none;letter-spacing:0;font-size:.82rem;color:var(--ink)}
+  border-right:1px solid var(--line);border-bottom:1px solid var(--line-soft);font-weight:500;text-transform:none;letter-spacing:0;font-size:var(--t-foot);color:var(--ink)}
 .glink{max-width:100%;white-space:normal}
 /* event header: its own full-width row, with the name pinned while the days scroll under it */
 table.wgrid tr.gevent td.gev{padding:0;border-bottom:1px solid var(--line-soft);background:var(--surface);
@@ -225,38 +237,38 @@ table.wgrid tr.grow th.gname{position:sticky;left:0}
 .gevin .gsub{margin-top:0}
 table.wgrid tr.gbooth td.gbo{padding:0;border-bottom:1px solid var(--line-soft);background:var(--surface-2)}
 .gboin{position:sticky;left:0;width:max-content;max-width:min(94vw,720px);padding:5px 12px 5px 22px;
-  display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;font-size:.72rem;color:var(--ink-2)}
-.gboin b{font-family:var(--f-disp);font-weight:600;color:var(--ink);font-size:.74rem}
+  display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;font-size:var(--t-cap);color:var(--ink-2)}
+.gboin b{font-family:var(--f-disp);font-weight:600;color:var(--ink);font-size:var(--t-cap)}
 .gboin .bdesc{color:var(--ink-3)}
 .bdesc{color:var(--ink-3);font-weight:500}
-.gboin .bstat{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+.gboin .bstat{font-size:var(--t-cap2);font-weight:700;text-transform:uppercase;letter-spacing:.04em;
   color:var(--ok);background:var(--ok-bg);border-radius:3px;padding:1px 5px;margin-left:2px}
 table.wgrid tr.gbooth+tr.grow th.gname,table.wgrid tr.gbooth+tr.grow td.gcell{border-top:0}
 table.wgrid thead th.gname{background:var(--surface-2);z-index:13}
 /* tier + access, so a rep can tell at a glance what the show is and who it's reserved for */
 .tierbadge.mini{margin-left:2px}
 /* SE = sharpening event tacked on after the show; never a shift, so it reads as its own thing */
-.setag{font-size:.54rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--info);
+.setag{font-size:var(--t-cap2);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--info);
   background:var(--info-bg);border-radius:3px;padding:1px 4px;margin-left:5px;vertical-align:1px;white-space:nowrap}
-.namecell.is-se{color:var(--info);font-style:italic;font-size:.74rem;opacity:.85}
+.namecell.is-se{color:var(--info);font-style:italic;font-size:var(--t-cap);opacity:.85}
 .namecell.se-on{color:var(--ink-2)}
 .slotbox.se select{color:var(--info)}
 .slotbox.se.open-slot{border-style:dotted}
 th.se-col,td.se-col{background:color-mix(in srgb,var(--info) 5%,transparent)}
 table.wgrid thead th.se-col{background:color-mix(in srgb,var(--info) 9%,var(--surface-2))}
 .res.se{color:var(--info)}
-.tierbadge.mini,.acc.mini{font-size:.58rem;padding:1px 5px;letter-spacing:.08em;line-height:1.5}
+.tierbadge.mini,.acc.mini{font-size:var(--t-cap2);padding:1px 5px;letter-spacing:.04em;line-height:1.5}
 .acc.pillish{border-radius:99px;padding-left:6px;padding-right:7px}
 .acc.pillish i{font-style:normal;font-weight:600;text-transform:lowercase;letter-spacing:0;opacity:.72}
 .tierbadge.mini.t-Elite{color:var(--elite)} .tierbadge.mini.t-Key{color:var(--key)}
 .tierbadge.mini.t-Traditional{color:var(--trad)} .tierbadge.mini.t-Untagged{color:var(--untag)}
-table.wgrid th.gname.sub{font-size:.7rem;color:var(--ink-3);font-family:var(--f-disp);font-weight:600;padding-top:6px;padding-bottom:6px;padding-left:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table.wgrid th.gname.sub{font-size:var(--t-cap2);color:var(--ink-3);font-family:var(--f-disp);font-weight:600;padding-top:6px;padding-bottom:6px;padding-left:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 table.wgrid th.gname.sub .bl{color:var(--ink-2)}
 .glink{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;text-align:left}
-.glink .gn{font-family:var(--f-disp);font-weight:600;font-size:.82rem;line-height:1.25;display:block}
+.glink .gn{font-family:var(--f-disp);font-weight:600;font-size:var(--t-foot);line-height:1.25;display:block}
 .glink:hover .gn{color:var(--navy)}
 .gsub{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
-.st.mini{font-size:.58rem;padding:2px 6px;border-radius:4px}
+.st.mini{font-size:var(--t-cap2);padding:2px 6px;border-radius:4px}
 table.wgrid td.gcell{padding:3px 4px;border-bottom:1px solid var(--line-soft);min-width:96px}
 /* Day rules run the full height of the table, drawn behind the rows, so they stay continuous even
    where a bar spans several days. Per-cell borders can't do this — a merged cell has no inner edge. */
@@ -265,22 +277,22 @@ table.wgrid thead th+th{border-left:1px solid var(--line-soft)}
 /* days the show does not run: a flat blocked-out band, unmistakably different from an empty
    open slot. Inset by the cell padding so consecutive days read as one closed stretch. */
 table.wgrid td.gcell.na{background:color-mix(in srgb,var(--ink-3) 17%,transparent);background-clip:content-box;opacity:1}
-table.wgrid .namecell{min-width:0;padding:5px 7px;font-size:.78rem}
+table.wgrid .namecell{min-width:0;padding:5px 7px;font-size:var(--t-cap)}
 table.wgrid .slotbox{min-width:0;max-width:none}
-table.wgrid .slotbox select,table.wgrid .slotbox .slotpick{font-size:.78rem;padding:5px 20px 5px 7px}
+table.wgrid .slotbox select,table.wgrid .slotbox .slotpick{font-size:var(--t-cap);padding:5px 20px 5px 7px}
 table.wgrid .slotbox .slotpick{background-position:calc(100% - 12px) 12px,calc(100% - 8px) 12px}
 table.wgrid tr.gdetail td{padding:0;border-bottom:1px solid var(--line)}
 table.wgrid tr.gdetail .ev-b{border-top:0;padding-left:16px}
 @media (max-width:520px){ table.wgrid th.gname{min-width:112px;max-width:132px} table.wgrid td.gcell{min-width:86px}
-  .tierbadge.mini,.acc.mini{font-size:.55rem;letter-spacing:.06em} }
+  .tierbadge.mini,.acc.mini{font-size:var(--t-cap2);letter-spacing:.04em} }
 .band.past .band-h{border-bottom-color:var(--line);cursor:pointer;opacity:.75}
 .band.past .band-h h2{color:var(--ink-3)}
 .band.past.collapsed{margin-top:10px}
 .band.past.collapsed .band-h{margin-bottom:0;padding-bottom:6px}
 .band.past .band-h:hover{opacity:1}
-.boothh{display:flex;align-items:center;gap:8px;margin:12px 0 6px;font-family:var(--f-disp);font-size:.78rem;font-weight:600;color:var(--ink)}
+.boothh{display:flex;align-items:center;gap:8px;margin:12px 0 6px;font-family:var(--f-disp);font-size:var(--t-cap);font-weight:600;color:var(--ink)}
 .boothh::before{content:"";width:8px;height:8px;border:2px solid var(--tier,var(--steel));border-radius:2px;flex:none}
-.boothh .bstat{font-family:var(--f-mono);font-size:.66rem;font-weight:400;color:var(--ink-3);border:1px solid var(--line);border-radius:3px;padding:1px 5px}
+.boothh .bstat{font-family:var(--f-num);font-size:var(--t-cap2);font-weight:400;color:var(--ink-3);border:1px solid var(--line);border-radius:3px;padding:1px 5px}
 .gridwrap+.boothh{margin-top:14px}
 
 /* ---- event card ---- */
@@ -293,15 +305,15 @@ table.wgrid tr.gdetail .ev-b{border-top:0;padding-left:16px}
   width:100%;text-align:left;background:none;border:0}
 .ev-h:hover{background:var(--surface-2)}
 .ev-main{flex:1;min-width:0}
-.ev-name{font-family:var(--f-disp);font-weight:600;font-size:.95rem;line-height:1.3;
+.ev-name{font-family:var(--f-disp);font-weight:600;font-size:var(--t-sub);line-height:1.3;
   letter-spacing:-.005em;display:block}
 .ev-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:5px;
-  font-size:.76rem;color:var(--ink-3)}
-.ev-meta .mono{font-family:var(--f-mono);font-size:.73rem}
+  font-size:var(--t-cap);color:var(--ink-3)}
+.ev-meta .mono{font-family:var(--f-num);font-size:var(--t-cap)}
 .ev-meta .sep{color:var(--line)}
-.tierbadge{font-size:.64rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;
+.tierbadge{font-size:var(--t-cap2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;
   color:var(--tier);border:1px solid currentColor;border-radius:3px;padding:1px 5px}
-.pill{font-size:.68rem;font-weight:600;padding:3px 8px;border-radius:99px;white-space:nowrap;
+.pill{font-size:var(--t-cap2);font-weight:600;padding:3px 8px;border-radius:99px;white-space:nowrap;
   letter-spacing:.01em}
 .p-Booked{color:var(--ok);background:var(--ok-bg)}
 .p-BRN{color:var(--warn);background:var(--warn-bg)}
@@ -310,45 +322,45 @@ table.wgrid tr.gdetail .ev-b{border-top:0;padding-left:16px}
 .p-PPA{color:var(--pend);background:var(--pend-bg)}
 .p-Prospective,.p-SF{color:var(--mute);background:var(--mute-bg)}
 .ev-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
-.st{font-family:var(--f-disp);font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+.st{font-family:var(--f-disp);font-size:var(--t-cap2);font-weight:700;letter-spacing:.04em;text-transform:uppercase;
   padding:4px 9px;border-radius:6px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;border:1.5px solid transparent}
-.st b{font-family:var(--f-mono);font-weight:500;font-size:.72rem;opacity:.9}
+.st b{font-family:var(--f-num);font-weight:500;font-size:var(--t-cap);opacity:.9}
 .st-open{background:var(--ok);color:var(--on-ok)}
 .st-full{background:var(--mute-bg);color:var(--mute)}
-.bk{font-size:.64rem;font-weight:600;letter-spacing:.02em;padding:2px 7px;border-radius:99px;white-space:nowrap}
+.bk{font-size:var(--t-cap2);font-weight:600;letter-spacing:.02em;padding:2px 7px;border-radius:99px;white-space:nowrap}
 .t-booked b{color:var(--ok)}
 .st-closed{background:none;color:var(--ink-3);border-color:var(--line);text-decoration:line-through;opacity:.7}
 .ev.k-closed .ev-name,.ev.k-closed .ev-meta{opacity:.55}
 .ev.k-closed{box-shadow:none;background:var(--surface-2)}
 .ev.k-closed .ev-h{padding-top:8px;padding-bottom:8px;align-items:center}
-.ev.k-closed .ev-name{font-size:.86rem;font-weight:500}
+.ev.k-closed .ev-name{font-size:var(--t-foot);font-weight:500}
 .ev.k-closed .ev-meta{margin-top:2px}
-.ev.k-closed .st{padding:3px 7px;font-size:.62rem}
+.ev.k-closed .st{padding:3px 7px;font-size:var(--t-cap2)}
 .ev.k-full{box-shadow:none}
-.resline{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;font-size:.76rem;color:var(--ink-2);font-variant-numeric:tabular-nums}
-.res b{font-family:var(--f-disp);font-weight:600;font-size:.62rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);margin-right:4px}
-.res i{font-style:normal;color:var(--ink-3);font-family:var(--f-mono);font-size:.7rem}
+.resline{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px;font-size:var(--t-cap);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.res b{font-family:var(--f-disp);font-weight:600;font-size:var(--t-cap2);text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-right:4px}
+.res i{font-style:normal;color:var(--ink-3);font-family:var(--f-num);font-size:var(--t-cap2)}
 .res.new{color:var(--key);font-weight:600}
 .hist{margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft)}
 .hint-inline{font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-3);margin-left:6px;font-family:var(--f-body)}
 .hrow{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
-.hrow .hy{font-family:var(--f-mono);font-size:.82rem;min-width:44px;color:var(--ink)}
-.hrow input{font:inherit;font-size:.82rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:5px 8px;width:110px}
+.hrow .hy{font-family:var(--f-num);font-size:var(--t-foot);min-width:44px;color:var(--ink)}
+.hrow input{font:inherit;font-size:var(--t-foot);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:5px 8px;width:110px}
 .hrow.add input{width:100px}
 .hrow.add .addshift{margin:0}
 .openchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
-.openchips span{font-size:.7rem;font-weight:600;color:var(--ok);background:var(--ok-bg);
-  border-radius:5px;padding:3px 7px;font-family:var(--f-mono);letter-spacing:0}
+.openchips span{font-size:var(--t-cap2);font-weight:600;color:var(--ok);background:var(--ok-bg);
+  border-radius:5px;padding:3px 7px;font-family:var(--f-num);letter-spacing:0}
 .openchips span.more{background:none;color:var(--ink-3);font-family:var(--f-body)}
 .k-tent .openchips span{background:none;border:1px dashed var(--ok)}
 .namecell{border:1px solid var(--line);border-radius:7px;background:var(--surface);min-width:110px;
-  padding:7px 8px;font-size:.82rem;font-weight:500;min-height:34px}
+  padding:7px 8px;font-size:var(--t-foot);font-weight:500;min-height:34px}
 .namecell.is-open{border:1.5px dashed var(--ok);color:var(--ok);font-family:var(--f-disp);font-weight:700;
-  font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;background:var(--ok-bg)}
+  font-size:var(--t-cap2);letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;background:var(--ok-bg)}
 .namecell.is-x{background:repeating-linear-gradient(135deg,transparent,transparent 4px,var(--line-soft) 4px,var(--line-soft) 8px);color:var(--ink-3);text-align:center}
 .namecell .ft{padding:4px 0 0}
 details.more{margin-top:14px;border-top:1px solid var(--line-soft);padding-top:10px}
-details.more summary{cursor:pointer;font-size:.72rem;font-weight:600;color:var(--ink-2);font-family:var(--f-disp);
+details.more summary{cursor:pointer;font-size:var(--t-cap);font-weight:600;color:var(--ink-2);font-family:var(--f-disp);
   list-style:none;display:flex;align-items:center;gap:6px}
 details.more summary::-webkit-details-marker{display:none}
 details.more summary::before{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .12s;margin-left:2px}
@@ -361,25 +373,25 @@ details.more .detail{margin-top:10px;padding-top:0;border-top:0}
 .ev-b{display:none;border-top:1px solid var(--line-soft);padding:13px 12px 14px 15px;
   background:var(--surface-2)}
 .ev.open .ev-b{display:block}
-.sec-l{font-size:.63rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;
+.sec-l{font-size:var(--t-cap2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;
   color:var(--ink-3);margin-bottom:7px;font-family:var(--f-disp)}
 .gridwrap{overflow-x:auto;overflow-y:clip;margin:0 -12px 0 -15px;padding:0 12px 4px 15px}
 table.shift{border-collapse:separate;border-spacing:0;width:100%;min-width:min-content}
 table.shift th,table.shift td{padding:0;text-align:left}
-table.shift thead th{font-family:var(--f-disp);font-size:.64rem;font-weight:600;text-transform:uppercase;
-  letter-spacing:.06em;color:var(--ink-3);padding:0 0 6px;white-space:nowrap}
-table.shift thead th .d{display:block;font-family:var(--f-mono);font-size:.66rem;
+table.shift thead th{font-family:var(--f-disp);font-size:var(--t-cap2);font-weight:600;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--ink-3);padding:0 0 6px;white-space:nowrap}
+table.shift thead th .d{display:block;font-family:var(--f-num);font-size:var(--t-cap2);
   color:var(--ink-3);font-weight:400;letter-spacing:0;text-transform:none;opacity:.75}
 th.rowlbl{width:1%;padding-right:10px !important}
 td.slot{padding:0 6px 6px 0;vertical-align:top}
 td.slot:last-child{padding-right:0}
-tbody th{font-family:var(--f-disp);font-size:.7rem;font-weight:600;color:var(--ink-2);
+tbody th{font-family:var(--f-disp);font-size:var(--t-cap2);font-weight:600;color:var(--ink-2);
   padding-right:10px !important;white-space:nowrap;vertical-align:top;padding-top:8px !important}
 .slotbox{border:1px solid var(--line);border-radius:7px;background:var(--surface);min-width:118px}
 .slotbox.filled{border-color:var(--steel)}
 .slotbox.xd{background:repeating-linear-gradient(135deg,transparent,transparent 4px,var(--line-soft) 4px,var(--line-soft) 8px)}
 .slotbox{max-width:190px}
-.slotbox select,.slotbox .slotpick{width:100%;border:0;background:none;padding:7px 22px 7px 8px;font-size:.82rem;
+.slotbox select,.slotbox .slotpick{width:100%;border:0;background:none;padding:7px 22px 7px 8px;font-size:var(--t-foot);
   font-weight:500;cursor:pointer;appearance:none;border-radius:7px;text-align:left;color:var(--ink);
   font-family:inherit;line-height:1.3;
   background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
@@ -392,16 +404,16 @@ tbody th{font-family:var(--f-disp);font-size:.7rem;font-weight:600;color:var(--i
    full bordered control shouting "open" — on a board that is 70-75% unstaffed that is a wall of
    boxes carrying no information the OPEN n badge hasn't already given. */
 table.wgrid .slotbox.open-slot{border-color:transparent;background:none}
-table.wgrid .slotbox.open-slot .slotpick{background-image:none;padding-right:7px;font-size:.74rem;
+table.wgrid .slotbox.open-slot .slotpick{background-image:none;padding-right:7px;font-size:var(--t-cap);
   font-weight:600;color:var(--ok);opacity:.7;letter-spacing:.01em}
 table.wgrid .slotbox.open-slot:hover,table.wgrid .slotbox.open-slot:focus-within{border-color:var(--ok);
   background:color-mix(in srgb,var(--ok) 8%,transparent)}
 table.wgrid .slotbox.open-slot:hover .slotpick,table.wgrid .slotbox.open-slot:focus-within .slotpick{opacity:1}
 table.wgrid .slotbox.xd{border-color:transparent;background:none}
-table.wgrid .slotbox.xd .slotpick{background-image:none;font-size:.7rem;opacity:.45;padding-right:7px}
-table.wgrid .namecell.is-open{border:0;background:none;color:var(--ok);opacity:.7;font-size:.74rem;
+table.wgrid .slotbox.xd .slotpick{background-image:none;font-size:var(--t-cap2);opacity:.45;padding-right:7px}
+table.wgrid .namecell.is-open{border:0;background:none;color:var(--ok);opacity:.7;font-size:var(--t-cap);
   font-weight:600;font-family:var(--f-body);letter-spacing:.01em;text-transform:lowercase;justify-content:flex-start;min-height:0;padding:6px 7px}
-table.wgrid .namecell.is-x{background:none;color:var(--ink-3);opacity:.4;font-size:.7rem;border-color:transparent;text-align:left}
+table.wgrid .namecell.is-x{background:none;color:var(--ink-3);opacity:.4;font-size:var(--t-cap2);border-color:transparent;text-align:left}
 /* one show, one name: consecutive days with the same person read as a single bar instead of
    five identical boxes you have to read five times */
 table.wgrid td.gcell.run .namecell{border-radius:7px}
@@ -413,35 +425,35 @@ table.wgrid .slotbox.filled{background:var(--surface);border-color:var(--steel)}
 .slotbox.se .slotpick{color:var(--info)}
 /* the picker popup — fixed so the grid's own scroller can't clip it */
 #pickpop{position:fixed;z-index:80;background:var(--surface);border:1px solid var(--line);border-radius:10px;
-  box-shadow:0 14px 38px rgba(0,18,40,.22);padding:7px;display:flex;flex-direction:column;gap:6px;max-height:min(64vh,420px)}
-#pickq{font:inherit;font-size:.9rem;font-weight:500;color:var(--ink);background:var(--surface-2);
+  box-shadow:0 14px 38px rgba(40,28,10,.22);padding:7px;display:flex;flex-direction:column;gap:6px;max-height:min(64vh,420px)}
+#pickq{font:inherit;font-size:var(--t-sub);font-weight:500;color:var(--ink);background:var(--surface-2);
   border:1px solid var(--line);border-radius:7px;padding:9px 10px;outline:none;width:100%;box-sizing:border-box}
 #pickq:focus{border-color:var(--navy);background:var(--surface)}
 #picklist{overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:1px;min-height:0;-webkit-overflow-scrolling:touch}
-.pickrow{flex:none;font:inherit;font-size:.86rem;font-weight:500;color:var(--ink);text-align:left;background:none;border:0;
+.pickrow{flex:none;font:inherit;font-size:var(--t-foot);font-weight:500;color:var(--ink);text-align:left;background:none;border:0;
   border-radius:6px;padding:9px 10px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pickrow b{color:var(--navy);background:color-mix(in srgb,var(--navy) 12%,transparent);border-radius:3px}
 .pickrow.on{background:var(--navy);color:var(--on-accent)}
 .pickrow.on b{color:var(--on-accent);background:rgba(255,255,255,.22)}
 .pickrow.cur::after{content:"✓";float:right;opacity:.6;font-weight:700}
-.pickrow.util{color:var(--ink-3);font-size:.8rem;white-space:normal}
+.pickrow.util{color:var(--ink-3);font-size:var(--t-foot);white-space:normal}
 .pickrow.use{color:var(--key);font-weight:600}
 /* Clear / No shift sit under the scroller, not at the end of it: below 40-odd names nobody found them */
 #pickutil{flex:none;display:flex;flex-direction:column;gap:1px;border-top:1px solid var(--line);padding-top:5px}
 #pickutil:empty{display:none}
-.pickempty{font-size:.8rem;color:var(--ink-3);padding:10px}
+.pickempty{font-size:var(--t-foot);color:var(--ink-3);padding:10px}
 /* days in a row (kiosk): 1-7 or a last day picked on the board; the run lights up before anything is saved */
 #pickdays{flex:none;display:flex;flex-direction:column;gap:5px;padding:2px 2px 6px;border-bottom:1px solid var(--line)}
 #pickdays[hidden]{display:none}
-.pdh{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.74rem;color:var(--ink-3)}
-.pdcap{font-size:.74rem;color:var(--ink-2);line-height:1.35}
+.pdh{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:var(--t-cap);color:var(--ink-3)}
+.pdcap{font-size:var(--t-cap);color:var(--ink-2);line-height:1.35}
 .pdcap b{color:var(--ink);font-weight:600}
 .pdseg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
-.pdseg button{flex:1;min-width:0;font:inherit;font-size:.82rem;font-weight:600;color:var(--ink-2);background:var(--surface);
+.pdseg button{flex:1;min-width:0;font:inherit;font-size:var(--t-foot);font-weight:600;color:var(--ink-2);background:var(--surface);
   border:0;border-left:1px solid var(--line);padding:0;height:34px;cursor:pointer}
 .pdseg button:first-child{border-left:0}
 .pdseg button[aria-pressed="true"]{background:var(--navy);color:var(--on-accent)}
-.pdend{align-self:flex-start;font:inherit;font-size:.76rem;font-weight:600;color:var(--navy);background:none;border:0;
+.pdend{align-self:flex-start;font:inherit;font-size:var(--t-cap);font-weight:600;color:var(--navy);background:none;border:0;
   padding:4px 2px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 #pickpop.ending #pickq,#pickpop.ending #picklist,#pickpop.ending #pickutil{display:none}
 #pickpop.ending #pickdays{border-bottom:0;padding-bottom:0}
@@ -449,7 +461,7 @@ table.wgrid .slotbox.filled{background:var(--surface);border-color:var(--steel)}
 #board .slotbox.krunskip{border:1px dashed var(--warn)}
 @media (max-width:640px){ .pdseg button{height:40px} .pdend{padding:12px 2px} }
 /* the phone's kiosk picker is a sheet from the bottom edge: the day tapped and the run after it stay in sight above it */
-#pickpop.sheet{right:0;border-width:1px 0 0;border-radius:16px 16px 0 0;padding:6px 12px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px rgba(0,18,40,.18)}
+#pickpop.sheet{right:0;border-width:1px 0 0;border-radius:16px 16px 0 0;padding:6px 12px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px rgba(40,28,10,.18)}
 #pickpop.sheet::before{content:"";display:block;flex:none;width:36px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 2px}
 #pickpop.sheet .pickrow{padding:11px 10px}
 #pickpop.sheet:not(.ending) #picklist{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:max-content;gap:1px 4px;align-content:start}   /* twice the names in sight */
@@ -459,7 +471,7 @@ table.wgrid .slotbox.filled{background:var(--surface);border-color:var(--steel)}
 #pickpop.sheet:not(:has(#pickq:focus)) .pickrow.on b{color:var(--navy);background:color-mix(in srgb,var(--navy) 12%,transparent)}
 #pickhead{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 2px 2px}
 #pickhead[hidden]{display:none}
-#pickwhat{font-family:var(--f-disp);font-weight:700;font-size:.92rem;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pickwhat{font-family:var(--f-disp);font-weight:700;font-size:var(--t-sub);color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #pickx{flex:none;width:40px;height:40px;border:0;background:none;color:var(--ink-2);font-size:1.5rem;line-height:1;cursor:pointer;border-radius:8px}
 #pickx:hover{background:var(--surface-2)}
 body.ksheet .kmv-days{padding-bottom:62vh}
@@ -469,42 +481,42 @@ body.ksheet .top{position:static}   /* the board's header (220px on a phone) let
   padding:0 14px;min-height:36px;cursor:pointer}
 @media (max-width:640px){ .toast.undo button{min-height:40px} }
 .inflbl{color:var(--warn);font-weight:700;margin-left:2px;cursor:help}
-.legend{margin:2px 0 0;font-size:.7rem;line-height:1.45;color:var(--ink-3);max-width:72ch}
+.legend{margin:2px 0 0;font-size:var(--t-cap2);line-height:1.45;color:var(--ink-3);max-width:72ch}
 .ft{display:flex;flex-wrap:wrap;gap:3px;padding:0 7px 6px}
-.ft span{font-size:.64rem;background:var(--info-bg);color:var(--info);border-radius:3px;padding:1px 5px;
+.ft span{font-size:var(--t-cap2);background:var(--info-bg);color:var(--info);border-radius:3px;padding:1px 5px;
   font-weight:500}
 .addshift{margin-top:8px;border:1px dashed var(--line);background:none;color:var(--ink-3);
-  border-radius:7px;padding:5px 10px;font-size:.74rem;cursor:pointer}
+  border-radius:7px;padding:5px 10px;font-size:var(--t-cap);cursor:pointer}
 .addshift:hover{border-color:var(--steel);color:var(--ink-2)}
 /* the way back from "+ Add shift row": an x on the row's label, plan mode, two taps like a booth */
-.rowdel{background:none;border:0;color:var(--ink-3);font:inherit;font-size:.86rem;line-height:1;cursor:pointer;
+.rowdel{background:none;border:0;color:var(--ink-3);font:inherit;font-size:var(--t-foot);line-height:1;cursor:pointer;
   padding:1px 5px 3px;margin-left:3px;border-radius:4px;vertical-align:baseline}
 .rowdel:hover{color:var(--pend);background:var(--pend-bg)}
-.rowdel.arm{color:var(--pend);background:var(--pend-bg);font-size:.66rem;font-weight:600;padding:3px 6px}
+.rowdel.arm{color:var(--pend);background:var(--pend-bg);font-size:var(--t-cap2);font-weight:600;padding:3px 6px}
 
 .detail{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px 16px;
   margin-top:16px;padding-top:13px;border-top:1px solid var(--line-soft)}
 .dl{min-width:0}
-.dl dt{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);
+.dl dt{font-size:var(--t-cap2);text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);
   font-family:var(--f-disp);font-weight:600}
-.dl dd{margin:2px 0 0;font-size:.84rem;word-break:break-word}
-.dl dd.mono{font-family:var(--f-mono);font-size:.8rem;font-variant-numeric:tabular-nums}
+.dl dd{margin:2px 0 0;font-size:var(--t-foot);word-break:break-word}
+.dl dd.mono{font-family:var(--f-num);font-size:var(--t-foot);font-variant-numeric:tabular-nums}
 .dl dd a{color:var(--navy);text-decoration:none;border-bottom:1px solid var(--line)}
 .dl dd a:hover{border-bottom-color:var(--navy)}
-.dl dd input.fld{font:inherit;font-size:.84rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
-.dl dd select.fld{font:inherit;font-size:.84rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
+.dl dd input.fld{font:inherit;font-size:var(--t-foot);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
+.dl dd select.fld{font:inherit;font-size:var(--t-foot);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%}
 .dl dd input.fld:focus{border-color:var(--navy);outline:none}
 .dl dd input.fld::placeholder{color:var(--ink-3);opacity:.7}
-.dl dd.empty{color:var(--ink-3);font-style:italic;font-size:.78rem}
-.cost{font-family:var(--f-mono);font-weight:500}
+.dl dd.empty{color:var(--ink-3);font-style:italic;font-size:var(--t-cap)}
+.cost{font-family:var(--f-num);font-weight:500}
 .tagrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .tagfield{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:8px;
   background:var(--surface);overflow:hidden;height:34px}
-.tagfield>span{font-family:var(--f-disp);font-size:.6rem;font-weight:600;text-transform:uppercase;
-  letter-spacing:.09em;color:var(--ink-3);padding:0 9px;border-right:1px solid var(--line);
+.tagfield>span{font-family:var(--f-disp);font-size:var(--t-cap2);font-weight:600;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--ink-3);padding:0 9px;border-right:1px solid var(--line);
   display:flex;align-items:center;background:var(--surface-2);white-space:nowrap;
   min-width:62px;justify-content:center}
-.tagfield select{border:0;background:none;padding:0 26px 0 9px;font-size:.82rem;font-weight:600;
+.tagfield select{border:0;background:none;padding:0 26px 0 9px;font-size:var(--t-foot);font-weight:600;
   cursor:pointer;appearance:none;color:var(--ink);
   background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
   background-position:calc(100% - 14px) 15px,calc(100% - 10px) 15px;
@@ -513,7 +525,7 @@ body.ksheet .top{position:static}   /* the board's header (220px on a phone) let
 .tagfield.v-Key{border-color:var(--key)} .tagfield.v-Key select{color:var(--key)}
 .tagfield.v-Traditional select{color:var(--trad)}
 .tagfield.v-none select{color:var(--ink-3);font-weight:500}
-.acc{font-size:.63rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+.acc{font-size:var(--t-cap2);font-weight:700;letter-spacing:.04em;text-transform:uppercase;
   border-radius:3px;padding:2px 6px;white-space:nowrap}
 .acc-TradeIndustry{color:var(--info);background:var(--info-bg)}
 .acc-Elite{color:var(--elite);background:color-mix(in srgb,var(--elite) 12%,transparent)}
@@ -524,23 +536,23 @@ body.ksheet .top{position:static}   /* the board's header (220px on a phone) let
 .acc-Freshmen{color:var(--warn);background:var(--warn-bg)}
 .tagfield.v-Freshmen select{color:var(--warn)}
 .boothh.edit{gap:10px}
-.boothh.edit input{font:inherit;font-family:var(--f-disp);font-weight:600;font-size:.8rem;color:var(--ink);background:var(--surface);
+.boothh.edit input{font:inherit;font-family:var(--f-disp);font-weight:600;font-size:var(--t-foot);color:var(--ink);background:var(--surface);
   border:1px solid var(--line);border-radius:6px;padding:4px 8px;min-width:0;flex:1 1 180px;max-width:360px}
 .boothh.edit input:focus{border-color:var(--navy);outline:none}
-.linkbtn{background:none;border:0;color:var(--ink-3);font-size:.7rem;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0}
+.linkbtn{background:none;border:0;color:var(--ink-3);font-size:var(--t-cap2);cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0}
 .linkbtn:hover{color:var(--pend)}
 .addbooth{margin-left:8px}
 .acc-none{color:var(--ink-3);border:1px dashed var(--line);background:none;font-weight:600}
-.empty-state{text-align:center;padding:46px 16px;color:var(--ink-3);font-size:.9rem}
+.empty-state{text-align:center;padding:46px 16px;color:var(--ink-3);font-size:var(--t-sub)}
 .foot{margin-top:30px;padding-top:14px;border-top:1px solid var(--line);
-  font-size:.72rem;color:var(--ink-3);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  font-size:var(--t-cap);color:var(--ink-3);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 .btn{background:var(--navy);color:var(--on-accent);border:0;border-radius:var(--r);padding:8px 14px;
-  font-size:.8rem;font-weight:600;font-family:var(--f-disp);cursor:pointer}
+  font-size:var(--t-foot);font-weight:600;font-family:var(--f-disp);cursor:pointer}
 .btn.ghost{background:none;color:var(--ink-2);border:1px solid var(--line)}
 .btn.ghost:hover{border-color:var(--steel)}
 .btn:disabled{opacity:.5;cursor:default}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;background:var(--ink);
-  color:var(--ground);padding:9px 16px;border-radius:99px;font-size:.8rem;font-weight:500;
+  color:var(--ground);padding:9px 16px;border-radius:99px;font-size:var(--t-foot);font-weight:500;
   z-index:90;box-shadow:var(--shadow)}
 @media (max-width:520px){
   .tally b{font-size:1.05rem} .tally div{padding:7px 8px}
@@ -566,9 +578,9 @@ body.gridv .wrap,body.gridv .top-in{max-width:1320px}
 .brandrow{gap:12px}
 .mark{display:inline-flex;align-items:center;gap:9px}
 .glyph{width:28px;height:28px;border-radius:7px;background:var(--navy);color:var(--on-accent);display:grid;place-items:center;
-  font-family:var(--f-disp);font-size:.7rem;font-weight:800;letter-spacing:.03em;flex:none}
+  font-family:var(--f-disp);font-size:var(--t-cap2);font-weight:800;letter-spacing:.03em;flex:none}
 h1{font-size:1.18rem;font-weight:700;letter-spacing:-.015em}
-.season{font-family:var(--f-body);font-size:.8rem;font-weight:500;color:var(--ink-3);border:0;padding:0;letter-spacing:0}
+.season{font-family:var(--f-body);font-size:var(--t-foot);font-weight:500;color:var(--ink-3);border:0;padding:0;letter-spacing:0}
 .seg{background:var(--surface-2)}
 .seg button{padding:5px 13px;transition:background .12s,color .12s}
 .switch .knob::after{background:var(--surface)}
@@ -578,35 +590,35 @@ h1{font-size:1.18rem;font-weight:700;letter-spacing:-.015em}
 .tally div{flex:none;padding:0;border:0;display:flex;align-items:baseline;gap:6px;min-width:0}
 .tally b{display:inline;font-size:1.2rem;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
 .tally .t-open b{font-size:1.85rem;color:var(--ok);letter-spacing:-.03em}
-.tally span{display:inline;font-size:.68rem;letter-spacing:.09em;margin:0;white-space:nowrap;overflow:visible;color:var(--ink-3);font-family:var(--f-disp);font-weight:600}
+.tally span{display:inline;font-size:var(--t-cap2);letter-spacing:.04em;margin:0;white-space:nowrap;overflow:visible;color:var(--ink-3);font-family:var(--f-disp);font-weight:600}
 .tally .t-booked b{color:var(--ink)}
-.stamp{padding:0;margin-left:auto;font-size:.64rem}
+.stamp{padding:0;margin-left:auto;font-size:var(--t-cap2)}
 /* controls */
 .controls{padding:12px 0 12px;gap:8px}
 .field,.pick{height:36px;border-radius:8px}
 .field:focus-within{border-color:var(--navy);box-shadow:0 0 0 3px color-mix(in srgb,var(--navy) 14%,transparent)}
 .pick:hover{border-color:var(--steel)}
 .ctl-toggle{display:none;align-items:center;gap:6px;height:36px;padding:0 12px;border:1px solid var(--line);border-radius:8px;
-  background:var(--surface);font-family:var(--f-disp);font-size:.8rem;font-weight:600;color:var(--ink-2);cursor:pointer;flex:none}
-.ctl-toggle b{font-family:var(--f-mono);font-size:.66rem;font-weight:500;color:var(--on-accent);background:var(--navy);border-radius:99px;padding:1px 6px}
+  background:var(--surface);font-family:var(--f-disp);font-size:var(--t-foot);font-weight:600;color:var(--ink-2);cursor:pointer;flex:none}
+.ctl-toggle b{font-family:var(--f-num);font-size:var(--t-cap2);font-weight:500;color:var(--on-accent);background:var(--navy);border-radius:99px;padding:1px 6px}
 .ctl-more.sels{display:contents}
-.chip{padding:5px 11px;font-weight:600;font-size:.76rem;border-radius:99px;transition:border-color .12s,background .12s,transform .1s}
+.chip{padding:5px 11px;font-weight:600;font-size:var(--t-cap);border-radius:99px;transition:border-color .12s,background .12s,transform .1s}
 .chip:active{transform:scale(.97)}
 .chip .n{font-family:var(--f-body);font-weight:500}
-.legend{font-size:.72rem;margin-top:2px}
+.legend{font-size:var(--t-cap);margin-top:2px}
 /* weekend bands */
 .band{margin-top:24px}
 .band-h{border-bottom:2px solid var(--navy);padding-bottom:7px}
-.band-h h2{font-size:.84rem;letter-spacing:.1em;color:var(--slate);font-weight:700}
-.band-h .sub,.band-h .cov{font-size:.74rem}
+.band-h h2{font-size:var(--t-foot);letter-spacing:.04em;color:var(--slate);font-weight:700}
+.band-h .sub,.band-h .cov{font-size:var(--t-cap)}
 .rchip{transition:border-color .12s,background .12s,transform .1s}
 .rchip:active{transform:scale(.97)}
 .pastwrap{margin-top:16px}
 .pastsum{width:100%;display:flex;align-items:center;gap:10px;background:none;border:0;border-bottom:1px dashed var(--line);
   padding:8px 2px 9px;cursor:pointer;color:var(--ink-3);text-align:left;font-family:var(--f-disp);transition:color .12s}
 .pastsum:hover{color:var(--ink-2)}
-.pastsum .ps-l{font-size:.8rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
-.pastsum .ps-n{font-family:var(--f-mono);font-size:.7rem;margin-left:auto}
+.pastsum .ps-l{font-size:var(--t-foot);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.pastsum .ps-n{font-family:var(--f-num);font-size:var(--t-cap2);margin-left:auto}
 .pastsum .caret{transition:transform .15s}
 .pastwrap.open .pastsum .caret{transform:rotate(180deg)}
 .pastbands .band.past .band-h{opacity:.85}
@@ -616,22 +628,22 @@ h1{font-size:1.18rem;font-weight:700;letter-spacing:-.015em}
 .ev:not(.k-closed):hover{box-shadow:0 1px 0 rgba(90,70,30,.06),0 16px 30px -18px rgba(60,45,20,.4)}
 .ev-h{padding:12px 13px 12px 16px;transition:background .12s}
 .ev-name{font-size:1.02rem;font-weight:700;letter-spacing:-.012em}
-.ev-meta{margin-top:5px;font-size:.78rem}
-.ev-meta .mono{font-size:.74rem}
-.resline{font-size:.79rem;margin-top:7px}
-.res b{font-size:.6rem;letter-spacing:.1em}
+.ev-meta{margin-top:5px;font-size:var(--t-cap)}
+.ev-meta .mono{font-size:var(--t-cap)}
+.resline{font-size:var(--t-foot);margin-top:7px}
+.res b{font-size:var(--t-cap2);letter-spacing:.04em}
 .openchips{gap:6px;margin-top:10px}
-.openchips span{font-family:var(--f-body);font-size:.79rem;font-weight:600;padding:5px 10px;border-radius:6px;letter-spacing:0;
+.openchips span{font-family:var(--f-body);font-size:var(--t-foot);font-weight:600;padding:5px 10px;border-radius:6px;letter-spacing:0;
   border:1px solid color-mix(in srgb,var(--ok) 22%,transparent)}
 .openchips span.more{border:0;padding-left:2px}
 .st{border-radius:6px;padding:5px 10px}
 .st-open{box-shadow:0 1px 0 rgba(0,0,0,.08)}
-.bk{font-size:.66rem}
+.bk{font-size:var(--t-cap2)}
 @keyframes reveal{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
 .ev.open.just .ev-b{animation:reveal .22s ease-out}
 .ev-b{padding-top:14px}
 .namecell{border-radius:6px}
-.namecell.is-open{letter-spacing:.06em}
+.namecell.is-open{letter-spacing:.04em}
 .claimless{display:none}
 /* buttons + toast */
 .btn{transition:background .12s,transform .1s,border-color .12s}
@@ -640,9 +652,9 @@ h1{font-size:1.18rem;font-weight:700;letter-spacing:-.015em}
 @keyframes toastin{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 .toast{animation:toastin .2s ease-out;background:var(--ink);color:var(--surface)}
 /* grid */
-table.wgrid thead th{font-size:.66rem;letter-spacing:.08em}
+table.wgrid thead th{font-size:var(--t-cap2);letter-spacing:.04em}
 .gevin{padding:10px 12px 9px 14px}
-.glink .gn{font-size:.86rem}
+.glink .gn{font-size:var(--t-foot)}
 table.wgrid td.gcell.na{background:color-mix(in srgb,var(--ink-3) 13%,transparent);background-clip:content-box}
 /* phone */
 @media (max-width:640px){
@@ -661,10 +673,10 @@ table.wgrid td.gcell.na{background:color-mix(in srgb,var(--ink-3) 13%,transparen
 }
 
 /* ---- pass 2 ---- */
-.resline{font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:.8rem}
+.resline{font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:var(--t-foot)}
 .res{display:inline-flex;align-items:baseline;gap:5px}
 .res b{margin-right:0}
-.res i{font-family:var(--f-body);font-size:.76rem;color:var(--ink-3)}
+.res i{font-family:var(--f-body);font-size:var(--t-cap);color:var(--ink-3)}
 .res em{font-style:normal;color:var(--ink-3);opacity:.55}
 .legend{max-width:none}
 /* Traditional is the default for 9 in 10 shows, so its rail whispers; Key and Elite speak */
@@ -673,63 +685,63 @@ table.wgrid tr.gevent.t-Traditional td.gev::before,table.wgrid tr.gevent.t-Untag
 table.wgrid td.gcell.na{background:color-mix(in srgb,var(--ink-3) 9%,transparent);background-clip:content-box}
 @media (max-width:640px){
   .stamp-db{display:none}
-  .stamp{font-size:.6rem;padding-top:2px}
+  .stamp{font-size:var(--t-cap2);padding-top:2px}
   .tally div:nth-child(4){display:none}
 }
 
 /* ---- add-event details fold ---- */
 .qa-more{border:1px dashed var(--line);border-radius:8px;padding:0 12px}
 .qa-more summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:10px 0;
-  font-family:var(--f-disp);font-weight:600;font-size:.86rem;color:var(--ink)}
+  font-family:var(--f-disp);font-weight:600;font-size:var(--t-foot);color:var(--ink)}
 .qa-more summary::-webkit-details-marker{display:none}
 .qa-more summary::before{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;
   transform:rotate(-45deg);transition:transform .12s;margin:0 4px 2px 2px;align-self:center}
 .qa-more[open] summary::before{transform:rotate(45deg)}
-.qa-more summary small{font-family:var(--f-body);font-weight:400;font-size:.76rem;color:var(--ink-3)}
+.qa-more summary small{font-family:var(--f-body);font-weight:400;font-size:var(--t-cap);color:var(--ink-3)}
 .qa-more[open]{padding-bottom:12px;background:var(--surface-2)}
 .qa-more .form{margin-bottom:12px}
 .qa-more .hint{margin-top:2px}
-.qa-sec{font-family:var(--f-disp);font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.11em;color:var(--slate);margin:4px 0 8px}
+.qa-sec{font-family:var(--f-disp);font-size:var(--t-cap2);font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--slate);margin:4px 0 8px}
 .qa-more .form+.qa-sec{margin-top:2px}
 .qa-more label.full{margin-bottom:10px}
 .dl.wide{grid-column:1/-1}
-.dl dd textarea.fld{font:inherit;font-size:.84rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;resize:vertical;font-family:var(--f-body)}
+.dl dd textarea.fld{font:inherit;font-size:var(--t-foot);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;resize:vertical;font-family:var(--f-body)}
 .dl dd textarea.fld:focus{border-color:var(--navy);outline:none}
-.qa-more textarea{font-family:var(--f-body);font-size:.88rem}
-.dl dd.notes{white-space:pre-wrap;font-size:.84rem;color:var(--ink-2);background:var(--surface-2);border-radius:6px;padding:8px 10px;border:1px solid var(--line-soft)}
+.qa-more textarea{font-family:var(--f-body);font-size:var(--t-sub)}
+.dl dd.notes{white-space:pre-wrap;font-size:var(--t-foot);color:var(--ink-2);background:var(--surface-2);border-radius:6px;padding:8px 10px;border:1px solid var(--line-soft)}
 
 /* ---- platform: never list, lifecycle, auth ---- */
 .seg button.tab-never{color:var(--pend)} .seg button.tab-never[aria-selected="true"]{background:var(--pend);color:var(--on-pend)}
 .never .band-h{border-bottom-color:var(--pend)} .never .band-h h2{color:var(--pend)}
 .nw-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);margin-top:12px}
 table.nwtbl{border-collapse:separate;border-spacing:0;width:100%;min-width:640px}
-table.nwtbl th{font-family:var(--f-disp);font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);
+table.nwtbl th{font-family:var(--f-disp);font-size:var(--t-cap2);font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);
   text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--surface-2)}
-table.nwtbl td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top;font-size:.86rem}
+table.nwtbl td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top;font-size:var(--t-foot)}
 table.nwtbl tr:last-child td{border-bottom:0}
-table.nwtbl td.mono{font-family:var(--f-mono);font-size:.78rem;color:var(--ink-2)}
-.nw-sub{font-size:.74rem;color:var(--ink-3)} .nw-none{color:var(--ink-3);font-style:italic} .nw-when{white-space:nowrap}
+table.nwtbl td.mono{font-family:var(--f-num);font-size:var(--t-cap);color:var(--ink-2)}
+.nw-sub{font-size:var(--t-cap);color:var(--ink-3)} .nw-none{color:var(--ink-3);font-style:italic} .nw-when{white-space:nowrap}
 .lifecycle{margin-top:16px;padding-top:12px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:10px}
-.lifecycle .ck{font-size:.82rem;color:var(--ink-2)}
+.lifecycle .ck{font-size:var(--t-foot);color:var(--ink-2)}
 .lifecycle-btns{display:flex;gap:8px;flex-wrap:wrap} .lifecycle .danger{margin-top:0}
 @media (max-width:640px){ .lifecycle-btns .linkbtn{min-height:44px;padding:0 10px} }   /* "keep it" under an armed Remove */
 .neverform{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--pend-bg);border:1px solid color-mix(in srgb,var(--pend) 30%,transparent);border-radius:8px;padding:10px}
-.neverform input{flex:1 1 240px;font:inherit;font-size:.86rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+.neverform input{flex:1 1 240px;font:inherit;font-size:var(--t-foot);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
 .neverform .btn{background:var(--pend);color:#fff}
-.authbox{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;color:var(--ink-3);margin-left:auto}
+.authbox{display:inline-flex;align-items:center;gap:8px;font-size:var(--t-cap);color:var(--ink-3);margin-left:auto}
 .authbox .who b{color:var(--ink-2);font-weight:600}
 .stamp-mtg b{color:var(--slate);font-weight:600}
 @media (max-width:640px){ .authbox{margin-left:0;width:100%} }
 #authPanel .form input{font-size:1rem}   /* 16px: iPhone zooms the page into any smaller field */
-#siCode{font-family:var(--f-mono);letter-spacing:.18em}
+#siCode{font-family:var(--f-num);letter-spacing:.18em}
 /* Sync from the Sheet: the status line under the plan bar, and what the last sync did */
-.syncline{font-size:.76rem;color:var(--ink-3);align-items:baseline;gap:8px;flex-wrap:wrap;padding:0 2px}
+.syncline{font-size:var(--t-cap);color:var(--ink-3);align-items:baseline;gap:8px;flex-wrap:wrap;padding:0 2px}
 .syncline b{color:var(--ink-2);font-weight:600}
 .syncline.s-open{color:var(--info)}
 .syncline.s-slow,.syncline.s-stopped,.syncline.s-failed{color:var(--pend)}
-.syncsec{font-family:var(--f-disp);font-weight:600;font-size:.82rem;margin-top:2px}
-.synclist{margin:0;padding-left:18px;font-size:.8rem;color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
-.synclist ul{margin:2px 0 0;padding-left:16px;color:var(--ink-3);font-size:.76rem}
+.syncsec{font-family:var(--f-disp);font-weight:600;font-size:var(--t-foot);margin-top:2px}
+.synclist{margin:0;padding-left:18px;font-size:var(--t-foot);color:var(--ink-2);display:flex;flex-direction:column;gap:4px}
+.synclist ul{margin:2px 0 0;padding-left:16px;color:var(--ink-3);font-size:var(--t-cap)}
 /* ---- Kiosk Schedule (2026-10-14): one shift per mall per day, dates down, malls across, like the mall sheet ---- */
 /* the kiosk teal as text: 5.3:1 on the ground (the --key fill is 4.3 there) */
 :root{--k-ink:#0f6660;--on-key:#fff}
@@ -755,16 +767,16 @@ body.kioskv .wrap,body.kioskv .top-in{max-width:1320px}
 .kiosk .sec-l,.kiosk .pastsum,.kiosk .rchip b,.kcard .ev-meta,.kcard .res i,.kcard .res b{color:var(--ink-3)}
 .kiosk .p-Prospective,.kiosk .p-CX{color:var(--ink-3)}
 .ksr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.kmine{display:flex;flex-wrap:wrap;gap:5px;align-items:baseline;margin:-4px 0 12px;font-size:.78rem;color:var(--ink-2)}
+.kmine{display:flex;flex-wrap:wrap;gap:5px;align-items:baseline;margin:-4px 0 12px;font-size:var(--t-cap);color:var(--ink-2)}
 .kmine>b{font-family:var(--f-disp);margin-right:2px}
-.kmine span{font-size:.72rem;background:color-mix(in srgb,var(--navy) 12%,var(--surface));border-radius:5px;padding:2px 7px;white-space:nowrap}
-table.ktbl th.kday{min-width:78px;max-width:90px;padding:6px 8px;font-family:var(--f-disp);font-size:.74rem;font-weight:600;color:var(--ink-2);white-space:nowrap}
-table.ktbl th.kday span{font-family:var(--f-mono);font-weight:400;font-size:.7rem;color:var(--ink-3);margin-left:2px}
-table.ktbl th.kday i{display:block;font-style:normal;font-size:.56rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--navy)}
+.kmine span{font-size:var(--t-cap);background:color-mix(in srgb,var(--navy) 12%,var(--surface));border-radius:5px;padding:2px 7px;white-space:nowrap}
+table.ktbl th.kday{min-width:78px;max-width:90px;padding:6px 8px;font-family:var(--f-disp);font-size:var(--t-cap);font-weight:600;color:var(--ink-2);white-space:nowrap}
+table.ktbl th.kday span{font-family:var(--f-num);font-weight:400;font-size:var(--t-cap2);color:var(--ink-3);margin-left:2px}
+table.ktbl th.kday i{display:block;font-style:normal;font-size:var(--t-cap2);font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--navy)}
 table.ktbl thead th.kdh{vertical-align:bottom}
 table.ktbl thead th.kmh{text-transform:none;letter-spacing:0;white-space:normal;vertical-align:bottom;min-width:112px;max-width:190px;padding:8px 8px 7px;color:var(--ink)}
 .kmh .gsub{margin-top:4px}
-.kmh .kcap{display:block;font-family:var(--f-body);font-size:.7rem;font-weight:500;color:var(--ink-2);margin-top:3px}
+.kmh .kcap{display:block;font-family:var(--f-body);font-size:var(--t-cap2);font-weight:500;color:var(--ink-2);margin-top:3px}
 .kmh.k-CX .gn{text-decoration:line-through;opacity:.6}
 .p-CX{color:var(--ink-3);background:var(--mute-bg);text-decoration:line-through}
 table.ktbl{table-layout:fixed;width:max(100%,calc(86px + var(--kn,5) * 118px))}   /* every mall the same width */
@@ -775,7 +787,7 @@ table.ktbl tr.kmon th,table.ktbl tr.kmon td{border-top:2px solid var(--line)}
 table.ktbl tr.ktoday th.kday{color:var(--navy);box-shadow:inset 3px 0 0 var(--navy)}
 table.ktbl tr.kpast th.kday,table.ktbl tr.kpast td.gcell>*{opacity:.55}
 table.ktbl .namecell .ksp{color:var(--ink-3);font-weight:400}
-.knote{font-size:.64rem;font-weight:400;color:var(--ink-3);line-height:1.3;margin-top:2px;white-space:normal}
+.knote{font-size:var(--t-cap2);font-weight:400;color:var(--ink-3);line-height:1.3;margin-top:2px;white-space:normal}
 .slotbox .knote{padding:0 7px 5px;margin-top:-2px}
 table.ktbl .namecell.khit,table.ktbl .slotbox.khit{border-color:var(--navy);background:color-mix(in srgb,var(--navy) 16%,var(--surface))}
 table.ktbl .namecell.kdim{opacity:.55}
@@ -787,28 +799,28 @@ table.ktbl .namecell.kdim{opacity:.55}
 .kiosk-only{display:none !important}
 body.kioskv.plan .btn.kiosk-only:not([hidden]){display:inline-block !important}
 body.kioskv .ev-only.ev-only{display:none !important}
-.kmh .kcost{display:block;font-family:var(--f-mono);font-size:.66rem;color:var(--ink-2);margin-top:3px;font-variant-numeric:tabular-nums}
-.kmh .kedit{font-size:.7rem;color:var(--ink-3);margin-left:5px;font-weight:400}
+.kmh .kcost{display:block;font-family:var(--f-num);font-size:var(--t-cap2);color:var(--ink-2);margin-top:3px;font-variant-numeric:tabular-nums}
+.kmh .kedit{font-size:var(--t-cap2);color:var(--ink-3);margin-left:5px;font-weight:400}
 .kmh .glink:hover .kedit{color:var(--navy)}
 .kmh .glink{display:block;min-height:24px;padding:3px 0}            /* a mall's name is a 24px target, not a 17px line of text */
 .kcapbtn{min-height:26px}
-.dl .kcapbtn.wide{margin-top:0;width:100%;min-height:34px;font-size:.84rem;padding:6px 8px}
+.dl .kcapbtn.wide{margin-top:0;width:100%;min-height:34px;font-size:var(--t-foot);padding:6px 8px}
 table.ktbl .namecell.kcx{text-decoration:line-through;opacity:.55}   /* a cancelled mall's names: nobody works them */
 /* thumbs: a phone's targets at 38-44px (Apple's 44pt) */
 @media (max-width:640px){
-  .kiosk .rollup .rchip{min-height:38px;padding:6px 12px;font-size:.8rem}
+  .kiosk .rollup .rchip{min-height:38px;padding:6px 12px;font-size:var(--t-foot)}
   .kiosk .band-h .seg button{min-height:44px;padding:6px 16px}
   .kiosk .kfold{min-height:44px}
   .kmr .kw .slotbox .slotpick{min-height:40px}
   .kmine .linkbtn{min-height:32px;padding:0 6px}
 }
 .kcapbtn{display:block;margin-top:4px;padding:3px 7px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);
-  font:inherit;font-size:.7rem;font-weight:600;cursor:pointer;text-align:left;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  font:inherit;font-size:var(--t-cap2);font-weight:600;cursor:pointer;text-align:left;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kcapbtn.none{border-style:dashed;color:var(--ink-3);font-weight:500}
 .kcapbtn:hover,.kcapbtn.picking{border-color:var(--navy);color:var(--navy)}
 /* a rep's read: names never split mid-name */
 .kn{white-space:nowrap}
-.kiosk .rollup .klbl{font-size:.72rem;color:var(--ink-3);align-self:center;margin-right:2px}
+.kiosk .rollup .klbl{font-size:var(--t-cap);color:var(--ink-3);align-self:center;margin-right:2px}
 .kmine span.past{opacity:.5} .kmine span.now{background:var(--navy);color:var(--on-accent)}
 .kmine .linkbtn{align-self:center}
 .kfold{margin:0 0 10px}
@@ -818,34 +830,34 @@ table.ktbl .namecell.kcx{text-decoration:line-through;opacity:.55}   /* a cancel
 .kmp-row{display:flex;flex-wrap:wrap;gap:6px}
 .kmp{min-height:44px;padding:5px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);
   font:inherit;text-align:left;cursor:pointer}
-.kmp b{display:block;font-family:var(--f-disp);font-size:.84rem;font-weight:600;line-height:1.2}
-.kmp small{display:block;font-size:.7rem;color:var(--ink-3)}
+.kmp b{display:block;font-family:var(--f-disp);font-size:var(--t-foot);font-weight:600;line-height:1.2}
+.kmp small{display:block;font-size:var(--t-cap2);color:var(--ink-3)}
 .kmp.on{background:var(--key);border-color:var(--key);color:var(--on-accent)}
 .kmp.on small{color:var(--on-accent)}
 .kmv-h{margin-top:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px 10px}
 .kmv-n{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .kmv-n .glink{min-height:36px;padding:4px 0;text-align:left}
 .kmv-n .gn{font-family:var(--f-disp);font-weight:700;font-size:1.08rem;color:var(--ink)}
-.kmv-n .kedit{font-size:.75rem;color:var(--ink-3);margin-left:6px;font-weight:400}
-.kmv-m{font-size:.78rem;color:var(--ink-2);margin-top:2px}
-.kmv-h .kcost{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-2);margin-top:4px;font-variant-numeric:tabular-nums}
-.kmv-h .kcapbtn{display:inline-block;margin-top:6px;min-height:38px;font-size:.8rem;padding:6px 10px}
-.kmv-s{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:.76rem;color:var(--ink-2);margin-top:6px}
+.kmv-n .kedit{font-size:var(--t-cap);color:var(--ink-3);margin-left:6px;font-weight:400}
+.kmv-m{font-size:var(--t-cap);color:var(--ink-2);margin-top:2px}
+.kmv-h .kcost{font-family:var(--f-num);font-size:var(--t-cap);color:var(--ink-2);margin-top:4px;font-variant-numeric:tabular-nums}
+.kmv-h .kcapbtn{display:inline-block;margin-top:6px;min-height:38px;font-size:var(--t-foot);padding:6px 10px}
+.kmv-s{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:var(--t-cap);color:var(--ink-2);margin-top:6px}
 .kmv-s b{color:var(--ink)} .kmv-s .o b{color:var(--ok)}
 .kmv-days ul{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .kmr{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:3px 12px;border-top:1px solid var(--line-soft)}
 .kmr:first-child{border-top:0}
 .kmr.kmon{border-top:2px solid var(--line)}
 .kmr.kwe{background:color-mix(in srgb,var(--navy) 7%,var(--surface))}
-.kmd{font-family:var(--f-mono);font-size:.76rem;color:var(--ink-2);white-space:nowrap}
+.kmd{font-family:var(--f-num);font-size:var(--t-cap);color:var(--ink-2);white-space:nowrap}
 .kmd b{font-weight:500;color:var(--ink)}
-.kmd i{font-family:var(--f-body);font-style:normal;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--on-accent);
+.kmd i{font-family:var(--f-body);font-style:normal;font-size:var(--t-cap2);font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--on-accent);
   background:var(--navy);border-radius:4px;padding:2px 6px;margin-left:6px;vertical-align:1px}
 .kmr.ktoday{box-shadow:inset 3px 0 0 var(--navy)}
 .kmr.kpast .kmd,.kmr.kpast .kmd b,.kmr.kpast .kw{color:var(--ink-3)}   /* gone by: greyed, never faded below 4.5:1 */
-.kmr .kw{font-weight:600;font-size:.92rem;text-align:right;min-width:0}
+.kmr .kw{font-weight:600;font-size:var(--t-sub);text-align:right;min-width:0}
 .kmr .kw .ksp{color:var(--ink-3);font-weight:400}
-.kmr .kw .knote{display:block;font-size:.7rem;font-weight:400;color:var(--ink-3)}
+.kmr .kw .knote{display:block;font-size:var(--t-cap2);font-weight:400;color:var(--ink-3)}
 .kmr .kopen{color:var(--ok);font-weight:700}
 .kmr .kxw{color:var(--ink-3);font-weight:400}
 .kmr.khit{background:color-mix(in srgb,var(--navy) 16%,var(--surface))}
@@ -855,21 +867,205 @@ table.ktbl .namecell.kcx{text-decoration:line-through;opacity:.55}   /* a cancel
 table.ktbl .slotbox.kprosp .slotpick{color:var(--ink-3);opacity:.6}   /* Prospective: an empty day there isn't an open shift */
 body.kioskv #syncLine,body.kioskv #syncPanel{display:none !important}   /* renderSync rewrites the line's classes */
 @media (max-width:520px){ table.ktbl{width:max(100%,calc(70px + var(--kn,5) * 100px))} table.ktbl thead th.kdh{width:70px} table.ktbl th.kday{min-width:0;padding:5px 6px} }
+/* ===================== HIG pass (Alan, 2026-10-15) =====================
+   The shows are the content and the chrome steps back: one type scale (--t-*), the body in the device's own face,
+   Bricolage only for titles and the big numbers, labels in sentence case (caps only on the small badges), no box
+   where spacing already separates, translucent material on what floats, presses that land at once and spring back. */
+:root{--seg-thumb:var(--surface);--pop-bg:var(--surface);--sw-off:var(--line);-webkit-tap-highlight-color:transparent}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--seg-thumb:#54493e;--pop-bg:#2e2720;--sw-off:#4a4037} }
+:root[data-theme="dark"]{--seg-thumb:#54493e;--pop-bg:#2e2720;--sw-off:#4a4037}
+@media (min-resolution:2dppx){ :root{--hair:.5px} }
+body{font-family:var(--f-body);font-variant-numeric:tabular-nums;line-height:1.35}
+.panel p,.hint,.note,.legend,.empty-season,.empty-state,.foot,.synclist,.dl dd.notes{line-height:1.45}
+.wrap{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+
+/* a field under 16px makes iOS zoom the whole page when it is tapped, and it stays zoomed */
+@media (pointer:coarse){ input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px !important} }
+
+/* ---- header: translucent; only its last row stays pinned (--stick, syncTopH); a hairline once it is ---- */
+.top{position:sticky;top:var(--stick,0px);border-bottom:var(--hair) solid transparent;box-shadow:none;
+  background:color-mix(in srgb,var(--surface) 80%,transparent);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+  transition:border-color var(--d-fast) ease}
+.top.scrolled{border-bottom-color:var(--line);box-shadow:none}
+.top-in{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"brand brand" "tally tally" "segs modes";column-gap:14px;
+  padding:calc(12px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 8px max(16px,env(safe-area-inset-left))}
+.brandrow{grid-area:brand;align-items:center}
+.modes{grid-area:modes;display:flex;align-items:center;gap:14px;padding-top:6px}
+.tallyrow{grid-area:tally;padding:8px 0 2px;gap:4px 18px}
+.segrow{grid-area:segs;min-width:0;display:flex;padding-top:6px}
+h1{font-size:var(--t-title2);line-height:28px;letter-spacing:-.018em}
+.glyph{font-weight:700}
+.season{font-size:var(--t-foot)}
+@media (max-width:640px){
+  .top-in{grid-template-columns:minmax(0,1fr);grid-template-areas:"brand" "modes" "tally" "segs";padding-bottom:6px}
+  .modes{padding-top:8px}
+  .segrow{padding-top:4px}
+  .tallyrow{padding-top:8px}
+}
+/* the tallies: one hero number, the rest step back; a sentence, not a row of caps */
+.tally{gap:4px 18px}
+.tally b{font-family:var(--f-disp);font-size:var(--t-head);line-height:22px;font-weight:600;letter-spacing:-.012em}
+.tally .t-open b{font-size:var(--t-title1);line-height:34px;font-weight:700;letter-spacing:-.024em}
+.tally span{font-family:var(--f-body);font-size:var(--t-foot);font-weight:400;letter-spacing:0;text-transform:lowercase;color:var(--ink-3)}
+.stamp{font-family:var(--f-body);font-size:var(--t-cap)}
+
+/* ---- segmented controls: a quiet track, a raised thumb, one colour (Never keeps its red text) ---- */
+.seg{border:0;border-radius:10px;padding:2px;gap:2px;background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.seg button{border-radius:8px;padding:6px 12px;min-height:30px;font-family:var(--f-body);font-size:var(--t-foot);font-weight:500;letter-spacing:0;color:var(--ink-2)}
+.seg button[aria-selected="true"]{background:var(--seg-thumb);color:var(--ink);font-weight:600;
+  box-shadow:0 1px 2px rgba(40,28,10,.12),0 0 0 var(--hair) rgba(40,28,10,.08)}
+.seg button small{font-family:var(--f-body);font-size:var(--t-cap);font-weight:400;color:var(--ink-3)}
+.seg button[aria-selected="true"] small{color:inherit}   /* ink-3 falls under 4.5:1 on the dark thumb */
+.seg button.tab-kiosk{color:var(--ink-2)} .seg button.tab-kiosk[aria-selected="true"]{background:var(--seg-thumb);color:var(--ink)}
+.seg button.tab-never{color:var(--pend)} .seg button.tab-never[aria-selected="true"]{background:var(--seg-thumb);color:var(--pend)}
+.kiosk .band-h .seg button{color:var(--ink-2)} .kiosk .band-h .seg button[aria-selected="true"]{background:var(--seg-thumb);color:var(--ink)}
+/* the switch at iOS proportions; the thumb is always the light one */
+.switch{font-family:var(--f-body);font-size:var(--t-foot);font-weight:500;color:var(--ink-2);gap:8px}
+.switch .knob{width:46px;height:28px;background:var(--sw-off);transition:background-color var(--d-fast) ease}
+.switch .knob::after{top:2px;left:2px;width:24px;height:24px;background:#fbf9f4;
+  box-shadow:0 3px 8px rgba(0,0,0,.15),0 3px 1px rgba(0,0,0,.06);transition:transform var(--d-base) var(--ease-pop)}
+.switch input:checked+.knob::after{transform:translateX(18px)}
+
+/* ---- controls: filled fields, no outline at rest ---- */
+.field,.pick{border-color:transparent;background-color:color-mix(in srgb,var(--ink) 6%,transparent);border-radius:10px}
+.ctl-toggle,.sheetlink,.btn{font-family:var(--f-body)}
+.ctl-toggle{border-radius:10px}
+.btn{font-size:var(--t-foot);border-radius:10px;padding:8px 14px}
+@media (pointer:coarse){ .btn,.ctl-toggle,.sheetlink{min-height:44px} .sheetlink{display:inline-flex;align-items:center} }
+.chip{font-family:var(--f-body);font-size:var(--t-foot);font-weight:500;min-height:30px}
+.chip .n{font-size:var(--t-cap)}
+@media (pointer:coarse){ .chip{min-height:36px;position:relative} .chip::after{content:"";position:absolute;inset:-4px -3px} }
+.panel{border:0;box-shadow:none;border-radius:12px}
+.panel-h{font-size:var(--t-head);line-height:22px;letter-spacing:-.012em}
+
+/* ---- labels: sentence case, 12px semibold, no tracking. Caps stay only on the small badges ---- */
+.sec-l,.dl dt,.form label,.panel label.full,.tagfield>span,.qa-sec,table.shift thead th,table.wgrid thead th,table.nwtbl th,tbody th,
+.pastsum .ps-l,.res b,.namecell.is-open,details.more summary,.boothh,.gboin b,.syncsec,.kmine>b,table.ktbl th.kday{
+  font-family:var(--f-body);letter-spacing:0;text-transform:none}
+.sec-l,.dl dt,.form label,.panel label.full,.tagfield>span,.qa-sec,table.shift thead th,table.wgrid thead th,table.nwtbl th,tbody th,table.ktbl th.kday{
+  font-size:var(--t-cap);font-weight:600}
+table.wgrid th.gname.sub{font-family:var(--f-body);font-size:var(--t-cap)}
+.pastsum .ps-l{font-size:var(--t-foot);font-weight:600}
+.pastsum .ps-n{font-family:var(--f-body);font-size:var(--t-cap)}
+details.more summary{font-size:var(--t-foot)}
+.boothh,.gboin b{font-weight:600}
+.namecell.is-open{font-size:var(--t-foot);font-weight:600;text-transform:capitalize}   /* "Open"; the grid keeps its lowercase whisper */
+
+/* ---- weekend bands: a real title, pinned under the bar as you scroll its shows (cards view; Grid pins its day row) ---- */
+.band-h{border-bottom:0;padding:0 0 8px;margin-bottom:8px;align-items:baseline}
+.band-h h2{font-size:var(--t-title2);line-height:28px;font-weight:700;letter-spacing:-.018em;text-transform:none;color:var(--ink)}
+.band-h .sub,.band-h .cov{font-family:var(--f-body);font-size:var(--t-foot)}
+.kiosk .band-h h2{color:var(--ink)}
+body:not(.gridv):not(.kioskv) .band:not(.past)>.band-h{position:sticky;top:var(--topH,0px);z-index:20;
+  margin:0 -16px 8px;padding:10px 16px 8px;
+  background:color-mix(in srgb,var(--ground) 84%,transparent);
+  -webkit-backdrop-filter:saturate(180%) blur(16px);backdrop-filter:saturate(180%) blur(16px)}
+/* who's on this weekend: one row you swipe on a phone, every chip a 44px target */
+.rchip{font-family:var(--f-body);font-size:var(--t-foot);font-weight:500;min-height:30px;padding:0 12px;position:relative}
+.rchip b{font-family:var(--f-body);font-size:var(--t-cap);font-weight:500}
+.rchip::after{content:"";position:absolute;inset:-4px -3px}
+@media (max-width:640px){
+  .band:not(.kiosk)>.rollup{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px 8px;padding:4px 16px;scroll-padding-inline:16px;gap:6px}
+  .band:not(.kiosk)>.rollup::-webkit-scrollbar{display:none}
+  .band:not(.kiosk)>.rollup .rchip{flex:none;min-height:36px}
+}
+
+/* ---- cards: white on stone separates them; no border, no shadow; a tier tick only where the tier is news ---- */
+.ev{border:0;box-shadow:none;border-radius:12px;margin-bottom:10px;transition:none}
+.ev:not(.k-closed):hover{box-shadow:none}
+.ev-h:hover{background:color-mix(in srgb,var(--ink) 3%,transparent)}
+.ev::before{top:15px;bottom:auto;height:20px;width:3px;border-radius:0 3px 3px 0}
+.ev.t-Traditional::before,.ev.t-Untagged::before{display:none}
+.ev-name{font-size:var(--t-head);line-height:22px;font-weight:600;letter-spacing:-.012em}
+.ev.k-closed .ev-name{font-size:var(--t-sub);line-height:20px}
+.ev-meta,.ev-meta .mono,.resline,.res i{font-size:var(--t-foot);line-height:18px}
+.res b{font-size:var(--t-foot);font-weight:600;color:var(--ink-3)}
+.gridwrap-w,.nw-wrap,.kmv-h,.kmv-days ul{border:0;box-shadow:none;border-radius:12px}
+.glink .gn{font-size:var(--t-sub);line-height:20px;letter-spacing:-.005em}
+.kmv-n .gn{font-size:var(--t-head);line-height:22px;letter-spacing:-.012em}
+/* open is said once: the right side's "Open 2" in green, the open days as one line of text, not chips that look tappable */
+.st,.ev.k-closed .st{font-family:var(--f-body);font-size:var(--t-sub);line-height:20px;font-weight:600;letter-spacing:0;text-transform:none;
+  padding:0;border:0;border-radius:0;background:none;box-shadow:none}
+.st b{font-family:var(--f-body);font-size:inherit;font-weight:inherit;opacity:1}
+.st-open{color:var(--ok)} .st-full{color:var(--ink-2)}
+.st.mini{font-size:var(--t-cap);padding:0}
+.bk{display:inline-block;font-size:var(--t-cap);font-weight:500;padding:2px 8px}
+.bk::first-letter{text-transform:uppercase}
+.openchips{display:block;margin-top:8px;font-size:var(--t-foot);line-height:18px;font-weight:600;color:var(--ok)}
+.openchips span,.k-tent .openchips span{display:inline-block;background:none;border:0;padding:0;margin-right:.4em;border-radius:0;font:inherit;color:inherit;letter-spacing:0}
+.openchips span:has(+span)::after{content:","}
+.openchips span.more{color:var(--ink-3);font-weight:400;padding:0}
+
+/* ---- motion: a press lands at once, the release springs back ---- */
+.chip,.rchip,.btn,.kmp,.seg button,.ctl-toggle,.kcapbtn,.slotpick{
+  transition:background-color var(--d-fast) ease,border-color var(--d-fast) ease,color var(--d-fast) ease,box-shadow var(--d-fast) ease,transform var(--d-base) var(--ease-pop)}
+.chip:active,.rchip:not(.open):not(.full):active,.btn:not(:disabled):active,.kmp:active,.seg button:active,.ctl-toggle:active,.kcapbtn:active{transform:scale(.96);transition-duration:0ms}
+.ev-h{transition:background-color var(--d-fast) ease}
+.ev-h:active,.pickrow:active,.kmr:active{background:color-mix(in srgb,var(--ink) 7%,transparent);transition-duration:0ms}
+/* a card grows open: its body is one box (.ev-bi) whose grid row goes from nothing to its height */
+.ev .ev-b{padding:0}
+.ev.open .ev-b{display:grid;grid-template-rows:1fr}
+.ev-bi{min-width:0;min-height:0;padding:14px 13px 14px 16px}
+.ev.open.just .ev-b{animation:ev-grow var(--d-base) var(--ease-spring)}
+.ev.open.just .ev-bi{overflow:hidden}
+@keyframes ev-grow{from{grid-template-rows:0fr;opacity:0}to{grid-template-rows:1fr;opacity:1}}
+.caret{transition:transform var(--d-base) var(--ease-spring)}
+
+/* ---- the picker: material over the board; the popover grows from the slot (placePop), the sheet slides up ---- */
+#pickpop{background:color-mix(in srgb,var(--pop-bg) 88%,transparent);
+  -webkit-backdrop-filter:saturate(180%) blur(24px);backdrop-filter:saturate(180%) blur(24px);
+  border:var(--hair) solid color-mix(in srgb,var(--ink) 14%,transparent);border-radius:14px;
+  box-shadow:0 10px 30px -6px rgba(40,28,10,.25),0 2px 6px rgba(40,28,10,.08)}
+#pickpop:not([hidden]){animation:pop-in var(--d-fast) var(--ease-spring)}
+#pickpop.sheet{background:color-mix(in srgb,var(--pop-bg) 96%,transparent);border-width:var(--hair) 0 0;border-radius:16px 16px 0 0}
+#pickpop.sheet:not([hidden]){animation:sheet-in var(--d-sheet) var(--ease-spring)}
+@keyframes pop-in{from{opacity:0;transform:scale(.96)}}
+@keyframes sheet-in{from{transform:translateY(100%)}}
+.pickrow{font-size:var(--t-sub)}
+#pickwhat{font-size:var(--t-head)}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) #pickpop:not(.sheet){box-shadow:inset 0 var(--hair) 0 rgba(255,255,255,.08),0 12px 32px rgba(0,0,0,.55)} }
+:root[data-theme="dark"] #pickpop:not(.sheet){box-shadow:inset 0 var(--hair) 0 rgba(255,255,255,.08),0 12px 32px rgba(0,0,0,.55)}
+#siCode,#impText{font-family:var(--f-code)}
+.panel textarea{font-family:var(--f-body)}
+
+/* ---- toasts: material; a failure is red (toastErr) and stays 6 s; both slide away ---- */
+.toast{bottom:calc(20px + env(safe-area-inset-bottom));font-family:var(--f-body);font-size:var(--t-sub);font-weight:500;line-height:20px;
+  padding:10px 18px;border-radius:14px;width:max-content;max-width:calc(100vw - 32px);text-align:center;
+  background:color-mix(in srgb,var(--ink) 90%,transparent);color:var(--surface);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+  box-shadow:0 8px 24px -8px rgba(40,28,10,.35);animation:toastin var(--d-base) var(--ease-spring)}
+.toast.undo{text-align:left}
+.toast.err{background:var(--pend);color:var(--on-pend)}
+.toast.out{animation:toastout var(--d-exit) var(--ease-exit) forwards}
+@keyframes toastout{to{opacity:0;transform:translate(-50%,8px) scale(.98)}}
+
+/* ---- states: the shape of what is loading; a pick that is saving; a write that failed ---- */
+.sk-list{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.sk{height:118px;border-radius:12px;background:linear-gradient(100deg,var(--surface) 40%,var(--surface-2) 50%,var(--surface) 60%) 0 0/300% 100%;
+  animation:sk 1.4s ease-in-out infinite}
+@keyframes sk{from{background-position:100% 0}to{background-position:0 0}}
+.slotbox.saving{opacity:.55;transition:opacity var(--d-fast) ease}
+.slotbox.save-err{box-shadow:0 0 0 2px var(--pend)}
 @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 </style>
 
+<!-- Only the last row (.segrow, plus .modes beside it on a wide screen) stays pinned: the header sticks at a negative
+     top that syncTopH() measures, so the title and the tallies scroll away above it (Alan, 2026-10-15). -->
 <header class="top">
  <div class="top-in">
   <div class="brandrow">
    <span class="mark"><span class="glyph" id="glyph">RSD</span><h1 id="title">Show Shift Board</h1></span>
    <span class="season" id="divchip">Rising Sun Division</span>
-   <div class="seg" id="seasonSeg" role="tablist"></div>
+  </div>
+  <div class="modes">
    <div class="seg ev-only" id="viewSeg" role="tablist"><button role="tab" data-view="cards" aria-selected="true">Cards</button><button role="tab" data-view="grid" aria-selected="false">Grid</button></div>
    <label class="switch" title="Coordinator tools: staffing, tier and access, roll forward, settings">
     <input type="checkbox" id="planMode"><span class="knob"></span><span class="sw-l">Plan mode</span>
    </label>
   </div>
   <div class="tallyrow"><div class="tally" id="tally"></div><div class="stamp" id="stamp"></div></div>
+  <div class="segrow"><div class="seg" id="seasonSeg" role="tablist"></div></div>
  </div>
 </header>
 
@@ -1053,6 +1249,7 @@ try{const r=localStorage.getItem(LS); if(r) store=Object.assign(store,JSON.parse
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(store));}catch(e){}};
 
 let settings=Object.assign({},DEFAULT_SETTINGS);
+const RM=matchMedia('(prefers-reduced-motion: reduce)');   // reduced motion: nothing waits on an animation
 let db=null, dbState='loading', dbKind='none';   // dbState: loading | ready | static | none · dbKind: supabase | static | none
 let authUser=null, isEditor=false, isOwner=false;
 let neverList=[];                 // never_work docs
@@ -1250,9 +1447,16 @@ function span(e){
   return a.length===1?fdate(a[0]):fdate(a[0])+'–'+fdate(a[a.length-1]);
 }
 
-/* the day row sticks under the app header, so its height has to be measured, not assumed */
-function syncTopH(){ const t=document.querySelector('.top'); if(t) document.documentElement.style.setProperty('--topH',t.offsetHeight+'px'); }
+/* The header pins only its last row: it sticks at a negative top (--stick) so everything above .segrow scrolls away,
+   and --topH is what stays in sight, the height the day rows and weekend headers pin under. Both are measured, not
+   assumed: the header's height changes with the view, the tallies and the width. */
+let stickAt=0;
+function syncTopH(){ const t=document.querySelector('.top'), r=t&&t.querySelector('.segrow'); if(!t||!r) return;
+  stickAt=r.offsetTop;
+  const ds=document.documentElement.style; ds.setProperty('--stick',(-stickAt)+'px'); ds.setProperty('--topH',(t.offsetHeight-stickAt)+'px');
+  t.classList.toggle('scrolled',scrollY>=stickAt-1); }
 addEventListener('resize',syncTopH); addEventListener('load',syncTopH);
+if(window.ResizeObserver) new ResizeObserver(syncTopH).observe(document.querySelector('.top'));
 let headRAF=0;
 function pinHeads(){
   headRAF=0;
@@ -1375,7 +1579,7 @@ function build(){
   const board=document.getElementById('board');
   if(!EV.length){
     const y=year(), prev=eventsIn(y-1).length;
-    if(dbState==='loading'){board.innerHTML=`<div class="empty-season"><span>Loading ${y}…</span></div>`;return;}
+    if(dbState==='loading'){board.innerHTML=`<div class="sk-list" aria-busy="true"><span class="ksr" role="status">Loading ${y}…</span>${'<div class="sk"></div>'.repeat(4)}</div>`;return;}
     if(dbState==='none'){board.innerHTML=`<div class="empty-season"><b>Nothing in ${y} here.</b><span>The board couldn't reach its database. Check config.js and the README.</span></div>`;return;}
     board.innerHTML=`<div class="empty-season"><b>${y} is empty.</b><span>${plan()?(prev?`Roll ${y-1} forward to start from its ${prev} shows, or add events one at a time.`:'Add events one at a time, or roll forward once the year before has shows.'):'Turn on Plan mode to roll forward or add events.'}</span>${plan()&&prev&&dbState==='ready'?`<button class="btn" id="emptyRoll">Roll ${y-1} forward</button>`:''}</div>`;return;
   }
@@ -1546,7 +1750,7 @@ function kCard(k,P){
     <span class="ev-right"><span class="bk p-${sk}">${esc(st)}</span>${st==='Booked'&&s.open?`<span class="st st-open">Open <b>${s.open}</b></span>`:''}</span>
     <svg class="caret" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6l4 4 4-4"/></svg>
    </button>
-   <div class="ev-b">${isOpen?kBody(k,P):''}</div>
+   <div class="ev-b">${isOpen?`<div class="ev-bi">${kBody(k,P)}</div>`:''}</div>
   </article>`;
 }
 function kBody(k,P){
@@ -1596,7 +1800,7 @@ function renderKiosks(){
   if(kioskState!=='ready'||dbState==='none'){
     board.innerHTML=`<section class="band kiosk">${head()}<div class="empty-season">${dbState==='none'?'<b>The board couldn\'t reach its database.</b><span>Check config.js and the README.</span>'
       :kioskState==='missing'?`<b>The Kiosk Schedule isn't set up in the database yet.</b><span>${isOwner?'Run supabase/schema.sql once in the Supabase SQL editor (it adds the kiosks table), then <code>node scripts/board.mjs kiosks seed</code>.':'Alan is setting it up.'}</span>`
-      :'<span>Loading the kiosks…</span>'}</div></section>`; return;
+      :'<div class="sk-list" aria-busy="true"><span class="ksr" role="status">Loading the kiosks…</span><div class="sk"></div><div class="sk"></div></div>'}</div></section>`; return;
   }
   if(!list.length){
     const prev=kList(Y-1).filter(k=>kStatus(k)!=='Cancelled').length;
@@ -1643,9 +1847,9 @@ function renderKiosks(){
   if(pickCtx&&pickCtx.kind==='kiosk') kRunMark();
 }
 async function patchKiosk(k,patch){
-  if(!db){toast('Shared storage not available');return false;}
+  if(!db){toastErr('Shared storage not available');return false;}
   try{ await db.doc('kiosks/'+k.id).update(patch); Object.assign(k,patch); build(); return true; }
-  catch(err){ toast(kErr(err)); build(); return false; }
+  catch(err){ toastErr(kErr(err)); build(); return false; }
 }
 /* one day of one mall. It re-reads the mall's row first and writes the whole day map back: another editor
    staffing a different day a moment ago is kept, not overwritten by this tab's older copy. */
@@ -1657,15 +1861,15 @@ async function kFresh(k){
 const kSame=(a,b)=>((a&&a.rep)||'')===((b&&b.rep)||'')&&((a&&a.note)||'')===((b&&b.note)||'');
 async function setKioskDay(id,date,rep){
   const k=kiosks.find(x=>x.id===id); if(!k) return;
-  if(!db){toast('Shared storage not available');return;}
+  if(!db){toastErr('Shared storage not available');return;}
   try{
     const base=await kFresh(k);
     const shifts=Object.assign({},base), prev=base[date]||{};
     if(!rep) delete shifts[date];
     else shifts[date]=Object.assign({rep},rep===prev.rep&&prev.note?{note:prev.note}:{});
     await db.doc('kiosks/'+id).update({shifts});
-    k.shifts=shifts; build();
-  }catch(err){ toast(kErr(err)); }
+    k.shifts=shifts; build(); return true;
+  }catch(err){ toastErr(kErr(err)); return false; }
 }
 /* days in a row (Alan, 2026-10-14: "quickly fill someone's name in if they are working multiple days in a row").
    What lands on the day tapped lands on every open day after it; a day someone already has, or a closed day, is
@@ -1680,7 +1884,7 @@ function kRunDates(c){
 const kSpan=ds=>ds.length?`${kDow(ds[0])} ${fdate(ds[0])}`+(ds.length>1?` – ${kDow(ds[ds.length-1])} ${fdate(ds[ds.length-1])}`:''):'';
 async function setKioskRun(id,dates,rep){
   const k=kiosks.find(x=>x.id===id); if(!k) return;
-  if(!db){toast('Shared storage not available');return;}
+  if(!db){toastErr('Shared storage not available');return;}
   try{
     const base=await kFresh(k), shifts=Object.assign({},base), was={}, on=[], skip=[];
     dates.forEach((d,i)=>{
@@ -1694,12 +1898,12 @@ async function setKioskRun(id,dates,rep){
     if(Object.keys(was).length) await db.doc('kiosks/'+id).update({shifts});
     const after=db.client?await kFresh(k):shifts, missed=Object.keys(was).filter(d=>!kSame(after[d],shifts[d]));
     k.shifts=after; build();
-    if(missed.length){ toast(`${missed.length} of the days didn't save — check them on the board`); return; }
+    if(missed.length){ toastErr(`${missed.length} of the days didn't save — check them on the board`); return; }
     const who=rep==='__X__'?`${k.name} closed`:`${kReps(rep).join(' / ')} on`;
     let m=`${who} ${on.length} day${on.length===1?'':'s'}${rep==='__X__'?'':' at '+k.name}, ${kSpan([dates[0],dates[dates.length-1]])}`;
     if(skip.length) m+=`. Skipped ${skip.map(d=>{ const s=base[d]; return `${kDow(d)} ${fdate(d)} (${s.rep==='__X__'?(s.note||'closed'):kReps(s.rep).join(' / ')+' has it'})`; }).join(', ')}`;
     if(Object.keys(was).length) toastUndo(m+'.',()=>undoKioskRun(id,was,shifts)); else toast(m+'.');
-  }catch(err){ toast(kErr(err)); }
+  }catch(err){ toastErr(kErr(err)); }
 }
 async function undoKioskRun(id,was,wrote){
   const k=kiosks.find(x=>x.id===id); if(!k||!db) return;
@@ -1711,8 +1915,8 @@ async function undoKioskRun(id,was,wrote){
     k.shifts=after; build();
     toast(missed.length?`${missed.length} day${missed.length===1?'':'s'} didn't go back — check them on the board`
       :back.length?`Undone${kept.length?`, except ${kept.length} day${kept.length===1?'':'s'} someone changed since`:''}`
-      :'Nothing undone: someone changed those days since');
-  }catch(err){ toast(kErr(err)); }
+      :'Nothing undone: someone changed those days since',missed.length?{tone:'error'}:null);
+  }catch(err){ toastErr(kErr(err)); }
 }
 function kRollDoc(k,Y){
   const n=Math.max(1,Y-(+k.year)), mv=s=>s?iso(addDays(fromISO(s),364*n)):'';   // 364 days keeps the weekday: Black Friday lands on Black Friday
@@ -1728,7 +1932,7 @@ async function rollKiosks(Y){
   if(!todo.length){ toast('Nothing new to roll into '+Y); return; }
   let done=0;
   for(const k of todo){ const id=Y+'-'+kBase(k.id), doc=kRollDoc(k,Y);
-    try{ await db.doc('kiosks/'+id).set(doc); kiosks.push(Object.assign({id},doc)); done++; }catch(err){ toast(kErr(err)); break; } }
+    try{ await db.doc('kiosks/'+id).set(doc); kiosks.push(Object.assign({id},doc)); done++; }catch(err){ toastErr(kErr(err)); break; } }
   if(done) toast(`Rolled ${done} mall${done===1?'':'s'} into ${Y} as Prospective`);
   build();
 }
@@ -1737,14 +1941,14 @@ function openKAdd(){ closePanels(); const Y=kYear(), [s,e]=kDefaultRange(Y);
   P_('kAddPanel').scrollIntoView({behavior:'smooth',block:'nearest'}); P_('kaName').focus({preventScroll:true}); }
 async function addKiosk(){
   const Y=kYear(), name=P_('kaName').value.trim(), city=P_('kaCity').value.trim(), s=P_('kaStart').value, e=P_('kaEnd').value;
-  if(!name||!s||!e){ toast('Mall name, first day and last day are needed'); return; }
-  if(s>e){ toast('The last day has to be on or after the first day'); return; }
+  if(!name||!s||!e){ toastErr('Mall name, first day and last day are needed'); return; }
+  if(s>e){ toastErr('The last day has to be on or after the first day'); return; }
   const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'mall';
   let id=Y+'-'+slug; if(kiosks.some(k=>k.id===id)) id+='-'+Math.random().toString(36).slice(2,6);
   const xmas=Y+'-12-25', shifts=xmas>=s&&xmas<=e?{[xmas]:{rep:'__X__',note:'Christmas'}}:{};
   const doc={year:Y,name,cityState:city,status:'Prospective',captain:'',cost:'',costNum:null,startDate:s,endDate:e,order:Math.max(0,...kList(Y).map(k=>+k.order||0))+1,notes:'',shifts,createdAt:new Date().toISOString()};
   try{ await db.doc('kiosks/'+id).set(doc); kiosks.push(Object.assign({id},doc)); toast('Added '+name+' to '+Y+' as Prospective'); P_('kaName').value=''; P_('kaCity').value=''; closePanels(); build(); }
-  catch(err){ toast(kErr(err)); }
+  catch(err){ toastErr(kErr(err)); }
 }
 function kioskSummary(){
   const Y=kYear();
@@ -1763,9 +1967,8 @@ function rollup(evs){
   }))));
   Object.keys(ses).forEach(n=>{ if(!(n in counts)) counts[n]=0; });
   const names=Object.keys(counts).sort((x,y)=>counts[y]-counts[x]||x.localeCompare(y));
-  if(!names.length&&!openN) return '';
-  return `<div class="rollup">`+names.map(n=>`<button class="rchip${F.rep===n?' on':''}" data-rep="${esc(n)}">${esc(n)} ${counts[n]?`<b>×${counts[n]}</b>`:''}${ses[n]?`<span class="setag" title="${SETIP}">+SE</span>`:''}</button>`).join('')+
-    (openN?`<span class="rchip open">${openN} open</span>`:`<span class="rchip full">full</span>`)+`</div>`;
+  if(!names.length) return '';   // the weekend header already says how many are open, or that it's full
+  return `<div class="rollup">`+names.map(n=>`<button class="rchip${F.rep===n?' on':''}" data-rep="${esc(n)}">${esc(n)} ${counts[n]?`<b>×${counts[n]}</b>`:''}${ses[n]?`<span class="setag" title="${SETIP}">+SE</span>`:''}</button>`).join('')+`</div>`;
 }
 function weekendCols(w,evs){
   const cols=new Map();
@@ -1901,7 +2104,7 @@ function card(e){
     <span class="ev-right">${pill}</span>
     <svg class="caret" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6l4 4 4-4"/></svg>
    </button>
-   <div class="ev-b">${isOpen?bodyHtml(e):''}</div>
+   <div class="ev-b">${isOpen?`<div class="ev-bi">${bodyHtml(e)}</div>`:''}</div>
   </article>`;
 }
 function resultsEditor(e){
@@ -2033,7 +2236,14 @@ function bodyHtml(e){
 }
 
 /* ---- db writes ---- */
-function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
+/* One toast at a time. A failure is red, stays 6 s and is announced (role=alert); news is ink, 2.4 s, role=status.
+   It slides away rather than vanishing, except under reduced motion, where no animationend ever comes. */
+function toast(m,o){ const err=!!(o&&o.tone==='error');
+  document.querySelectorAll('.toast:not(.undo)').forEach(t=>t.remove());
+  const t=document.createElement('div'); t.className='toast'+(err?' err':''); t.setAttribute('role',err?'alert':'status'); t.textContent=m;
+  document.body.appendChild(t);
+  setTimeout(()=>{ if(RM.matches||!t.isConnected) return t.remove(); t.classList.add('out'); t.addEventListener('animationend',()=>t.remove(),{once:true}); setTimeout(()=>t.remove(),400); },(o&&o.ms)||(err?6000:2400)); }
+const toastErr=m=>toast(m,{tone:'error'});
 /* a toast you can take back: it stays 12 s, long enough to read what was skipped and change your mind */
 function toastUndo(m,undo){
   document.querySelectorAll('.toast.undo').forEach(t=>t.remove());
@@ -2043,9 +2253,9 @@ function toastUndo(m,undo){
   t.append(s,b); document.body.appendChild(t); setTimeout(()=>t.remove(),12000);
 }
 async function patchEvent(id,patch){
-  if(!db){toast('Shared storage not available');return false;}
+  if(!db){toastErr('Shared storage not available');return false;}
   try{ await db.doc('events/'+id).update(patch); return true; }
-  catch(err){ toast(err&&err.code==='read_only'?'Read-only preview — this copy isn\'t connected to the database yet':err&&err.code==='invalid_argument'?'You don\'t have edit access to this board':'Couldn\'t save — try again'); return false; }
+  catch(err){ toastErr(err&&err.code==='read_only'?'Read-only preview — this copy isn\'t connected to the database yet':err&&err.code==='invalid_argument'?'You don\'t have edit access to this board':'Couldn\'t save — try again'); return false; }
 }
 async function setOne(e,k,v){
   if(e.source==='board'){ try{ await db.doc('events/'+e.id).update({[k]:v}); return true; }catch(err){ return false; } }
@@ -2053,13 +2263,13 @@ async function setOne(e,k,v){
   try{ await db.doc('overrides/'+e.id).set(next); return true; }catch(err){ return false; }
 }
 async function setField(e,k,v){
-  if(!db){toast('Shared storage not available');return false;}
+  if(!db){toastErr('Shared storage not available');return false;}
   const same=SHARED.includes(k)?seriesOf(e):[e];
   const fwd=FORWARD.includes(k)?forwardTargets(e):[];
   const seen=new Set(); const members=same.concat(fwd).filter(m=>{const id=m.source+':'+m.id; if(seen.has(id))return false; seen.add(id); return true;});
   const results=await Promise.all(members.map(m=>setOne(m,k,v)));
   const ok=results.filter(Boolean).length;
-  if(!ok){ toast('Couldn\'t save — check your edit access'); return false; }
+  if(!ok){ toastErr('Couldn\'t save — check your edit access'); return false; }
   if(members.length>1){ const yrs=[...new Set(members.map(yearOf))].sort(); toast(`Updated ${ok} date${ok===1?'':'s'}${yrs.length>1?' across '+yrs[0]+'–'+yrs[yrs.length-1]:' of this show'}`); }
   return true;
 }
@@ -2111,7 +2321,7 @@ async function rollForward(includeDead){
   await Promise.all([worker(),worker(),worker(),worker()]);
   try{ await db.doc('seasons/'+Y).set({id:String(Y),label:String(Y),source:'board',rolledFrom:String(Y-1),rolledAt:new Date().toISOString(),count:done-failed}); }catch(e){}
   prog.hidden=true; bar.style.width='0';
-  toast(failed?`Rolled ${done-failed} events into ${Y}, ${failed} failed`:`Rolled ${done} events into ${Y}`);
+  toast(failed?`Rolled ${done-failed} events into ${Y}, ${failed} failed`:`Rolled ${done} events into ${Y}`,failed?{tone:'error'}:null);
   document.getElementById('rollPanel').hidden=true;
 }
 
@@ -2133,9 +2343,9 @@ board.addEventListener('click',async ev=>{
   if(ev.target.closest('.ev-h')){
     open.has(id)?open.delete(id):open.add(id);
     art.classList.toggle('open',open.has(id));
-    if(open.has(id)){ art.classList.add('just'); art.addEventListener('animationend',()=>art.classList.remove('just'),{once:true}); }
+    if(open.has(id)&&!RM.matches){ art.classList.add('just'); art.addEventListener('animationend',()=>art.classList.remove('just'),{once:true}); }
     art.querySelector('.ev-h').setAttribute('aria-expanded',open.has(id));
-    if(art.classList.contains('ev')) art.querySelector('.ev-b').innerHTML=open.has(id)?bodyHtml(e):''; else build();
+    if(art.classList.contains('ev')) art.querySelector('.ev-b').innerHTML=open.has(id)?`<div class="ev-bi">${bodyHtml(e)}</div>`:''; else build();
     return;
   }
   const add=ev.target.closest('[data-add]');
@@ -2174,7 +2384,7 @@ board.addEventListener('click',async ev=>{
   }
   const ha=ev.target.closest('[data-hist-add]');
   if(ha){ const w=ha.closest('.hist'); const y=w.querySelector('[data-hist-newyear]').value.trim(), c=w.querySelector('[data-hist-newcpo]').value, o=w.querySelector('[data-hist-neworders]').value;
-    if(!/^20\d\d$/.test(y)){toast('Enter a 4-digit year');return;}
+    if(!/^20\d\d$/.test(y)){toastErr('Enter a 4-digit year');return;}
     await saveHist(e,y,c,o); return; }
   const hd=ev.target.closest('[data-hist-del]');
   if(hd){ await saveHist(e,hd.dataset.histDel,null,null,true); return; }
@@ -2186,9 +2396,9 @@ board.addEventListener('click',async ev=>{
     try{
       await db.doc('events/'+id).delete();
       /* gone means gone from the database: a delete the database refuses comes back without an error */
-      if(db.client){ const {data}=await db.client.from('events').select('id').eq('id',id).maybeSingle(); if(data){ toast('Couldn\'t remove '+e.name+' — check your edit access'); armRedraw(key,evDelBtns); return; } }
+      if(db.client){ const {data}=await db.client.from('events').select('id').eq('id',id).maybeSingle(); if(data){ toastErr('Couldn\'t remove '+e.name+' — check your edit access'); armRedraw(key,evDelBtns); return; } }
       boardEvents=boardEvents.filter(x=>x.id!==id); open.delete(id); toast('Removed '+e.name+' from '+yearOf(e)); build();
-    }catch(err){ toast(err&&err.code==='read_only'?'Read-only preview — this copy isn\'t connected to the database yet':'Couldn\'t remove — check your edit access'); armRedraw(key,evDelBtns); }
+    }catch(err){ toastErr(err&&err.code==='read_only'?'Read-only preview — this copy isn\'t connected to the database yet':'Couldn\'t remove — check your edit access'); armRedraw(key,evDelBtns); }
     return; }
   if(ev.target.closest('[data-never]')){ const f=art.querySelector('.neverform'); f.hidden=false; f.querySelector('input').focus(); return; }
   if(ev.target.closest('[data-never-cancel]')){ art.querySelector('.neverform').hidden=true; return; }
@@ -2200,7 +2410,7 @@ board.addEventListener('click',async ev=>{
       await db.doc('never_work/'+nid).set({name:e.name,seriesKey:key,cityState:e.cityState||'',reason:why,lastYear:yearOf(e),fromEventId:e.id,addedAt:new Date().toISOString(),addedBy:authUser?authUser.email:''});
       await Promise.all(members.map(m=>db.doc('events/'+m.id).update({neverWork:true,dead:true,status:'Cancelled'})));
       toast(members.length>1?`Never again — all ${members.length} dates of ${e.name}`:`Never again — ${e.name}`);
-    }catch(err){ toast('Couldn\'t save — check your edit access'); }
+    }catch(err){ toastErr('Couldn\'t save — check your edit access'); }
     return; }
 });
 board.addEventListener('keydown',ev=>{ if((ev.key==='Enter'||ev.key===' ')&&ev.target.closest('.band.past .band-h')){ev.preventDefault();ev.target.click();} });
@@ -2227,9 +2437,9 @@ board.addEventListener('click',async ev=>{
     try{
       await db.doc('kiosks/'+id).delete();
       /* gone means gone from the database, not just from this screen */
-      if(db.client){ const {data}=await db.client.from('kiosks').select('id').eq('id',id).maybeSingle(); if(data){ toast('Couldn\'t remove '+k.name+' — check your edit access'); build(); return; } }
+      if(db.client){ const {data}=await db.client.from('kiosks').select('id').eq('id',id).maybeSingle(); if(data){ toastErr('Couldn\'t remove '+k.name+' — check your edit access'); build(); return; } }
       kiosks=kiosks.filter(x=>x.id!==id); kOpen.delete(id); toast('Removed '+k.name+' from '+k.year); build();
-    }catch(err){ toast(kErr(err)); build(); }
+    }catch(err){ toastErr(kErr(err)); build(); }
     return; }
 });
 board.addEventListener('change',async ev=>{
@@ -2237,9 +2447,9 @@ board.addEventListener('change',async ev=>{
   const f=ev.target.closest('[data-kf]'); if(!f) return;
   const card=f.closest('[data-kid]'), k=card&&kiosks.find(x=>x.id===card.dataset.kid); if(!k) return;
   const key=f.dataset.kf; let v=f.value.trim();
-  if(key==='name'&&!v){ toast('A mall needs a name'); f.value=k.name||''; return; }
+  if(key==='name'&&!v){ toastErr('A mall needs a name'); f.value=k.name||''; return; }
   if(key==='startDate'||key==='endDate'){ const s=key==='startDate'?v:k.startDate, e=key==='endDate'?v:k.endDate;
-    if(!v||(s&&e&&s>e)){ toast('The last day has to be on or after the first day'); f.value=k[key]||''; return; } }
+    if(!v||(s&&e&&s>e)){ toastErr('The last day has to be on or after the first day'); f.value=k[key]||''; return; } }
   if(key==='order') v=v===''?99:+v;
   if(key==='cost'){ const m=v.match(/\d[\d,]*(?:\.\d+)?/), n=m?parseFloat(m[0].replace(/,/g,'')):null;
     if(n!=null&&/^\$?\s*[\d,]+(\.\d+)?$/.test(v)) v='$'+n.toLocaleString('en-US',{maximumFractionDigits:2});
@@ -2251,7 +2461,7 @@ board.addEventListener('click',async ev=>{
   const r=ev.target.closest('[data-restore]'); if(!r||!plan())return;
   const n=neverList.find(x=>x.id===r.dataset.restore); if(!n)return;
   try{ await db.doc('never_work/'+n.id).delete(); if(n.fromEventId){ try{ await db.doc('events/'+n.fromEventId).update({neverWork:false}); }catch(e){} } toast('Restored — '+n.name+' can roll forward again'); }
-  catch(err){ toast('Couldn\'t restore'); }
+  catch(err){ toastErr('Couldn\'t restore'); }
 });
 board.addEventListener('change',async ev=>{
   const art=ev.target.closest('[data-id]'); if(!art)return;
@@ -2273,15 +2483,15 @@ board.addEventListener('change',async ev=>{
 });
 const parseCpo=s=>{ s=String(s||'').trim().toLowerCase().replace(/[$,]/g,''); if(!s)return null; const m=s.match(/^(\d+(?:\.\d+)?)\s*(k)?$/); if(!m)return null; let n=parseFloat(m[1]); if(m[2]) n*=1000; else if(n<100) n*=1000; return Math.round(n); };
 async function saveHist(e,y,cpo,orders,remove){
-  if(!db){toast('Shared storage not available');return;}
+  if(!db){toastErr('Shared storage not available');return;}
   const key=baseId(e.id); const years=Object.assign({},histMap[key]||{});
   if(remove) delete years[y]; else { const c=parseCpo(cpo); const o=String(orders||'').replace(/\D/g,''); years[y]={cpo:c,orders:o?+o:null}; }
   try{ await db.doc('history/'+key).set({name:e.name,years,updatedAt:new Date().toISOString()}); }
-  catch(err){ toast('Couldn\'t save results — check your edit access'); }
+  catch(err){ toastErr('Couldn\'t save results — check your edit access'); }
 }
 async function setSlot(e,B,bi,si,di,val){
-  if(B){ const booths=withBooths(e,bs=>{const sl=bs[bi].shifts[si].slots[di]||(bs[bi].shifts[si].slots[di]={}); sl.rep=val.rep; sl.ft=val.ft||[];}); await patchEvent(e.id,{booths}); }
-  else { store.slots[e.id+'|'+bi+'|'+si+'|'+di]=val.rep+(val.ft&&val.ft.length?' (ft. '+val.ft.join(' & ')+')':''); save(); build(); }
+  if(B){ const booths=withBooths(e,bs=>{const sl=bs[bi].shifts[si].slots[di]||(bs[bi].shifts[si].slots[di]={}); sl.rep=val.rep; sl.ft=val.ft||[];}); return await patchEvent(e.id,{booths}); }
+  else { store.slots[e.id+'|'+bi+'|'+si+'|'+di]=val.rep+(val.ft&&val.ft.length?' (ft. '+val.ft.join(' & ')+')':''); save(); build(); return true; }
 }
 /* ---- name picker: type to narrow the list, click (or Enter) to pick ----
    A native <select> can't filter, and on a phone it opens a wheel you can't type into. This is a
@@ -2385,7 +2595,7 @@ function placePop(){
   if(sheet){
     const vv=window.visualViewport, kb=vv?Math.max(0,Math.round(innerHeight-vv.height-vv.offsetTop)):0, k=kiosks.find(x=>x.id===pickCtx.id);
     P_('pickwhat').textContent=!k?'':pickCtx.kind==='kcap'?`Captain · ${k.name}`:`${k.name} · ${kDow(pickCtx.date)} ${fdate(pickCtx.date)}`;
-    Object.assign(pop.style,{left:'0px',width:'auto',top:'auto',bottom:kb+'px',maxHeight:Math.round((vv?vv.height:innerHeight)*.64)+'px'});
+    Object.assign(pop.style,{left:'0px',width:'auto',top:'auto',bottom:kb+'px',maxHeight:Math.round((vv?vv.height:innerHeight)*.64)+'px',transformOrigin:''});
     return;
   }
   pop.style.bottom=''; pop.style.maxHeight='';
@@ -2394,12 +2604,13 @@ function placePop(){
   pop.style.width=w+'px'; pop.style.top='0px'; const h=pop.offsetHeight;
   /* a kiosk day opens beside its column where there is room, so the days below it (the run) stay in sight */
   const side=!kiosk?null:r.right+4+w<=innerWidth-8?r.right+4:r.left-4-w>=8?r.left-4-w:null;
-  if(side!=null){ pop.style.left=side+'px'; pop.style.top=Math.min(Math.max(8,r.top),Math.max(8,innerHeight-h-8))+'px'; return; }
-  pop.style.left=Math.min(Math.max(8,r.left), innerWidth-w-8)+'px';
+  const grow=(l,t)=>{ pop.style.transformOrigin=Math.round(Math.min(Math.max(r.left+r.width/2-l,0),w))+'px '+Math.round(Math.min(Math.max(r.top+r.height/2-t,0),h))+'px'; };
+  if(side!=null){ const t=Math.min(Math.max(8,r.top),Math.max(8,innerHeight-h-8)); pop.style.left=side+'px'; pop.style.top=t+'px'; grow(side,t); return; }
+  const left=Math.min(Math.max(8,r.left), innerWidth-w-8); pop.style.left=left+'px';
   let top=r.bottom+4;
   if(pickCtx.ending&&r.top-h-4>=8) top=r.top-h-4;
   else if(top+h>innerHeight-8) top=Math.max(8, r.top-h-4);
-  pop.style.top=top+'px';
+  pop.style.top=top+'px'; grow(left,top);
 }
 function openPick(btn){
   if(pickCtx&&pickCtx.btn!==btn){ pickCtx.btn.classList.remove('picking'); pickCtx=null; kRunMark(); }
@@ -2418,6 +2629,14 @@ function openPick(btn){
   btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus();
 }
 function closePick(){ pop.hidden=true; pop.classList.remove('ending','sheet'); document.body.classList.remove('ksheet'); const b=pickCtx&&pickCtx.btn; pickCtx=null; kRunMark(); if(b){ b.classList.remove('picking'); if(document.contains(b)) b.focus(); } }
+/* The slot just picked shows it is saving until the board redraws with the new name (a moment later, over realtime).
+   A write that failed rings it red beside the error toast, until the next redraw. */
+async function savingSlot(btn,write){
+  const box=btn&&btn.closest('.slotbox'); if(box) box.classList.add('saving');
+  const ok=await write;
+  if(box&&box.isConnected){ if(ok===false){ box.classList.remove('saving'); box.classList.add('save-err'); } else setTimeout(()=>box.classList.remove('saving'),6000); }
+  return ok;
+}
 async function applyPick(v){
   if(pickCtx&&pickCtx.kind==='kcap'){
     const c=pickCtx, typed=popQ.value; closePick();
@@ -2435,10 +2654,10 @@ async function applyPick(v){
     else rep=v;                                     // a name, '' (clear) or '__X__' (closed)
     if(c.split&&rep&&rep!=='__X__') rep=kReps(c.split+' / '+rep).filter((x,i,a)=>a.indexOf(x)===i).join(' / ');
     const run=c.n>1&&rep&&!/^__DROP\d__$/.test(v)?kRunDates(c):[];
-    if(run.length>1) await setKioskRun(c.id,run,rep); else await setKioskDay(c.id,c.date,rep);
+    if(run.length>1) await savingSlot(c.btn,setKioskRun(c.id,run,rep)); else await savingSlot(c.btn,setKioskDay(c.id,c.date,rep));
     return;
   }
-  if(!pickCtx) return; const {id,bi,si,di}=pickCtx, typed=popQ.value;
+  if(!pickCtx) return; const {id,bi,si,di,btn}=pickCtx, typed=popQ.value;
   const e=cur().find(x=>x.id===id); closePick(); if(!e)return;
   const B=e.source==='board';
   let val;
@@ -2446,7 +2665,7 @@ async function applyPick(v){
   else if(v==='__X__') val={rep:'__X__',ft:[]};
   else if(!v) val={rep:'',ft:[]};
   else val={rep:v,ft:B?((e.booths[bi].shifts[si].slots[di]||{}).ft||[]):[]};
-  await setSlot(e,B,bi,si,di,val);
+  await savingSlot(btn,setSlot(e,B,bi,si,di,val));
 }
 popQ.addEventListener('input',renderPickList);
 pop.addEventListener('click',ev=>{ if(ev.target.closest('#pickx')){ closePick(); return; }
@@ -2495,7 +2714,7 @@ P('qaCancel').addEventListener('click',closePanels);
 P('qaStart').addEventListener('change',()=>{ if(!P('qaEnd').value) P('qaEnd').value=P('qaStart').value; });
 P('qaGo').addEventListener('click',async()=>{
   const name=P('qaName').value.trim(), st=P('qaStart').value, en=P('qaEnd').value||st;
-  if(!name||!st){toast('Name and start date are required');return;}
+  if(!name||!st){toastErr('Name and start date are required');return;}
   const s=fromISO(st), e2=fromISO(en); const days=[]; const NAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   for(let d=new Date(s);d<=e2&&days.length<7;d=addDays(d,1)) days.push(NAMES[d.getDay()]);
   const dates=dayDates(days,st);
@@ -2508,7 +2727,7 @@ P('qaGo').addEventListener('click',async()=>{
     tier:P('qaTier').value,access:P('qaAcc').value,level:'',flag:'',status:'Prospective',vcNumber:'',dead:false,
     booths:[{label:'',status:'',days,dates,shifts:[{label:'Shift 1',slots:days.map(()=>({rep:'',ft:[]}))}]}],createdAt:new Date().toISOString()};
   try{ const ref=await db.collection('events').add(doc); toast('Added '+name+' to '+Y); ['qaName','qaStart','qaEnd','qaCity','qaLoc','qaAddr','qaSetting','qaPromoter','qaContact','qaPhone','qaEmail','qaWeb','qaCost','qaApply','qaApplyBy','qaNotes'].forEach(i=>P(i).value=''); P('qaMore').open=false; closePanels(); open.add(ref.id); if(Y!==year()){store.year=Y;save();} }
-  catch(err){ toast(err&&err.code==='quota_exceeded'?'The board is full — remove some events first':'Couldn\'t add — check your edit access'); }
+  catch(err){ toastErr(err&&err.code==='quota_exceeded'?'The board is full — remove some events first':'Couldn\'t add — check your edit access'); }
 });
 P('btnKAdd').addEventListener('click',openKAdd);
 P('kaCancel').addEventListener('click',closePanels);
@@ -2517,7 +2736,7 @@ P('kaName').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDef
 P('btnImport').addEventListener('click',()=>{ closePanels(); P('impPanel').hidden=false; P('impText').focus(); });
 P('impCancel').addEventListener('click',closePanels);
 P('impGo').addEventListener('click',async()=>{
-  if(!db){toast('Shared storage not available');return;}
+  if(!db){toastErr('Shared storage not available');return;}
   const lines=P('impText').value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
   const all=sheetEvents().concat(boardEvents); const byName={};
   all.forEach(e=>{const k=normName(e.name); (byName[k]=byName[k]||new Set()).add(baseId(e.id));});
@@ -2530,7 +2749,7 @@ P('impGo').addEventListener('click',async()=>{
     if(!keys){unmatched.push(name);return;}
     keys.forEach(k=>{ (updates[k]=updates[k]||{name,years:{}}).years[yr]={cpo:parseCpo(cpo),orders:orders?+String(orders).replace(/\D/g,'')||null:null}; });
   });
-  const ids=Object.keys(updates); if(!ids.length){toast(rows?'No names matched':'Paste rows like: Event name, 2025, 17k, 40');P('impOut').textContent=unmatched.length?'Unmatched: '+unmatched.join(' · '):'';return;}
+  const ids=Object.keys(updates); if(!ids.length){toastErr(rows?'No names matched':'Paste rows like: Event name, 2025, 17k, 40');P('impOut').textContent=unmatched.length?'Unmatched: '+unmatched.join(' · '):'';return;}
   let ok=0; for(const k of ids){ const years=Object.assign({},histMap[k]||{},updates[k].years);
     try{ await db.doc('history/'+k).set({name:updates[k].name,years,updatedAt:new Date().toISOString()}); ok++; }catch(err){} }
   toast(`Loaded results for ${ok} show${ok===1?'':'s'}`);
@@ -2543,12 +2762,12 @@ P('stGo').addEventListener('click',async()=>{
     roster:P('stRoster').value.split('\n').map(x=>x.trim()).filter(Boolean),
     meetings:P('stMeetings').value.split('\n').map(x=>x.trim()).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)).sort(),updatedAt:new Date().toISOString()};
   if(!db){ settings=Object.assign({},DEFAULT_SETTINGS,s); build(); closePanels(); toast('Saved on this device only'); return; }
-  try{ await db.doc('settings/division').set(s); closePanels(); toast('Settings saved for everyone'); }catch(err){ toast('Couldn\'t save settings — check your edit access'); }
+  try{ await db.doc('settings/division').set(s); closePanels(); toast('Settings saved for everyone'); }catch(err){ toastErr('Couldn\'t save settings — check your edit access'); }
 });
 
 P('copy').addEventListener('click',()=>{
   if(viewKiosk()){ navigator.clipboard.writeText((settings.short||'RSD')+' Kiosk Schedule — '+kYear()+' — '+new Date().toLocaleDateString()+'\n\n'+kioskSummary())
-    .then(()=>toast('Kiosk schedule copied'),()=>toast('Copy blocked by browser')); return; }
+    .then(()=>toast('Kiosk schedule copied'),()=>toastErr('Copy blocked by browser')); return; }
   const out=[];
   cur().filter(matches).filter(e=>!wkPast(e.weekend)).forEach(e=>{
     const rows=[];
@@ -2559,7 +2778,7 @@ P('copy').addEventListener('click',()=>{
     out.push(e.name+'  ['+e.status+' · '+tierOf(e)+' · '+accOf(e)+']\n'+rows.join('\n'));
   });
   navigator.clipboard.writeText((settings.short||'RSD')+' Show Shift Board — '+year()+' — '+new Date().toLocaleDateString()+'\n\n'+out.join('\n\n'))
-    .then(()=>toast('Staffing summary copied'),()=>toast('Copy blocked by browser'));
+    .then(()=>toast('Staffing summary copied'),()=>toastErr('Copy blocked by browser'));
 });
 P('reset').addEventListener('click',()=>{store.slots={};store.extra={};save();build();toast('Shift scratchpad cleared');});
 
@@ -2685,7 +2904,8 @@ P('btnSync').addEventListener('click',async()=>{
 P('syncMore').addEventListener('click',()=>{ const last=syncLast(); if(!last) return; closePanels(); renderSyncPanel(last); P('syncPanel').hidden=false; P('syncPanel').scrollIntoView({behavior:'smooth',block:'nearest'}); });
 P('syncClose').addEventListener('click',closePanels);
 P('ctlToggle').addEventListener('click',()=>{ const on=document.body.classList.toggle('filters-open'); P('ctlToggle').setAttribute('aria-expanded',on); });
-addEventListener('scroll',()=>{ document.querySelector('.top').classList.toggle('scrolled',scrollY>4); },{passive:true});
+addEventListener('scroll',()=>{ document.querySelector('.top').classList.toggle('scrolled',scrollY>=stickAt-1); },{passive:true});   // the hairline shows once the bar is pinned
+addEventListener('touchstart',()=>{},{passive:true});   // iOS Safari shows :active (the press state) only when a touch listener exists
 P('planMode').checked=plan();
 build();
 /* ---- data layer ----
