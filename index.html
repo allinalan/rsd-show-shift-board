@@ -448,6 +448,22 @@ table.wgrid .slotbox.filled{background:var(--surface);border-color:var(--steel)}
 #board .slotbox.krun{border-color:var(--navy);background:color-mix(in srgb,var(--navy) 12%,var(--surface))}   /* #board: beats the grid's open-slot "no box" */
 #board .slotbox.krunskip{border:1px dashed var(--warn)}
 @media (max-width:640px){ .pdseg button{height:40px} .pdend{padding:12px 2px} }
+/* the phone's kiosk picker is a sheet from the bottom edge: the day tapped and the run after it stay in sight above it */
+#pickpop.sheet{right:0;border-width:1px 0 0;border-radius:16px 16px 0 0;padding:6px 12px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px rgba(0,18,40,.18)}
+#pickpop.sheet::before{content:"";display:block;flex:none;width:36px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 2px}
+#pickpop.sheet .pickrow{padding:11px 10px}
+#pickpop.sheet:not(.ending) #picklist{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:max-content;gap:1px 4px;align-content:start}   /* twice the names in sight */
+#pickpop.sheet #picklist .use,#pickpop.sheet #picklist .pickempty{grid-column:1/-1}
+/* nothing is typed on a sheet until you tap the box: the first name isn't lit as if it were already chosen */
+#pickpop.sheet:not(:has(#pickq:focus)) .pickrow.on{background:none;color:var(--ink)}
+#pickpop.sheet:not(:has(#pickq:focus)) .pickrow.on b{color:var(--navy);background:color-mix(in srgb,var(--navy) 12%,transparent)}
+#pickhead{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 0 2px 2px}
+#pickhead[hidden]{display:none}
+#pickwhat{font-family:var(--f-disp);font-weight:700;font-size:.92rem;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pickx{flex:none;width:40px;height:40px;border:0;background:none;color:var(--ink-2);font-size:1.5rem;line-height:1;cursor:pointer;border-radius:8px}
+#pickx:hover{background:var(--surface-2)}
+body.ksheet .kmv-days{padding-bottom:62vh}
+body.ksheet .top{position:static}   /* the board's header (220px on a phone) lets go while the sheet is up, so the days show */
 .toast.undo{display:flex;align-items:center;gap:12px;border-radius:12px;width:max-content;max-width:calc(100vw - 32px);line-height:1.4;box-sizing:border-box}
 .toast.undo button{flex:none;font:inherit;font-weight:700;color:inherit;background:none;border:1px solid currentColor;border-radius:99px;
   padding:0 14px;min-height:36px;cursor:pointer}
@@ -777,46 +793,65 @@ body.kioskv .ev-only.ev-only{display:none !important}
 .kmh .glink{display:block;min-height:24px;padding:3px 0}            /* a mall's name is a 24px target, not a 17px line of text */
 .kcapbtn{min-height:26px}
 .dl .kcapbtn.wide{margin-top:0;width:100%;min-height:34px;font-size:.84rem;padding:6px 8px}
-table.ktbl .namecell.kcx,.kd li.kcx .kw{text-decoration:line-through;opacity:.55}   /* a cancelled mall's names: nobody works them */
+table.ktbl .namecell.kcx{text-decoration:line-through;opacity:.55}   /* a cancelled mall's names: nobody works them */
 /* thumbs: a phone's targets at 38-44px (Apple's 44pt) */
 @media (max-width:640px){
   .kiosk .rollup .rchip{min-height:38px;padding:6px 12px;font-size:.8rem}
   .kiosk .band-h .seg button{min-height:44px;padding:6px 16px}
   .kiosk .kfold{min-height:44px}
-  .kd .kw .slotbox .slotpick{min-height:40px}
+  .kmr .kw .slotbox .slotpick{min-height:40px}
   .kmine .linkbtn{min-height:32px;padding:0 6px}
 }
 .kcapbtn{display:block;margin-top:4px;padding:3px 7px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);
   font:inherit;font-size:.7rem;font-weight:600;cursor:pointer;text-align:left;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kcapbtn.none{border-style:dashed;color:var(--ink-3);font-weight:500}
 .kcapbtn:hover,.kcapbtn.picking{border-color:var(--navy);color:var(--navy)}
-/* a rep's read: names never split mid-name; the phone gets a list of days instead of a table */
+/* a rep's read: names never split mid-name */
 .kn{white-space:nowrap}
 .kiosk .rollup .klbl{font-size:.72rem;color:var(--ink-3);align-self:center;margin-right:2px}
 .kmine span.past{opacity:.5} .kmine span.now{background:var(--navy);color:var(--on-accent)}
 .kmine .linkbtn{align-self:center}
 .kfold{margin:0 0 10px}
-.kdays{display:none}
-@media (max-width:640px){ .kiosk .kgrid{display:none} .kdays{display:flex;flex-direction:column;gap:7px} }
-.kd{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.kd.kmon{margin-top:8px}
-.kdl{font-family:var(--f-disp);font-weight:700;font-size:.88rem;padding:7px 12px;background:var(--surface-2);border-bottom:1px solid var(--line-soft);color:var(--ink)}
-.kd.kwe .kdl{background:color-mix(in srgb,var(--navy) 9%,var(--surface))}
-.kdl i{font-style:normal;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--on-accent);background:var(--navy);border-radius:4px;padding:2px 6px;margin-left:8px;vertical-align:2px}
-.kd.ktoday{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
-.kd.kpast{opacity:.6}
-.kd ul{list-style:none;margin:0;padding:0}
-.kd li{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 12px;border-top:1px solid var(--line-soft)}
-.kd li:first-child{border-top:0}
-.kd .km{color:var(--ink-2);font-size:.82rem;min-width:0}
-.kd .kw{font-weight:600;font-size:.92rem;text-align:right;min-width:0}
-.kd .kw .ksp{color:var(--ink-3);font-weight:400}
-.kd .kw .knote{display:block;font-size:.7rem;font-weight:400;color:var(--ink-3)}
-.kd .kopen{color:var(--ok);font-weight:700}
-.kd .kxw{color:var(--ink-3);font-weight:400}
-.kd li.khit{background:color-mix(in srgb,var(--navy) 16%,var(--surface))}
-.kd li.kdim .kw{opacity:.55}
-.kd .kw .slotbox{min-width:150px;max-width:none}
+/* the phone reads one mall at a time (Alan, 2026-10-14: "by mall not by date"); a wider screen keeps the table */
+.kmv-top,.kmv-days{display:none}
+@media (max-width:640px){ .kiosk .kgrid{display:none} .kmv-top{display:block;margin:2px 0 12px} .kmv-days{display:block} }
+.kmp-row{display:flex;flex-wrap:wrap;gap:6px}
+.kmp{min-height:44px;padding:5px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);
+  font:inherit;text-align:left;cursor:pointer}
+.kmp b{display:block;font-family:var(--f-disp);font-size:.84rem;font-weight:600;line-height:1.2}
+.kmp small{display:block;font-size:.7rem;color:var(--ink-3)}
+.kmp.on{background:var(--key);border-color:var(--key);color:var(--on-accent)}
+.kmp.on small{color:var(--on-accent)}
+.kmv-h{margin-top:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px 10px}
+.kmv-n{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.kmv-n .glink{min-height:36px;padding:4px 0;text-align:left}
+.kmv-n .gn{font-family:var(--f-disp);font-weight:700;font-size:1.08rem;color:var(--ink)}
+.kmv-n .kedit{font-size:.75rem;color:var(--ink-3);margin-left:6px;font-weight:400}
+.kmv-m{font-size:.78rem;color:var(--ink-2);margin-top:2px}
+.kmv-h .kcost{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-2);margin-top:4px;font-variant-numeric:tabular-nums}
+.kmv-h .kcapbtn{display:inline-block;margin-top:6px;min-height:38px;font-size:.8rem;padding:6px 10px}
+.kmv-s{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:.76rem;color:var(--ink-2);margin-top:6px}
+.kmv-s b{color:var(--ink)} .kmv-s .o b{color:var(--ok)}
+.kmv-days ul{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.kmr{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:3px 12px;border-top:1px solid var(--line-soft)}
+.kmr:first-child{border-top:0}
+.kmr.kmon{border-top:2px solid var(--line)}
+.kmr.kwe{background:color-mix(in srgb,var(--navy) 7%,var(--surface))}
+.kmd{font-family:var(--f-mono);font-size:.76rem;color:var(--ink-2);white-space:nowrap}
+.kmd b{font-weight:500;color:var(--ink)}
+.kmd i{font-family:var(--f-body);font-style:normal;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--on-accent);
+  background:var(--navy);border-radius:4px;padding:2px 6px;margin-left:6px;vertical-align:1px}
+.kmr.ktoday{box-shadow:inset 3px 0 0 var(--navy)}
+.kmr.kpast .kmd,.kmr.kpast .kmd b,.kmr.kpast .kw{color:var(--ink-3)}   /* gone by: greyed, never faded below 4.5:1 */
+.kmr .kw{font-weight:600;font-size:.92rem;text-align:right;min-width:0}
+.kmr .kw .ksp{color:var(--ink-3);font-weight:400}
+.kmr .kw .knote{display:block;font-size:.7rem;font-weight:400;color:var(--ink-3)}
+.kmr .kopen{color:var(--ok);font-weight:700}
+.kmr .kxw{color:var(--ink-3);font-weight:400}
+.kmr.khit{background:color-mix(in srgb,var(--navy) 16%,var(--surface))}
+.kmr.kdim .kw{color:var(--ink-3);font-weight:400}
+.kmr.kcx .kw{color:var(--ink-3);text-decoration:line-through}
+.kmr .kw .slotbox{min-width:168px;max-width:none}
 table.ktbl .slotbox.kprosp .slotpick{color:var(--ink-3);opacity:.6}   /* Prospective: an empty day there isn't an open shift */
 body.kioskv #syncLine,body.kioskv #syncPanel{display:none !important}   /* renderSync rewrites the line's classes */
 @media (max-width:520px){ table.ktbl{width:max(100%,calc(70px + var(--kn,5) * 100px))} table.ktbl thead th.kdh{width:70px} table.ktbl th.kday{min-width:0;padding:5px 6px} }
@@ -984,6 +1019,7 @@ body.kioskv #syncLine,body.kioskv #syncPanel{display:none !important}   /* rende
  </div>
 </div>
 <div id="pickpop" role="dialog" aria-label="Assign this shift" hidden>
+ <div id="pickhead" hidden><span id="pickwhat"></span><button type="button" id="pickx" aria-label="Close">&times;</button></div>
  <div id="pickdays" hidden></div>
  <input id="pickq" type="text" placeholder="Type a name…" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Type to filter names">
  <div id="picklist" role="listbox"></div>
@@ -1451,25 +1487,37 @@ function kHead(k,P){
   return `<th class="kmh k-${sk}" scope="col"><button class="glink" data-kgo="${esc(k.id)}" title="${P?'Rename it, or set its cost, dates and notes':esc(k.name)+': captain, cost, dates'}"><span class="gn">${esc(k.name)}${P?'<span class="kedit" aria-hidden="true">&#9998;</span>':''}</span></button>`+
     (flags?`<span class="gsub">${flags}</span>`:'')+cap+(cost?`<span class="kcost">${esc(cost)}</span>`:'')+`</th>`;
 }
-/* the phone's version of a day: the malls down the page with who is on each, so nothing scrolls sideways.
-   A mall we are not in yet is left out on a day nobody is on (it would say "not in yet" thirty times). */
-function kDayCard(d,list,P,td,running){
-  const dt=fromISO(d), dw=dt.getDay(), here=list.filter(k=>kIn(k,d));
-  const allClosed=here.length>0&&here.every(k=>((kDay(k,d)||{}).rep||'')==='__X__');
-  let body='';
-  if(allClosed&&!P){ const note=(kDay(here[0],d)||{}).note; body=`<li><span class="km">Every mall</span><span class="kw"><span class="kxw">closed${note?' · '+esc(note):''}</span></span></li>`; }
-  else body=here.map(k=>{
-    const day=kDay(k,d)||{}, v=day.rep||'', st=kStatus(k), filled=v&&v!=='__X__';
-    if(!P&&!filled&&st!=='Booked') return '';
-    const hit=!!kRep&&kReps(v).includes(kRep);
+/* the phone's version (Alan, 2026-10-14: "I need to be able to see it by mall not by date"): one mall at a time,
+   picked from a row of buttons, its days down the page like one column of the table. The mall picked is
+   remembered on this device by its base (store.kMall), so it carries into next season; first visit = the first
+   booked mall. Rendered beside the table; CSS shows one or the other at 640px. */
+function kMallPick(list){ return (store.kMall&&list.find(k=>kBase(k.id)===store.kMall))||list.find(k=>kStatus(k)==='Booked')||list[0]; }
+function kMallTop(list,P,td){
+  const k=kMallPick(list); if(!k) return '';
+  const pills=list.map(x=>{ const s=kStats(x), st=kStatus(x), ds=kDates([x]), over=ds.length&&ds[ds.length-1]<td;
+    const sub=st!=='Booked'?st:over?`${s.filled} day${s.filled===1?'':'s'} worked`:s.open?`${s.open} open`:'all filled';
+    return `<button type="button" class="kmp${x===k?' on':''}" data-kmall="${esc(kBase(x.id))}" aria-pressed="${x===k}"><b>${esc(x.name)}</b><small>${esc(sub)}</small></button>`; }).join('');
+  const s=kStats(k), st=kStatus(k), sk=KSKEY[st];
+  const range=k.startDate&&k.endDate?`${kDow(k.startDate)} ${fdate(k.startDate)} – ${kDow(k.endDate)} ${fdate(k.endDate)}`:'dates not set yet';
+  const cap=P?`<button class="slotpick kcapbtn${k.captain?'':' none'}" data-kcap="${esc(k.id)}" aria-haspopup="listbox">${k.captain?'Captain '+esc(k.captain):'+ Assign a captain'}</button>`
+    :(k.captain?`<div class="kmv-m">Captain <span class="kn">${esc(k.captain)}</span></div>`:'');
+  const stats=st==='Booked'?`<span><b>${s.filled}</b> filled</span>${s.open?`<span class="o"><b>${s.open}</b> open</span>`:''}`
+    :st==='Prospective'?'<span>Not signed yet: an empty day here isn\'t an open shift</span>':'<span>Cancelled: nobody works it</span>';
+  return `<div class="kmv-top"><div class="kmp-row" role="group" aria-label="Malls">${pills}</div>
+    <div class="kmv-h ks-${sk}"><div class="kmv-n"><button class="glink" data-kgo="${esc(k.id)}" title="${P?'Rename it, or set its cost, dates and notes':'Captain, cost, dates'}"><span class="gn">${esc(k.name)}${P?'<span class="kedit" aria-hidden="true">&#9998;</span>':''}</span></button><span class="bk p-${sk}">${esc(st)}</span></div>
+    <div class="kmv-m">${k.cityState?esc(k.cityState)+' · ':''}${range}</div>${cap}${kCostTxt(k)?`<div class="kcost">${esc(kCostTxt(k,true))}</div>`:''}<div class="kmv-s">${stats}</div></div></div>`;
+}
+function kMallDays(list,shown,P,td,running){
+  const k=kMallPick(list); if(!k) return '';
+  const st=kStatus(k), mine=shown.filter(d=>kIn(k,d));
+  const rows=mine.map((d,i)=>{ const dw=fromISO(d).getDay(), day=kDay(k,d)||{}, v=day.rep||'', filled=v&&v!=='__X__', hit=!!kRep&&kReps(v).includes(kRep);
+    const cls=['kmr',dw===0||dw===6?'kwe':'',dw===1&&i?'kmon':'',d===td?'ktoday':'',running&&d<td?'kpast':'',st==='Cancelled'?'kcx':!P&&hit?'khit':!P&&kRep&&filled?'kdim':''].filter(Boolean).join(' ');
     const who=P&&st!=='Cancelled'?kCell(k,d,P)
       :v==='__X__'?`<span class="kxw">${esc(day.note||'closed')}</span>`
       :filled?kNames(v)+(day.note?`<span class="knote">${esc(day.note)}</span>`:'')
       :(st==='Booked'&&!kPast(d)?'<span class="kopen">open</span>':'<span class="kxw">—</span>');
-    return `<li class="${st==='Cancelled'?'kcx':hit?'khit':kRep&&filled?'kdim':''}"><span class="km">${esc(k.name)}</span><span class="kw">${who}</span></li>`;
-  }).join('');
-  const cls=['kd',dw===0||dw===6?'kwe':'',dw===1?'kmon':'',d===td?'ktoday':'',running&&d<td?'kpast':''].filter(Boolean).join(' ');
-  return `<div class="${cls}"><h3 class="kdl">${dt.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}${d===td?'<i>today</i>':''}</h3><ul>${body||'<li><span class="km">nobody on yet</span></li>'}</ul></div>`;
+    return `<li class="${cls}"><span class="kmd">${kDow(d)} <b>${fdate(d)}</b>${d===td?'<i>today</i>':''}</span><span class="kw">${who}</span></li>`; }).join('');
+  return `<div class="kmv-days"><ul>${rows||`<li class="kmr"><span class="kmd">${k.startDate?'No days left to show':'Its dates aren\'t set yet'}</span></li>`}</ul></div>`;
 }
 function kCell(k,d,P){
   const day=kDay(k,d)||{}, v=day.rep||'', st=kStatus(k), hit=!!kRep&&kReps(v).includes(kRep);
@@ -1520,10 +1568,10 @@ function kFocusKey(){
   const a=document.activeElement; if(!a||!a.closest||!a.closest('#board')) return null;
   const card=a.closest('article[data-kid]'), d=a.dataset||{};
   if(d.kday) return {sel:`.slotpick[data-kid="${d.kid}"][data-kday="${d.kday}"]`};
-  if(d.kcap) return {sel:`${card?`#kc-${d.kcap} `:'.kmh '}.kcapbtn[data-kcap="${d.kcap}"]`};
+  if(d.kcap) return {sel:card?`#kc-${d.kcap} .kcapbtn[data-kcap="${d.kcap}"]`:`.kmh .kcapbtn[data-kcap="${d.kcap}"],.kmv-h .kcapbtn[data-kcap="${d.kcap}"]`};
   if(d.kf&&card) return {sel:`#${card.id} [data-kf="${d.kf}"]`,value:a.value,start:a.selectionStart,end:a.selectionEnd};
   if(d.kdel!=null&&card) return {sel:`#${card.id} [data-kdel]`};
-  for(const k of ['krep','kyear','kgo','kpast']) if(d[k]!=null) return {sel:`[data-${k}="${d[k]}"]`};
+  for(const k of ['krep','kyear','kgo','kpast','kmall']) if(d[k]!=null) return {sel:`[data-${k}="${d[k]}"]`};
   if(card&&a.classList.contains('ev-h')) return {sel:`#${card.id} .ev-h`};
   return null;
 }
@@ -1582,10 +1630,9 @@ function renderKiosks(){
       list.map(k=>kIn(k,d)?`<td class="gcell">${kCell(k,d,P)}</td>`:`<td class="gcell na"></td>`).join('')+`</tr>`; }).join('');
   board.innerHTML=`<section class="band kiosk">${head(sub,cov)}
     <p class="legend">Who's working each mall's kiosk, day by day. Two names on a day share it (a split day).${notIn.length?` Prospective: ${esc(notIn.join(', '))}.`:''}${P?' Click a day to put someone on it, split it, or mark the mall closed.':''}</p>
-    ${chips}${mine}${fold}
+    ${kMallTop(list,P,td)}${chips}${mine}${fold}
     <div class="gridwrap gridwrap-w kgrid"><table class="wgrid ktbl" style="--kn:${list.length}"><caption class="ksr">Kiosk schedule ${Y}: who works each mall's kiosk each day</caption><thead>${thead}</thead><tbody>${rows}</tbody></table></div>
-    <div class="kdays">${!P&&!booked&&!filledN?`<div class="empty-season"><b>Nothing booked for ${Y} yet.</b><span>The days show up here once a mall is booked and people are on them.</span></div>`
-      :shown.map(d=>kDayCard(d,list.filter(k=>kStatus(k)!=='Cancelled'||P),P,td,running)).join('')}</div>
+    ${kMallDays(list,shown,P,td,running)}
     <div class="kmalls"><h3 class="sec-l">The malls</h3>${list.map(k=>kCard(k,P)).join('')}</div>
   </section>`;
   kRestoreFocus(keepFocus);
@@ -2164,6 +2211,7 @@ board.addEventListener('click',async ev=>{
   const yb=t.closest('[data-kyear]'); if(yb){ kYearSel=+yb.dataset.kyear; kOpen.clear(); kRep=''; kShowPast=false; build(); return; }
   const rc=t.closest('[data-krep]'); if(rc){ kRep=kRep===rc.dataset.krep?'':rc.dataset.krep; build(); return; }
   if(t.closest('[data-kpast]')){ kShowPast=!kShowPast; build(); return; }
+  const mb=t.closest('[data-kmall]'); if(mb){ store.kMall=mb.dataset.kmall; save(); build(); return; }
   const go=t.closest('[data-kgo]'); if(go){ const id=go.dataset.kgo; kOpen.add(id); build(); const el=document.getElementById('kc-'+id); if(!el) return;
     el.scrollIntoView({behavior:'smooth',block:'center'});
     const nm=plan()&&el.querySelector('input[data-kf="name"]'); if(nm){ nm.focus({preventScroll:true}); nm.select(); } return; }
@@ -2306,17 +2354,18 @@ function renderPickDays(){
   }
   kRunMark();
 }
+const pickFocus=()=>{ if(!pop.classList.contains('sheet')) popQ.focus(); };
 function pickDays(v){
   const c=pickCtx; if(!c) return;
   if(v==='end'){ c.ending=true; renderPickDays(); placePop(); popQ.blur(); const b=pickDaysBox.querySelector('[data-pd="back"]'); if(b) b.focus({preventScroll:true}); return; }
-  if(v==='back'){ c.ending=false; renderPickDays(); placePop(); popQ.focus(); return; }
-  c.n=+v||1; c.ending=false; renderPickDays(); placePop(); popQ.focus();
+  if(v==='back'){ c.ending=false; renderPickDays(); placePop(); pickFocus(); return; }
+  c.n=+v||1; c.ending=false; renderPickDays(); placePop(); pickFocus();
 }
 /* while picking the last day: a tap on the same mall, that day or later, ends the run there (any other day opens as usual) */
 function kRunEnd(btn){
   const c=pickCtx; if(!c||c.kind!=='kiosk'||!c.ending||btn.dataset.kid!==c.id||!btn.dataset.kday||btn.dataset.kday<c.date) return false;
   c.n=Math.round((fromISO(btn.dataset.kday)-fromISO(c.date))/864e5)+1; c.ending=false;
-  renderPickDays(); placePop(); popQ.focus(); return true;
+  renderPickDays(); placePop(); pickFocus(); return true;
 }
 /* light up the run on the board, the grid and the phone's day list alike; a day that will be skipped gets a dashed edge */
 function kRunMark(){
@@ -2327,7 +2376,20 @@ function kRunMark(){
     document.querySelectorAll(`.slotpick[data-kid="${c.id}"][data-kday="${d}"]`).forEach(b=>{ const box=b.closest('.slotbox'); if(box) box.classList.add(taken?'krunskip':'krun'); }); });
 }
 function placePop(){
-  if(!pickCtx) return; const r=pickCtx.btn.getBoundingClientRect();
+  if(!pickCtx) return;
+  /* a phone's kiosk picker is a sheet; it rides above the on-screen keyboard (visualViewport), which a plain
+     bottom:0 would leave it under */
+  const sheet=innerWidth<=640&&(pickCtx.kind==='kiosk'||pickCtx.kind==='kcap');
+  pop.classList.toggle('sheet',sheet); document.body.classList.toggle('ksheet',sheet&&pickCtx.kind==='kiosk');
+  P_('pickhead').hidden=!sheet;
+  if(sheet){
+    const vv=window.visualViewport, kb=vv?Math.max(0,Math.round(innerHeight-vv.height-vv.offsetTop)):0, k=kiosks.find(x=>x.id===pickCtx.id);
+    P_('pickwhat').textContent=!k?'':pickCtx.kind==='kcap'?`Captain · ${k.name}`:`${k.name} · ${kDow(pickCtx.date)} ${fdate(pickCtx.date)}`;
+    Object.assign(pop.style,{left:'0px',width:'auto',top:'auto',bottom:kb+'px',maxHeight:Math.round((vv?vv.height:innerHeight)*.64)+'px'});
+    return;
+  }
+  pop.style.bottom=''; pop.style.maxHeight='';
+  const r=pickCtx.btn.getBoundingClientRect();
   const kiosk=pickCtx.kind==='kiosk', w=Math.min(Math.max(r.width,kiosk?264:214), innerWidth-16);
   pop.style.width=w+'px'; pop.style.top='0px'; const h=pop.offsetHeight;
   /* a kiosk day opens beside its column where there is room, so the days below it (the run) stay in sight */
@@ -2343,17 +2405,19 @@ function openPick(btn){
   if(pickCtx&&pickCtx.btn!==btn){ pickCtx.btn.classList.remove('picking'); pickCtx=null; kRunMark(); }
   if(btn.dataset.kcap){ const k=kiosks.find(x=>x.id===btn.dataset.kcap); if(!k) return;
     pickCtx={kind:'kcap',id:k.id,btn,v:k.captain||'',rep:k.captain||'',se:false};
-    btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus(); return; }
+    btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); pickFocus(); return; }
   if(btn.dataset.kday){ const k=kiosks.find(x=>x.id===btn.dataset.kid); if(!k) return; const rep=(kDay(k,btn.dataset.kday)||{}).rep||'';
     pickCtx={kind:'kiosk',id:k.id,date:btn.dataset.kday,btn,v:rep,rep,se:false,split:'',n:1,ending:false};
-    btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus(); return; }
+    btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); pickFocus();
+    if(pop.classList.contains('sheet')) scrollBy(0,btn.getBoundingClientRect().top-12);   // the day tapped to the top: the days after it show above the sheet
+    return; }
   const art=btn.closest('[data-id]'); const e=cur().find(x=>x.id===art.dataset.id); if(!e)return;
   const bi=+btn.dataset.b, si=+btn.dataset.s, di=+btn.dataset.d;
   const b=boothsOf(e)[bi], sl=(b&&b.shifts[si]&&b.shifts[si].slots[di])||{rep:''};
   pickCtx={id:e.id,bi,si,di,btn,v:btn.textContent.trim(),rep:val(e,bi,si,di,sl.rep)||'',se:isSE(b&&b.days[di])};
   btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus();
 }
-function closePick(){ pop.hidden=true; pop.classList.remove('ending'); const b=pickCtx&&pickCtx.btn; pickCtx=null; kRunMark(); if(b){ b.classList.remove('picking'); if(document.contains(b)) b.focus(); } }
+function closePick(){ pop.hidden=true; pop.classList.remove('ending','sheet'); document.body.classList.remove('ksheet'); const b=pickCtx&&pickCtx.btn; pickCtx=null; kRunMark(); if(b){ b.classList.remove('picking'); if(document.contains(b)) b.focus(); } }
 async function applyPick(v){
   if(pickCtx&&pickCtx.kind==='kcap'){
     const c=pickCtx, typed=popQ.value; closePick();
@@ -2362,8 +2426,8 @@ async function applyPick(v){
   }
   if(pickCtx&&pickCtx.kind==='kiosk'){
     const c=pickCtx;
-    if(v==='__SPLIT__'){ c.split=kReps(c.rep)[0]||''; popQ.value=''; renderPickList(); popQ.focus(); return; }
-    if(v==='__NOSPLIT__'){ c.split=''; renderPickList(); popQ.focus(); return; }
+    if(v==='__SPLIT__'){ c.split=kReps(c.rep)[0]||''; popQ.value=''; renderPickList(); pickFocus(); return; }
+    if(v==='__NOSPLIT__'){ c.split=''; renderPickList(); pickFocus(); return; }
     const typed=popQ.value; closePick();
     let rep;
     if(v==='__USE__'){ rep=splitRep(typed).rep; if(!rep) return; }
@@ -2385,7 +2449,8 @@ async function applyPick(v){
   await setSlot(e,B,bi,si,di,val);
 }
 popQ.addEventListener('input',renderPickList);
-pop.addEventListener('click',ev=>{ const d=ev.target.closest('[data-pd]'); if(d){ pickDays(d.dataset.pd); return; }
+pop.addEventListener('click',ev=>{ if(ev.target.closest('#pickx')){ closePick(); return; }
+  const d=ev.target.closest('[data-pd]'); if(d){ pickDays(d.dataset.pd); return; }
   const r=ev.target.closest('.pickrow'); if(r) applyPick(r.dataset.v); });
 pop.addEventListener('keydown',ev=>{
   if(ev.key==='Escape'){ ev.preventDefault(); if(pickCtx&&pickCtx.ending) pickDays('back'); else closePick(); return; }
@@ -2399,7 +2464,8 @@ pop.addEventListener('keydown',ev=>{
   } else if(ev.key==='Enter'){ ev.preventDefault(); applyPick((rows[i<0?0:i]).dataset.v); }
 });
 document.addEventListener('mousedown',ev=>{ if(pickCtx&&!pop.contains(ev.target)&&!ev.target.closest('.slotpick')) closePick(); });
-addEventListener('resize',()=>{ if(pickCtx){ if(pickCtx.ending) placePop(); else closePick(); } });
+addEventListener('resize',()=>{ if(pickCtx){ if(pickCtx.ending||pop.classList.contains('sheet')) placePop(); else closePick(); } });
+if(window.visualViewport) visualViewport.addEventListener('resize',()=>{ if(pickCtx&&pop.classList.contains('sheet')) placePop(); });
 addEventListener('scroll',()=>{ if(pickCtx) placePop(); },true);
 document.getElementById('seasonSeg').addEventListener('click',e=>{const b=e.target.closest('[data-year]'); if(!b)return; const y=b.dataset.year; store.year=(y==='never'||y==='kiosk')?y:+y; save(); open.clear(); build();});
 document.getElementById('q').addEventListener('input',e=>{F.q=e.target.value;build();});

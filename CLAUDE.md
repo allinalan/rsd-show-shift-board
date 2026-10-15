@@ -18,9 +18,14 @@ routines in `.claude/skills/` keep it true.
   ($7,000) and Arrowhead ($7,300), Sierra Vista and Cielo Vista Mall rolled from 2025 as Prospective, Kierland new and
   Prospective ("we are not in yet"). Park Place Mall is out, 2025 included (Alan, 2026-10-14). Nov 27 - Dec 27, Christmas
   closed. In plan mode the captain is picked from each mall's column header and the name there opens the mall to rename.
-  Read as a rep (Alan, 2026-10-14: "who's working what day"): a phone gets a list of days (`.kdays`), a wider screen the
-  table (`.kgrid`), both rendered and one shown by CSS at 640px; in season the days already gone fold away so it opens on
-  today; names under "Tap your name" are alphabetical; the header tags only what isn't Booked. UI pass the same day: phone
+  A wider screen gets the table (`.kgrid`); a phone gets **one mall at a time** (Alan, 2026-10-14: "I need to be able to
+  see it by mall not by date"; it replaced a by-day list the same day): mall buttons, the mall's card (status, captain,
+  cost, filled/open), then its days down the page (`.kmv-top` / `.kmv-days`, `kMallTop` / `kMallDays`). Both rendered,
+  one shown by CSS at 640px. The mall picked is remembered on that device by base (`store.kMall`, carries into next
+  season); first visit = the first booked mall. On a phone the kiosk day and captain pickers are a sheet from the bottom
+  (`#pickpop.sheet`): the day tapped scrolls to the top, the board's sticky header lets go while it is up, so the run
+  shows above it; names in two columns; no keyboard until the name box is tapped; it rides above the keyboard
+  (visualViewport). In season the days already gone fold away so it opens on today; names under "Tap your name" are alphabetical; the header tags only what isn't Booked. UI pass the same day: phone
   targets 38-44px, a redraw keeps keyboard focus and half-typed card fields (`kFocusKey`), the season tabs scroll on a
   small phone instead of pushing Never off screen, and the captain is the same picker on the card and header. **Days in a
   row** (Alan, 2026-10-14: fill a name in for several days without picking each one): the day picker's 1-7, or "Pick the
