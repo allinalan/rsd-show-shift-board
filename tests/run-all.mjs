@@ -1156,8 +1156,8 @@ def post(route, text, mention=None, fallback=True, **k):
     let p = JSON.parse(r.stdout);
     ok(r.code === 0 && p.changed && !p.applied && JSON.stringify(T('settings').get('division').roster) === JSON.stringify(boardRoster), 'roster sync: dry by default, nothing written');
     ok(JSON.stringify(p.removed.map(x => x.name)) === '["Drew","Emery"]', 'roster sync: the two who left come off: ' + JSON.stringify(p.removed));
-    ok(JSON.stringify(p.added.map(x => `${x.name}=${x.rep}`).sort()) === JSON.stringify(['Finley O.=Finley Oak', 'Harper=Harper Vale', 'Indy=Indy Reed', 'Jules=Jules Fox']), 'roster sync: new active reps are added, first name, or "First L." when it is taken: ' + JSON.stringify(p.added));
-    ok(!p.roster.includes('Lane') && !p.added.some(x => x.rep === 'Lane Gale'), 'roster sync: a Leader is not added (not a board tier)');
+    ok(JSON.stringify(p.added.map(x => `${x.name}=${x.rep}`).sort()) === JSON.stringify(['Finley O.=Finley Oak', 'Harper=Harper Vale', 'Indy=Indy Reed', 'Jules=Jules Fox', 'Lane=Lane Gale']), 'roster sync: new active reps are added, first name, or "First L." when it is taken: ' + JSON.stringify(p.added));
+    ok(p.roster.includes('Lane') && p.added.some(x => x.rep === 'Lane Gale'), 'roster sync: a Leader goes on too (Alan, 2026-10-21: Luke Mills works shifts)');
     ok(JSON.stringify(p.unknown) === '["Oldtimer"]' && p.roster.includes('Oldtimer'), 'roster sync: a name the master list does not know is left alone, and named');
     ok(p.roster.includes('Casey') && p.roster.includes('Casey M.') && p.roster.includes('Finley A.') && p.roster.includes('Brook'), 'roster sync: existing spellings stay as they are (aliases, "First L.", a last-name nickname)');
 
