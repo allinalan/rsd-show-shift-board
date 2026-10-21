@@ -44,7 +44,7 @@ routines in `.claude/skills/` keep it true.
 - **The roster follows the rep master list** (Alan, 2026-10-21: "update the show shift board roster too (make that
   automatic)"). Every morning the tick pulls `~/automations/rsd-rep-master-list` and runs `board roster sync --apply`
   (`scripts/lib/roster-sync.mjs`): a name tied to a rep who LEFT moves from `settings.roster` to `settings.former`; an
-  active rep in a board tier (Elite, Varsity, JV, Freshmen, Coordinator; not Leader) with no name gets one (an alias of
+  active rep in a board tier (Elite, Varsity, JV, Freshmen, Coordinator, and Leader since Alan's yes for Luke Mills the same day) with no name gets one (an alias of
   theirs, else the first name, else "First L.", only a name that ties back to them alone); a name the master list cannot
   tie to anyone (Carlton, Nathaniel on 2026-10-21) is left alone and named; a rep who rejoins gets their old spelling
   back. It never renames: every shift is stored as the roster spells it. Ties by letters only (case and punctuation

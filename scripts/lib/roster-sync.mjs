@@ -15,7 +15,8 @@
   when exactly one rep fits, their first name, "First L" or "F Last". Pure: no network, no files.
 */
 
-export const BOARD_TIERS = ['Elite', 'Varsity', 'JV', 'Freshmen', 'Coordinator'];
+// Leader since 2026-10-21 (Alan: Luke Mills works shifts, "yes, please add him on there")
+export const BOARD_TIERS = ['Elite', 'Varsity', 'JV', 'Freshmen', 'Coordinator', 'Leader'];
 const norm = s => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
 const words = s => String(s || '').trim().split(/\s+/).filter(Boolean);
 
