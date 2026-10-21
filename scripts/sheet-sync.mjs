@@ -303,7 +303,8 @@ async function run(api, startedAt) {
   const grid = opt('--grid') ? JSON.parse(fs.readFileSync(opt('--grid'), 'utf8')) : await readGrid(file, CFG.sheet.tab);
   const seasonYear = /^\d{4}$/.test(String(CFG.sheet.tab)) ? Number(CFG.sheet.tab) : 2026;
   const { events: sheetEvents, warnings } = parseAll(grid, { seasonYear });
-  const resolve = makeRepResolver(settings.roster || []);
+  const known = [...(settings.roster || []), ...(settings.former || [])];   // a rep who left is still known (their old shifts)
+  const resolve = makeRepResolver(known);
   const { events: baseEvents, source: baseSource } = loadBaseline();
   const boardById = new Map(boardEvents.map(e => [e.id, e]));
   const boardByKey = new Map(boardEvents.map(e => [`${normName(e.name)}|${e.weekend || ''}`, e]));
@@ -423,7 +424,7 @@ async function run(api, startedAt) {
   }
 
   // reps nobody can place are carried as written, and named
-  const roster = new Set((settings.roster || []).map(r => repKey(r, null)));
+  const roster = new Set(known.map(r => repKey(r, null)));
   const unresolved = new Set();
   for (const e of sheetEvents) for (const b of e.booths || []) for (const s of b.shifts) for (const sl of s.slots) {
     const r = t(sl.rep); if (isRep(r) && !roster.has(repKey(resolve(r), null))) unresolved.add(r);

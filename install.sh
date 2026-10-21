@@ -46,6 +46,9 @@ else
   bad "$ENVF does not exist (Alan creates it; see docs/HANDOFF.md step 2)"
 fi
 [ -f "$PROJECT/seed/private/event_contacts.json" ] && ok "private contacts seed present" || warn "seed/private/event_contacts.json is absent (only matters before the first seed)"
+# the tick keeps settings.roster in step with the rep master list every morning (CLAUDE.md, 2026-10-21)
+[ -f "$HOME/automations/rsd-rep-master-list/data/roster.json" ] && ok "rep master list present (the tick syncs the roster from it)" || warn "no ~/automations/rsd-rep-master-list: the tick alerts every morning and leaves the roster alone (git clone https://github.com/allinalan/rsd-rep-master-list.git ~/automations/rsd-rep-master-list)"
+[ -f "$PROJECT/ROSTER-PAUSED" ] && warn "ROSTER-PAUSED is present: the roster is not synced from the master list"
 TZNAME="$(readlink /etc/localtime | sed 's|.*/zoneinfo/||')"; [ "$TZNAME" = "America/Phoenix" ] && ok "clock is $TZNAME" || bad "clock is $TZNAME, expected America/Phoenix"
 (cd "$PROJECT" && /usr/local/bin/node scripts/check-public.mjs >/dev/null 2>&1) && ok "public-repo leak check is clean" || bad "leak check found something (node scripts/check-public.mjs)"
 (cd "$PROJECT" && /usr/local/bin/node tests/run-all.mjs >/dev/null 2>&1) && ok "unit tests pass" || bad "unit tests fail (node tests/run-all.mjs)"

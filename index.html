@@ -1197,7 +1197,7 @@ body:not(.gridv):not(.kioskv) .band:not(.past)>.band-h{position:sticky;top:var(-
     <label>Short name<input id="stShort" type="text" maxlength="12"></label>
     <label>Division code<input id="stCode" type="text" inputmode="numeric"></label>
    </div>
-   <label class="full">Roster (one name per line, the short name reps know)<textarea id="stRoster" rows="8"></textarea></label>
+   <label class="full">Roster (one name per line, the short name reps know)<textarea id="stRoster" rows="8"></textarea><span class="hint" style="display:block;margin-top:4px">Kept in step with the rep master list every morning: someone who left the team comes off, someone new goes on. A name the master list doesn't know is left as you typed it.</span></label>
    <label class="full">Shift-picking meetings (one date per line, YYYY-MM-DD — the routines key off these: research 7 days before, booking requests the day after)<textarea id="stMeetings" rows="3" placeholder="2027-01-15&#10;2027-05-01&#10;2027-08-14"></textarea></label>
    <p class="hint">These drive the title, the rep dropdowns and the rep filter. Another division gets its own copy of this board with its own settings.</p>
    <div class="panel-actions">
@@ -2758,7 +2758,8 @@ P('impGo').addEventListener('click',async()=>{
 P('btnSettings').addEventListener('click',()=>{ closePanels(); P('stName').value=settings.name||''; P('stShort').value=settings.short||''; P('stCode').value=settings.code||''; P('stMeetings').value=(settings.meetings||[]).join('\n'); P('stRoster').value=(settings.roster||[]).join('\n'); P('setPanel').hidden=false; });
 P('stCancel').addEventListener('click',closePanels);
 P('stGo').addEventListener('click',async()=>{
-  const s={name:P('stName').value.trim()||DEFAULT_SETTINGS.name,short:P('stShort').value.trim()||DEFAULT_SETTINGS.short,code:P('stCode').value.trim(),
+  // fields this panel doesn't show (former: reps who left, kept by the morning roster sync) survive a save
+  const s={former:settings.former||[],rosterSyncedAt:settings.rosterSyncedAt||null,name:P('stName').value.trim()||DEFAULT_SETTINGS.name,short:P('stShort').value.trim()||DEFAULT_SETTINGS.short,code:P('stCode').value.trim(),
     roster:P('stRoster').value.split('\n').map(x=>x.trim()).filter(Boolean),
     meetings:P('stMeetings').value.split('\n').map(x=>x.trim()).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)).sort(),updatedAt:new Date().toISOString()};
   if(!db){ settings=Object.assign({},DEFAULT_SETTINGS,s); build(); closePanels(); toast('Saved on this device only'); return; }

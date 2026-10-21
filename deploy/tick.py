@@ -12,6 +12,11 @@ WHAT IT DOES (stage 1: decide and notify, nothing else)
   1. PAUSED file in the repo root -> log one line, exit 0. That file is the kill switch.
   2. git pull --ff-only when the tree is clean (the mini holds no unique code). A dirty tree or a
      failed pull -> Slack alert naming the repo and the reason, then carry on: stale, not fatal.
+  2b. The roster (Alan, 2026-10-21: "make that automatic"): pull ~/automations/rsd-rep-master-list (ff-only, never over
+     local edits), then node scripts/board.mjs roster sync --apply. Someone who left moves from settings.roster to
+     settings.former, someone new is added; one FYI line in #rsd-board when it changed. A refusal or a failure is an
+     alert in #rsd-alerts and the tick carries on: loud, not fatal (scripts/lib/roster-sync.mjs). ROSTER-PAUSED in the
+     repo root stops this step alone.
   3. node scripts/board.mjs tick --json   -> which routines are due today. Deterministic.
   4. Nothing due -> one log line, exit 0. No Claude, no messages.
   5. Something due -> one notice to Alan naming the routine and the sentence to say in the Claude
@@ -56,6 +61,7 @@ LABEL = "com.allinalan.rsd-board-tick"
 BOARD_URL = "https://allinalan.github.io/rsd-show-shift-board/"
 MINI = "Alans-Mac-mini"
 SLACKROOM = os.path.join(os.path.expanduser("~"), "ai-system", "lib", "slackroom")
+MASTER = os.environ.get("BOARD_MASTER_REPO") or os.path.join(os.path.expanduser("~"), "automations", "rsd-rep-master-list")
 
 # what Alan says in the Claude desktop app (opened on this repo) to run each routine by hand
 SAY = {
@@ -217,11 +223,11 @@ def fail(reason):
     return 1
 
 
-def git_pull():
+def git_pull(repo=REPO):
     """The mini pulls before every run, but never over local edits."""
-    if not os.path.isdir(os.path.join(REPO, ".git")):
+    if not os.path.isdir(os.path.join(repo, ".git")):
         return "not a git checkout, pull skipped"
-    g = lambda *a: subprocess.run(["/usr/bin/git", "-C", REPO] + list(a), capture_output=True, text=True, timeout=90)  # noqa: E731
+    g = lambda *a: subprocess.run(["/usr/bin/git", "-C", repo] + list(a), capture_output=True, text=True, timeout=90)  # noqa: E731
     try:
         if g("remote").stdout.strip() == "":
             return "no remote yet, pull skipped"
@@ -242,6 +248,67 @@ def stale_alert(pulled):
     slack("MAC MINI AUTOMATION FAILURE — rsd-show-shift-board tick could not update its code: %s\n"
           "%s keeps running the copy it has, which goes stale until this is fixed. Today's tick still ran.\n"
           "Look: cd %s && git status && git pull --ff-only\nLog: %s" % (pulled, REPO, REPO, LOG))
+
+
+def roster_sync():
+    """settings.roster follows the rep master list (2026-10-21). Loud, not fatal: the tick still decides its routines.
+    ROSTER-PAUSED in the repo root stops this step alone (the roster stays as it is; the tick runs as before)."""
+    if os.path.exists(os.path.join(REPO, "ROSTER-PAUSED")):
+        log("ROSTER-PAUSED present: roster not synced")
+        return
+    src = os.path.join(MASTER, "data", "roster.json")
+    if not os.path.isfile(src):
+        log("ROSTER: no rep master list at %s" % src)
+        slack("rsd-show-shift-board tick: the roster was not synced: no rep master list at %s. "
+              "git clone https://github.com/allinalan/rsd-rep-master-list.git %s\nLog: %s" % (src, MASTER, LOG))
+        return
+    if not DRY:
+        pulled = git_pull(MASTER)
+        log("roster: master list %s" % pulled)
+        if pulled.startswith(("tree is dirty", "PULL FAILED")):
+            slack("rsd-show-shift-board tick: could not update the rep master list (%s); the roster is synced from the copy on the mini, "
+                  "which goes stale until this is fixed.\nLook: cd %s && git status && git pull --ff-only\nLog: %s" % (pulled, MASTER, LOG))
+    cmd = [NODE, os.path.join(REPO, "scripts", "board.mjs"), "roster", "sync", "--json", "--from", src] + ([] if DRY else ["--apply"])
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=120, cwd=REPO)
+    except Exception as e:  # noqa: BLE001
+        log("ROSTER FAILED: %s" % str(e)[:200])
+        slack("rsd-show-shift-board tick: the roster sync could not run (%s). Log: %s" % (str(e)[:200], LOG))
+        return
+    try:
+        res = json.loads(r.stdout)
+    except Exception:  # noqa: BLE001
+        res = None
+    if r.returncode == 3 and res:
+        log("ROSTER REFUSED: " + "; ".join(res.get("problems") or []))
+        slack("rsd-show-shift-board tick: the roster sync changed nothing: %s\nLog: %s" % ("; ".join(res.get("problems") or [])[:400], LOG))
+        return
+    if r.returncode != 0 or not res:
+        why = (r.stderr.strip() or r.stdout.strip())[:300]
+        log("ROSTER FAILED (exit %s): %s" % (r.returncode, why))
+        slack("rsd-show-shift-board tick: the roster sync FAILED (exit %s): %s\nLog: %s" % (r.returncode, why, LOG))
+        return
+    if not res.get("changed"):
+        log("roster: matches the master list (%d names)" % len(res.get("roster") or []))
+        return
+    off = ", ".join("%s (%s)" % (x["name"], x["rep"]) for x in res.get("removed") or [])
+    on = ", ".join("%s (%s)" % (x["name"], x["rep"]) for x in (res.get("added") or []) + (res.get("back") or []))
+    text = "Show Shift Board roster, from the rep master list:%s%s" % (
+        ("\nOff (left the team): " + off) if off else "", ("\nOn: " + on) if on else "")
+    if DRY:
+        print("WOULD UPDATE THE ROSTER:\n  " + text.replace("\n", "\n  "))
+        return
+    if not res.get("applied"):
+        log("ROSTER FAILED: changed but not applied")
+        slack("rsd-show-shift-board tick: the roster sync planned a change but did not write it. Log: %s" % LOG)
+        return
+    log("roster updated: " + text.replace("\n", " | "))
+    rm = room()
+    try:
+        if rm and rm.live("rsd.board"):
+            rm.post("rsd.board", text, mention=False, fallback=False)
+    except Exception as e:  # noqa: BLE001  (an FYI that Slack refuses is a log line, never a failure)
+        log("roster note not posted in #rsd-board (%s)" % str(e)[:160])
 
 
 def status():
@@ -305,6 +372,11 @@ def run():
     env = read_env()
     if not env.get("BOARD_SUPABASE_URL") or not env.get("BOARD_SERVICE_KEY"):
         return fail("~/.rsd/board.env is missing BOARD_SUPABASE_URL or BOARD_SERVICE_KEY")
+    try:
+        roster_sync()
+    except Exception as e:  # noqa: BLE001  (the roster must never cost the due list)
+        log("ROSTER FAILED: unexpected %s: %s" % (type(e).__name__, str(e)[:200]))
+        slack("rsd-show-shift-board tick: the roster sync broke (%s: %s). The due list still runs. Log: %s" % (type(e).__name__, str(e)[:200], LOG))
 
     cmd = [NODE, os.path.join(REPO, "scripts", "board.mjs"), "tick", "--json"]
     if "--date" in sys.argv:

@@ -211,7 +211,8 @@ try {
     fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
     fs.writeFileSync(path.join(home, '.rsd', 'board.env'), `BOARD_SUPABASE_URL=${base}\nBOARD_SERVICE_KEY=test\nBOARD_ALAN_IMESSAGE=+15555550100\n`);
     T('settings').set('division', { meetings: ['2027-01-15'] });
-    for (const f of ['deploy/tick.py', 'scripts/board.mjs', '.gitignore']) { fs.mkdirSync(path.dirname(path.join(stage, f)), { recursive: true }); fs.copyFileSync(path.join(REPO, f), path.join(stage, f)); }
+    for (const f of ['deploy/tick.py', 'scripts/board.mjs', 'scripts/lib/roster-sync.mjs', '.gitignore']) { fs.mkdirSync(path.dirname(path.join(stage, f)), { recursive: true }); fs.copyFileSync(path.join(REPO, f), path.join(stage, f)); }
+    fs.writeFileSync(path.join(stage, 'ROSTER-PAUSED'), '');     // these blocks are about the due list; the roster step has its own block
     const tickpy = (...a) => run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', ...a]);
     r = await tickpy('--date', '2026-12-28');
     ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /WOULD iMESSAGE ALAN/.test(r.stdout) && /say "set up the Jan-May changeover for the board"/.test(r.stdout), 'tick.py --dry: a due routine produces one Slack + one iMessage notice: ' + r.stderr);
@@ -1131,6 +1132,77 @@ def post(route, text, mention=None, fallback=True, **k):
     r = await node('scripts/board-research.mjs', 'targets', '--mode', 'dates', '--check', check, '--out', tfile, '--date', '2026-10-01');
     const dw = JSON.parse(fs.readFileSync(tfile, 'utf8'));
     ok(mw.count === 0 && dw.targets.filter(x => x.multiWeek).length === 2 && dw.targets.find(x => x.id === '2026-w1').mismatch, 'board-research targets: a multi-week show is researched by the date runs but left out of the sweep\'s mismatches: ' + JSON.stringify({ mm: mw.count, mw: dw.targets.map(x => [x.id, x.multiWeek, x.mismatch]) }));
+  });
+
+  await section('board roster sync (settings.roster follows the rep master list)', async () => {
+    // fictional people only: this repo is public
+    const rep = (id, name, tier, status = 'active', aliases = []) => ({ id, name, tier, status, aliases });
+    const master = [
+      rep('avery-stone', 'Avery Stone', 'Elite', 'active', ['Avery']), rep('blake-rivers', 'Blake Rivers', 'Varsity', 'active', ['B. Rivers']),
+      rep('casey-moon', 'Casey Moon', 'JV', 'active', ['Casey M', 'Casey M.']), rep('casey-lake', 'Casey Lake', 'JV', 'active', ['Casey']),
+      rep('drew-park', 'Drew Park', 'Freshmen', 'left'), rep('emery-cole', 'Emery Cole', 'Freshmen', 'left'),
+      rep('finley-ash', 'Finley Ash', 'Freshmen'), rep('gray-hill', 'Gray Hill', 'Freshmen'), rep('harper-vale', 'Harper Vale', 'Freshmen'),
+      rep('indy-reed', 'Indy Reed', 'Freshmen'), rep('jules-fox', 'Jules Fox', 'Freshmen'), rep('kai-brook', 'Kai Brook', 'Coordinator', 'active', ['Brook']),
+      rep('lane-gale', 'Lane Gale', 'Leader'), rep('finley-oak', 'Finley Oak', 'Freshmen'),
+    ];
+    fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.rsd', 'board.env'), `BOARD_SUPABASE_URL=${base}\nBOARD_SERVICE_KEY=test\nBOARD_ALAN_IMESSAGE=+15555550100\n`);
+    const mdir = path.join(home, 'automations', 'rsd-rep-master-list', 'data'); fs.mkdirSync(mdir, { recursive: true });
+    const mfile = path.join(mdir, 'roster.json'); fs.writeFileSync(mfile, JSON.stringify({ reps: master }));
+    const boardRoster = ['Avery', 'B. Rivers', 'Casey', 'Casey M.', 'Drew', 'Emery', 'Finley A.', 'Gray', 'Brook', 'Oldtimer'];
+    T('settings').set('division', { meetings: ['2027-01-15'], roster: boardRoster, name: 'Rising Sun Division' });
+
+    r = await board(['roster', 'sync', '--json', '--from', mfile]);
+    let p = JSON.parse(r.stdout);
+    ok(r.code === 0 && p.changed && !p.applied && JSON.stringify(T('settings').get('division').roster) === JSON.stringify(boardRoster), 'roster sync: dry by default, nothing written');
+    ok(JSON.stringify(p.removed.map(x => x.name)) === '["Drew","Emery"]', 'roster sync: the two who left come off: ' + JSON.stringify(p.removed));
+    ok(JSON.stringify(p.added.map(x => `${x.name}=${x.rep}`).sort()) === JSON.stringify(['Finley O.=Finley Oak', 'Harper=Harper Vale', 'Indy=Indy Reed', 'Jules=Jules Fox']), 'roster sync: new active reps are added, first name, or "First L." when it is taken: ' + JSON.stringify(p.added));
+    ok(!p.roster.includes('Lane') && !p.added.some(x => x.rep === 'Lane Gale'), 'roster sync: a Leader is not added (not a board tier)');
+    ok(JSON.stringify(p.unknown) === '["Oldtimer"]' && p.roster.includes('Oldtimer'), 'roster sync: a name the master list does not know is left alone, and named');
+    ok(p.roster.includes('Casey') && p.roster.includes('Casey M.') && p.roster.includes('Finley A.') && p.roster.includes('Brook'), 'roster sync: existing spellings stay as they are (aliases, "First L.", a last-name nickname)');
+
+    r = await board(['roster', 'sync', '--apply', '--from', mfile]);
+    const st = T('settings').get('division');
+    ok(r.code === 0 && /roster updated/.test(r.stdout) && JSON.stringify(st.former) === '["Drew","Emery"]' && !st.roster.includes('Drew') && st.roster.includes('Harper'), 'roster sync --apply: written, read back, the leavers kept in former: ' + r.stdout + r.stderr);
+    ok(st.name === 'Rising Sun Division' && JSON.stringify(st.meetings) === '["2027-01-15"]', 'roster sync --apply: the rest of the settings are untouched');
+    r = await board(['roster', 'sync', '--apply', '--from', mfile]);
+    ok(r.code === 0 && /already matches/.test(r.stdout), 'roster sync: a second run changes nothing');
+
+    // someone comes back: their old spelling, off former
+    fs.writeFileSync(mfile, JSON.stringify({ reps: master.map(x => (x.id === 'drew-park' ? { ...x, status: 'active' } : x)) }));
+    r = await board(['roster', 'sync', '--apply', '--json', '--from', mfile]); p = JSON.parse(r.stdout);
+    ok(p.applied && p.back.length === 1 && p.back[0].name === 'Drew' && T('settings').get('division').roster.includes('Drew') && JSON.stringify(T('settings').get('division').former) === '["Emery"]', 'roster sync: a rep who rejoins gets their old spelling back');
+
+    // guards: a master list that looks wrong, or too many off at once, changes nothing (exit 3)
+    const before = JSON.stringify(T('settings').get('division'));
+    fs.writeFileSync(mfile, JSON.stringify({ reps: master.slice(0, 3) }));
+    r = await board(['roster', 'sync', '--apply', '--from', mfile]);
+    ok(r.code === 3 && /REFUSED/.test(r.stdout) && JSON.stringify(T('settings').get('division')) === before, 'roster sync: a master list with too few active reps is refused, nothing written');
+    const many = master.map(x => ({ ...x, status: 'left' })).concat(Array.from({ length: 12 }, (_, i) => rep(`new-${i}`, `New Person${i} Zed${i}`, 'Freshmen')));
+    T('settings').set('division', { ...T('settings').get('division'), roster: Array.from({ length: 13 }, (_, i) => `Old${i}`).concat(['Avery', 'B. Rivers', 'Casey', 'Casey M.', 'Gray', 'Harper', 'Indy', 'Jules', 'Brook', 'Finley A.', 'Finley O.', 'Drew', 'Emery']) });
+    fs.writeFileSync(mfile, JSON.stringify({ reps: many }));
+    const before2 = JSON.stringify(T('settings').get('division'));
+    r = await board(['roster', 'sync', '--apply', '--from', mfile]);
+    ok(r.code === 3 && /would come off at once/.test(r.stdout) && JSON.stringify(T('settings').get('division')) === before2, 'roster sync: more than 12 off at once is refused unless --force: ' + r.stdout);
+    r = await board(['roster', 'sync', '--from', path.join(home, 'nope.json')]);
+    ok(r.code !== 0 && /cannot read the rep master list/.test(r.stderr), 'roster sync: no master list is a loud failure');
+
+    // the tick runs it every morning: --dry prints the change; ROSTER-PAUSED stops this step alone
+    fs.writeFileSync(mfile, JSON.stringify({ reps: master }));
+    T('settings').set('division', { meetings: ['2027-01-15'], roster: boardRoster });
+    fs.rmSync(path.join(stage, 'ROSTER-PAUSED'), { force: true });
+    const tickpy = (...a) => run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', ...a]);
+    r = await tickpy('--date', '2027-01-14');
+    ok(r.code === 0 && /WOULD UPDATE THE ROSTER/.test(r.stdout) && /Off \(left the team\): Drew \(Drew Park\), Emery \(Emery Cole\)/.test(r.stdout) && /nothing due/.test(r.stdout) && JSON.stringify(T('settings').get('division').roster) === JSON.stringify(boardRoster), 'tick.py --dry: the roster change is printed, nothing written, the due list still decided: ' + r.stdout + r.stderr);
+    fs.writeFileSync(path.join(stage, 'ROSTER-PAUSED'), '');
+    r = await tickpy('--date', '2027-01-14');
+    ok(r.code === 0 && /ROSTER-PAUSED present: roster not synced/.test(r.stdout) && !/WOULD UPDATE THE ROSTER/.test(r.stdout) && /nothing due/.test(r.stdout), 'tick.py: ROSTER-PAUSED stops the roster step alone');
+    fs.rmSync(mfile);
+    fs.rmSync(path.join(stage, 'ROSTER-PAUSED'));
+    r = await tickpy('--date', '2027-01-14');
+    ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /no rep master list/.test(r.stdout) && /nothing due/.test(r.stdout), 'tick.py: no master list on the mini is an alert, and the tick carries on');
+    fs.writeFileSync(path.join(stage, 'ROSTER-PAUSED'), '');
+    fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });   // as the blocks before left it: the next block checks a missing env
   });
 
   await section('no env', async () => {
