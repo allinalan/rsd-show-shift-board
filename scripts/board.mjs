@@ -21,6 +21,9 @@
     board restore <never-id>
     board editors list | add <email> [--role owner|coordinator] [--name "…"] | remove <email>
     board settings get | set field=value ...            (meetings:='["2027-01-15","2027-05-01"]')
+    board roster sync [--from <roster.json>] [--apply] [--force] [--json]
+                                                        (settings.roster follows the rep master list: who left moves to
+                                                         settings.former, a new active rep is added; dry unless --apply)
     board history set <baseId> <year> <cpo> [orders]
     board tick [--date 2027-01-08]                      (which routines are due today; "auto": true = runs itself)
     board changelog [--limit 50]
@@ -243,6 +246,37 @@ const commands = {
     if (sub === 'get') return out(cur);
     if (sub === 'set') { if (!Object.keys(kv).length) die('settings set field=value'); await mergeDoc('settings', 'division', kv); return out('settings updated: ' + Object.keys(kv).join(', ')); }
     die('settings get | set');
+  },
+  async roster() {
+    // Alan, 2026-10-21: "update the show shift board roster too (make that automatic)". scripts/lib/roster-sync.mjs plans;
+    // this reads the master list and the board, writes with --apply, and reads the board back. Exit 3 = refused (a master
+    // list that looks wrong, or too many names coming off at once): nothing written.
+    if ((pos[0] || 'sync') !== 'sync') die('roster sync [--from <roster.json>] [--apply] [--force] [--json]');
+    const { planRoster } = await import('./lib/roster-sync.mjs');
+    const from = flags.from || process.env.BOARD_MASTER_LIST || path.join(os.homedir(), 'automations', 'rsd-rep-master-list', 'data', 'roster.json');
+    let reps;
+    try { reps = JSON.parse(fs.readFileSync(from, 'utf8')).reps; } catch (e) { die(`cannot read the rep master list (${from}): ${e.code || e.message}`); }
+    if (!Array.isArray(reps)) die(`the rep master list (${from}) has no reps array`);
+    const cur = (await getDoc('settings', 'division')) || {};
+    const plan = planRoster(cur, reps, { maxRemove: flags.force ? Infinity : 12 });
+    const res = { from, applied: false, ...plan };
+    if (!plan.problems.length && flags.apply && plan.changed) {
+      await mergeDoc('settings', 'division', { roster: plan.roster, former: plan.former, rosterSyncedAt: new Date().toISOString() });
+      const back = (await getDoc('settings', 'division')) || {};
+      if (JSON.stringify(back.roster) !== JSON.stringify(plan.roster) || JSON.stringify(back.former || []) !== JSON.stringify(plan.former)) die('the roster was written but did not read back as written: look at it in Division settings');
+      res.applied = true;
+    }
+    if (json) out(res);
+    else {
+      const names = xs => xs.map(x => `${x.name} (${x.rep})`).join(', ');
+      console.log(plan.problems.length ? `REFUSED: ${plan.problems.join('; ')}` : !plan.changed ? `roster already matches the master list (${(cur.roster || []).length} names)`
+        : `${res.applied ? 'roster updated' : 'would update the roster (dry; --apply writes)'}: ${plan.roster.length} names`);
+      if (plan.removed.length) console.log(`  off (left the team, kept in former): ${names(plan.removed)}`);
+      if (plan.added.length) console.log(`  added: ${names(plan.added)}`);
+      if (plan.back.length) console.log(`  back on: ${names(plan.back)}`);
+      if (plan.unknown.length) console.log(`  not on the master list, left alone: ${plan.unknown.join(', ')}`);
+    }
+    if (plan.problems.length) process.exit(3);
   },
   async history() {
     if (pos[0] !== 'set') die('history set <baseId> <year> <cpo> [orders]');

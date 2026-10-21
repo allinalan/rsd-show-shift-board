@@ -543,7 +543,8 @@ async function main() {
   if (!fs.existsSync(seedFile)) die(`no ${seedFile} to check against`);
   const seed = JSON.parse(fs.readFileSync(seedFile, 'utf8'));
   const settings = JSON.parse(fs.readFileSync(path.join(REPO, 'seed', 'settings.json'), 'utf8'));
-  const resolve = makeRepResolver(settings.roster);
+  const known = [...(settings.roster || []), ...(settings.former || [])];   // reps who left still resolve (their old shifts)
+  const resolve = makeRepResolver(known);
   const { pairs, liveOnly, seedOnly } = matchToSeed(events, seed);
 
   // Any rep on the Sheet the roster plus REP_ALIASES cannot place is a silent mis-read waiting
@@ -551,7 +552,7 @@ async function main() {
   const unresolved = new Set();
   for (const e of events) for (const b of e.booths) for (const s of b.shifts) for (const sl of s.slots) {
     const r = str(sl.rep);
-    if (r && r !== '__X__' && !settings.roster.some(x => normRep(x) === normRep(resolve(r)))) unresolved.add(r);
+    if (r && r !== '__X__' && !known.some(x => normRep(x) === normRep(resolve(r)))) unresolved.add(r);
   }
 
   const lines = [];

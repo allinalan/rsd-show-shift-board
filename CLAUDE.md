@@ -41,6 +41,20 @@ routines in `.claude/skills/` keep it true.
   promoter contacts; it exists only on the mini.
 - `supabase/schema.sql` — tables, row-level security, the `editors` list, `merge_doc`, changelog.
 - `scripts/board.mjs` — the CLI every routine uses. `node scripts/board.mjs` prints usage.
+- **The roster follows the rep master list** (Alan, 2026-10-21: "update the show shift board roster too (make that
+  automatic)"). Every morning the tick pulls `~/automations/rsd-rep-master-list` and runs `board roster sync --apply`
+  (`scripts/lib/roster-sync.mjs`): a name tied to a rep who LEFT moves from `settings.roster` to `settings.former`; an
+  active rep in a board tier (Elite, Varsity, JV, Freshmen, Coordinator; not Leader) with no name gets one (an alias of
+  theirs, else the first name, else "First L.", only a name that ties back to them alone); a name the master list cannot
+  tie to anyone (Carlton, Nathaniel on 2026-10-21) is left alone and named; a rep who rejoins gets their old spelling
+  back. It never renames: every shift is stored as the roster spells it. Ties by letters only (case and punctuation
+  ignored): name or alias first, then a first name, "First L" or "F Last" that fits exactly one rep. Refused, nothing
+  written (exit 3, an alert): fewer than 10 active reps in the master list, or more than 12 names off at once (`--force`
+  by hand). Written through merge_doc and read back. One FYI line in #rsd-board when it changed. `ROSTER-PAUSED` in the
+  repo root stops this step alone. By hand: `node scripts/board.mjs roster sync` (dry) / `--apply`. The Sheet sync and
+  the parser count `former` as known, so a leaver's old shifts are never "names the roster cannot place"; Division
+  settings keeps `former` through a save, and says the roster is kept in step every morning. First run 2026-10-21: the
+  nine fall freshmen marked left that day moved to `former` (41 names -> 32).
 - `scripts/check-public.mjs` — the pre-commit leak check (this repo is public).
 - `scripts/parse-sheet.mjs` — reads the Sheet into board shape while the Sheet is still the truth
   (stage 1). `--verify` lines the parse up against `seed/events.json` field by field and exits
@@ -130,7 +144,8 @@ routines in `.claude/skills/` keep it true.
   login (Playwright + Keychain; this repo has no node_modules) and all texting. `scripts/lib/board-api.mjs`
   is their REST layer (same env file and changelog path as board.mjs).
 - `deploy/tick.py` — the launchd entry point (`com.allinalan.rsd-board-tick`, 07:00 daily on the
-  mini): decides what is due and notifies Alan. It does not run routines. `--dry`, `--status`. Wednesday is
+  mini): keeps `settings.roster` in step with the rep master list (above), then decides what is due and notifies Alan.
+  It does not run routines. `--dry`, `--status`. Wednesday is
   no longer "due" (the event check runs unattended); the date research (7 days before a meeting), the preflight
   (2 days before) and the booking sweep (days 2-8 after) are marked `auto` (they run themselves from
   rsd-shift-picking), so they are logged, never a "go run it" notice. It reminds Alan to send the freshmen training sign-in
@@ -165,7 +180,7 @@ and accepted. **Never in git**: the public seed stays stripped. Locking it is on
 (`using (is_editor())`, `supabase/schema.sql`; not `authenticated`, sign-ups are open); the page already
 handles that (editors get contacts after sign-in, everyone else gets no rows). The
 page's data layer and the CLI split those three fields out of every `events` write and merge them
-back on read, so everything else treats them as event fields. `history` — results by year per show base. `settings/division` — name, short, code, roster,
+back on read, so everything else treats them as event fields. `history` — results by year per show base. `settings/division` — name, short, code, roster, former (reps who left, kept so their old shifts resolve), rosterSyncedAt,
 `meetings` (ISO dates of shift-picking meetings). `never_work` — shows we never work again,
 keyed by series key. `kiosks` — the Kiosk Schedule: id `YYYY-<mall>` (base stable across seasons), `name, year,
 cityState, status (Booked | Prospective | Cancelled), captain, cost (free text, "$7,038 ($230/day)"), startDate, endDate,

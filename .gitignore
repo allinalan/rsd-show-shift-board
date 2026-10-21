@@ -7,6 +7,7 @@ seed/private/
 logs/
 out/
 PAUSED
+ROSTER-PAUSED
 # a Codex session's generated skill copies. AGENTS.md itself is a tracked pointer (keep it short).
 # Untracked files make the tree dirty, and deploy/tick.py never pulls over a dirty tree.
 .agents/
