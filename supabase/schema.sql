@@ -26,6 +26,10 @@ create table if not exists event_contacts (id text primary key, data jsonb not n
 -- the Kiosk Schedule tab (2026-10-14): one row per mall per holiday season, id YYYY-<mall>. Its own table so mall
 -- shifts never reach the routines that read `events` (event check, booking sweep, research, Sheet sync, SUNNY).
 create table if not exists kiosks     (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
+-- shift coverage requests (2026-10-22): a rep asks from SUNNY, the mini (rsd-shift-picking coverage agent) texts both
+-- reps and moves the shift only after both reply YES. Readable by everyone like `events` (names and shifts the board
+-- already shows); anon writes only through coverage_request() below; the mini writes with the service key.
+create table if not exists coverage   (id text primary key, data jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
 
 -- who may edit. Alan adds rows here (or via `board editors add`). role: owner | coordinator
 create table if not exists editors (
@@ -56,7 +60,7 @@ create or replace function touch_updated_at() returns trigger language plpgsql a
 begin new.updated_at = now(); return new; end $$;
 
 do $$ declare t text; begin
-  foreach t in array array['events','history','settings','seasons','never_work','overrides','event_contacts','kiosks'] loop
+  foreach t in array array['events','history','settings','seasons','never_work','overrides','event_contacts','kiosks','coverage'] loop
     execute format('drop trigger if exists %I_touch on %I', t, t);
     execute format('create trigger %I_touch before update on %I for each row execute function touch_updated_at()', t, t);
   end loop;
@@ -84,7 +88,7 @@ begin
 end $$;
 
 do $$ declare t text; begin
-  foreach t in array array['events','history','settings','seasons','never_work','overrides','event_contacts','kiosks'] loop
+  foreach t in array array['events','history','settings','seasons','never_work','overrides','event_contacts','kiosks','coverage'] loop
     execute format('drop trigger if exists %I_log on %I', t, t);
     execute format('create trigger %I_log after insert or update or delete on %I for each row execute function log_change()', t, t);
   end loop;
@@ -96,7 +100,7 @@ create or replace function merge_doc(tbl text, doc_id text, patch jsonb, actor t
 returns jsonb language plpgsql security definer as $$
 declare out jsonb;
 begin
-  if tbl not in ('events','history','settings','seasons','never_work','overrides','event_contacts','kiosks') then
+  if tbl not in ('events','history','settings','seasons','never_work','overrides','event_contacts','kiosks','coverage') then
     raise exception 'unknown table %', tbl;
   end if;
   if not (is_editor() or auth.role() = 'service_role') then
@@ -110,7 +114,7 @@ end $$;
 
 -- ---------- row-level security ----------
 do $$ declare t text; begin
-  foreach t in array array['events','history','settings','seasons','never_work','overrides','kiosks'] loop
+  foreach t in array array['events','history','settings','seasons','never_work','overrides','kiosks','coverage'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists %I_read on %I', t, t);
     execute format('create policy %I_read on %I for select using (true)', t, t);          -- reps read anonymously
@@ -165,6 +169,77 @@ create policy sheet_syncs_editor_ring on sheet_syncs for insert with check (
   is_editor() and status = 'pending' and requested_by = lower(coalesce(auth.jwt()->>'email',''))
   and started_at is null and finished_at is null and result is null);
 
+-- ---------- shift coverage: the one way in for a rep (2026-10-22) ----------
+-- SUNNY calls this with the anon key (POST /rest/v1/rpc/coverage_request, body {"p": {...}}). It checks only what it
+-- can check cheaply and safely: coverage is on, the requester may ask (settings/division.coverage.requesters, which the
+-- mini writes from the rep master list), the cover is on the roster, 1-8 well-formed shifts after today in Phoenix, no
+-- open request already on one of them, at most 3 open per requester and 30 new in an hour (all reps). It does NOT
+-- check that the shifts are the requester's or that the cover is free: the mini checks everything again against the
+-- board before anyone is texted, and refuses (status "refused", with the reason) what does not match. Never raises
+-- for a bad request: { ok: false, why } in words a rep can read. Only "new" rows are made here; only the mini moves one on.
+create or replace function coverage_request(p jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  st jsonb; req text; cov text; s jsonb; k jsonb; clean jsonb := '[]'::jsonb; n int; new_id text;
+  today date := (now() at time zone 'America/Phoenix')::date;
+  open_st text[] := array['new','waiting-approval','asking-requester','asking-cover'];
+  bad constant text := 'That request did not come through right. Try again from SUNNY.';
+begin
+  perform pg_advisory_xact_lock(hashtext('coverage_request'));        -- one at a time: two taps cannot both pass the "already asked" check
+  if p is null or jsonb_typeof(p) <> 'object' then return jsonb_build_object('ok', false, 'why', bad); end if;
+  select data into st from settings where id = 'division';
+  if st is null or coalesce(st->'coverage'->>'on', '') <> 'true' then
+    return jsonb_build_object('ok', false, 'why', 'Request coverage is switched off right now. Text a coordinator.');
+  end if;
+  req := btrim(coalesce(p->>'requester', '')); cov := btrim(coalesce(p->>'cover', ''));
+  if req = '' or length(req) > 60 then return jsonb_build_object('ok', false, 'why', bad); end if;
+  if cov = '' or length(cov) > 60 then return jsonb_build_object('ok', false, 'why', 'Pick who is covering for you.'); end if;
+  if jsonb_typeof(st->'coverage'->'requesters') is distinct from 'array' or not (st->'coverage'->'requesters') ? req then
+    return jsonb_build_object('ok', false, 'why', 'Request coverage is not open to you yet. Text a coordinator.');
+  end if;
+  if jsonb_typeof(st->'roster') is distinct from 'array' or not (st->'roster') ? cov then
+    return jsonb_build_object('ok', false, 'why', 'That person is not on the team roster.');
+  end if;
+  if lower(req) = lower(cov) then return jsonb_build_object('ok', false, 'why', 'Pick someone other than yourself.'); end if;
+  if jsonb_typeof(p->'slots') is distinct from 'array' or jsonb_array_length(p->'slots') not between 1 and 8 then
+    return jsonb_build_object('ok', false, 'why', 'Pick between 1 and 8 shifts.');
+  end if;
+  for s in select value from jsonb_array_elements(p->'slots') loop
+    if jsonb_typeof(s) <> 'object' or coalesce(s->>'date', '') !~ '^\d{4}-\d{2}-\d{2}$'
+       or length(coalesce(s->>'event', '')) not between 1 and 100 then
+      return jsonb_build_object('ok', false, 'why', bad);
+    end if;
+    if (s->>'date')::date <= today then return jsonb_build_object('ok', false, 'why', 'One of those shifts is today or already over.'); end if;
+    if s->>'kind' = 'show' then
+      if coalesce(s->>'booth', '') !~ '^\d{1,2}$' or coalesce(s->>'shift', '') !~ '^\d{1,2}$' or coalesce(s->>'day', '') !~ '^\d{1,2}$' then
+        return jsonb_build_object('ok', false, 'why', bad);
+      end if;
+      k := jsonb_build_object('kind', 'show', 'event', s->>'event', 'booth', (s->>'booth')::int, 'shift', (s->>'shift')::int, 'day', (s->>'day')::int);
+    elsif s->>'kind' = 'kiosk' then
+      k := jsonb_build_object('kind', 'kiosk', 'event', s->>'event', 'date', s->>'date');
+    else
+      return jsonb_build_object('ok', false, 'why', bad);
+    end if;
+    if clean @> jsonb_build_array(k) then return jsonb_build_object('ok', false, 'why', 'The same shift is in there twice.'); end if;
+    if exists (select 1 from coverage c where c.data->>'status' = any(open_st) and c.data->'slots' @> jsonb_build_array(k)) then
+      return jsonb_build_object('ok', false, 'why', 'One of those shifts already has a coverage request waiting.');
+    end if;
+    clean := clean || jsonb_build_array(k || jsonb_build_object('date', s->>'date', 'label', left(coalesce(s->>'label', ''), 120)));
+  end loop;
+  select count(*) into n from coverage c where c.data->>'requester' = req and c.data->>'status' = any(open_st);
+  if n >= 3 then return jsonb_build_object('ok', false, 'why', 'You already have 3 requests waiting. Let those finish first.'); end if;
+  select count(*) into n from coverage c where c.id > 'cv-' || to_char((now() - interval '1 hour') at time zone 'America/Phoenix', 'YYYYMMDD-HH24MI');
+  if n >= 30 then return jsonb_build_object('ok', false, 'why', 'Too many requests right now. Try again in an hour, or text a coordinator.'); end if;
+  new_id := 'cv-' || to_char(now() at time zone 'America/Phoenix', 'YYYYMMDD-HH24MI') || '-' || substr(md5(random()::text || clock_timestamp()::text), 1, 6);
+  perform set_config('board.actor', 'sunny:coverage_request', true);
+  insert into coverage (id, data) values (new_id, jsonb_build_object(
+    'requester', req, 'cover', cov, 'slots', clean, 'via', 'sunny', 'status', 'new', 'why', '', 'code', '',
+    'moved', '[]'::jsonb, 'createdAt', to_jsonb(now()), 'updatedAt', to_jsonb(now())));
+  return jsonb_build_object('ok', true, 'id', new_id);
+end $$;
+revoke all on function coverage_request(jsonb) from public;
+grant execute on function coverage_request(jsonb) to anon, authenticated;
+
 -- ---------- realtime ----------
 -- lets the page redraw the instant anyone saves (the shift-picking meeting depends on this)
 do $$ begin
@@ -176,6 +251,7 @@ do $$ begin
   begin execute 'alter publication supabase_realtime add table event_contacts'; exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table sheet_syncs';    exception when duplicate_object then null; end;
   begin execute 'alter publication supabase_realtime add table kiosks';         exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table coverage';       exception when duplicate_object then null; end;
 end $$;
 
 -- ---------- first owner ----------

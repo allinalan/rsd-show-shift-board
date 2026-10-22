@@ -192,7 +192,14 @@ figured (Sierra Vista 2025: $500 / 16 = $31.25). One shift
 per day: `rep` is a roster name, two joined by " / " for a split day, or `__X__` for no shift (the mall is closed; `note`
 says why, e.g. Christmas). Open = a Booked mall's upcoming day with no rep; a Prospective mall has none. The page writes a
 day by re-reading the row and sending the whole `shifts` map through `merge_doc` (shallow), so a concurrent edit to
-another day survives. Its own table on purpose: nothing that reads `events` may ever see a mall. `editors` — who may write. `changelog` — every write. `sheet_syncs` — a plain table (not
+another day survives. Its own table on purpose: nothing that reads `events` may ever see a mall. `coverage` — reps' shift
+coverage requests (2026-10-22): `requester` and `cover` (board spellings), `slots[]` (`{kind: show, event, booth, shift, day, date}`
+indexes into `booths[].shifts[].slots[]`, or `{kind: kiosk, event, date}`), `status` (new → waiting-approval → asking-requester →
+asking-cover → done | partial | declined | cancelled | expired | refused), `why`, `code`, `moved`. Readable by everyone; a rep makes a
+`new` row only through `coverage_request()` (schema.sql: on/requesters/roster/1-8 future shifts/no open request on a slot/3 open
+per rep/30 an hour), called by SUNNY; rsd-shift-picking's coverage agent (`coverage.js`, docs/shift-coverage.md there) moves
+it on, texts both reps and moves the shift only after both reply YES. Who may ask is `settings/division.coverage` (`on`, `tiers`,
+`requesters`), written only by that agent from the rep master list. `editors` — who may write. `changelog` — every write. `sheet_syncs` — a plain table (not
 `{id, data}`): one row per Sync press or `--apply` sync run (`status` pending → running → done | stopped | failed,
 `result` = counts and the changed/held/conflict lists, never contacts). Editors read and insert pending rows; only
 the service key moves them on.
@@ -290,6 +297,12 @@ the service key moves them on.
 - **Board statuses** (index.html SORDER): Booked, Pending Promoter Acceptance, OK to Book - Need Contract, Pending
   Coordinator, Booking Request Submitted (2026-09-23: the sweep sent it, Olean has it; VC's "Request to Book" reads
   the same), Booking Request Needed, Prospective, Show Full, Cancelled.
+- **A coverage request moves a shift on the board, never on the Sheet** (2026-10-22). rsd-shift-picking's coverage agent
+  writes the slot (actor `service:coverage`) after both reps reply YES and emails rsdcoordinator2 the confirmed change; the
+  coordinators change the Sheet as they always have, and the hourly sync then finds the two agreeing. Until they do, the board
+  holding the cover and the Sheet still holding the requester is the sync's "board edited, Sheet unchanged" case: kept, not a
+  conflict. The agent reads `state/sheet-baseline.json` a day later to see whether the Sheet caught up. SUNNY is the only
+  caller of `coverage_request()`; nothing in this repo texts a rep about it.
 - **Nothing here writes the Sheet** (Alan, 2026-09-23: VC status lives on the board now; the Sheet's
   Z/AA columns froze "as of 9/9"). The sync only reads it; the team keeps editing it until stage 3.
 - `state/` and `out/` hold private data (the baseline can carry promoter contacts; reports name reps).
