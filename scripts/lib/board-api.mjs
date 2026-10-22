@@ -73,6 +73,19 @@ export function boardApi({ actor } = {}) {
       if (Object.values(priv).some(v => v != null && String(v).trim() !== '')) await upsert('event_contacts', id, priv);
     },
     async mergeSettings(patch) { await merge('settings', 'division', patch); },
+    /** One row read fresh, or null (the coverage agent reads a show or a mall again right before it moves a shift). */
+    async row(t, id) {
+      const r = await rest('GET', `${t}?select=id,data,updated_at&id=eq.${encodeURIComponent(id)}`);
+      return r[0] ? { id: r[0].id, updatedAt: r[0].updated_at, ...(r[0].data || {}) } : null;
+    },
+    /** Merge a patch into a mall's row; send the whole `shifts` map, as the page does, so other days survive. */
+    async patchKiosk(id, patch) { await merge('kiosks', id, patch); },
+    /** Reps' coverage requests (schema.sql `coverage`; rsd-shift-picking's coverage agent is the only writer past "new"). */
+    coverage: {
+      all: () => rows('coverage'),
+      byStatus: sts => rest('GET', `coverage?select=id,data&data->>status=in.(${sts.join(',')})&order=id`).then(rs => rs.map(r => ({ id: r.id, ...(r.data || {}) }))),
+      patch: (id, patch) => merge('coverage', id, patch),
+    },
     /** sheet_syncs: the page's "Sync from the Sheet" requests and every sync run's result (schema.sql). */
     syncs: {
       open: () => rest('GET', 'sheet_syncs?select=id,requested_by,requested_at,status,started_at&status=in.(pending,running)&order=id'),
