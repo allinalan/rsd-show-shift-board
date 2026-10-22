@@ -1048,6 +1048,14 @@ body:not(.gridv):not(.kioskv) .band:not(.past)>.band-h{position:sticky;top:var(-
 .slotbox.saving{opacity:.55;transition:opacity var(--d-fast) ease}
 .slotbox.save-err{box-shadow:0 0 0 2px var(--pend)}
 @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+
+/* ---- coverage asks (2026-10-22): one quiet warm line under the name while an ask is open; read-only, nothing to tap.
+   --pend is 4.6:1 or better on every ground it lands on here (surface, a highlighted day, a weekend row), light and dark ---- */
+.covask{display:block;font-size:var(--t-cap2);line-height:13px;font-weight:500;color:var(--pend);margin-top:3px;white-space:normal;overflow-wrap:anywhere}
+.slotbox .covask{padding:0 7px 5px;margin-top:-2px;text-align:left}   /* under the name in the box, also in the phone's right-aligned day rows */
+.kmr .kw .covask{margin-top:2px}
+.kmine .covin{font-style:normal;font-weight:500;color:var(--pend)}
+.kmine span.now .covin{color:inherit}
 </style>
 
 <!-- Only the last row (.segrow, plus .modes beside it on a wide screen) stays pinned: the header sticks at a negative
@@ -1430,6 +1438,56 @@ function matches(e){
   return true;
 }
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* ---- coverage asks (2026-10-22): read-only ----
+   A rep asks for coverage from SUNNY; the mini texts both reps and moves the shift only after both say YES. The board
+   only shows the asks still open: a quiet line under the name, "Waiting on <cover>" once the cover has been texted,
+   "Coverage asked: <cover>" before that. Ended asks show nothing (a done one already shows the cover's name). The
+   `coverage` table is read once and on each realtime change into covMap; a redraw costs one map lookup per slot.
+   No table yet, or the read fails: nothing shows, no toast, one console.warn. The row's shape and statuses are in
+   CLAUDE.md (Data model, `coverage`); a slot is booths[b].shifts[s].slots[d] of a show, or shifts[date] of a mall. */
+/* coverage-map:start  tests/run-all.mjs runs this block by itself: it may use nothing else from the page */
+const COV_OPEN=['new','waiting-approval','asking-requester','asking-cover'];
+const covKey={show:(id,b,s,d)=>['s',id,b,s,d].join('|'),kiosk:(id,date)=>['k',id,date].join('|')};
+function coverageMap(rows){
+  const m=new Map(), str=v=>typeof v==='string'&&v.trim()!=='';
+  const idx=v=>typeof v==='number'?(Number.isInteger(v)&&v>=0?v:null):(typeof v==='string'&&/^\d+$/.test(v)?+v:null);
+  (Array.isArray(rows)?rows:[]).forEach(r=>{
+    const c=r&&r.data; if(!c||typeof c!=='object') return;
+    if(!COV_OPEN.includes(c.status)||!str(c.cover)||!str(c.requester)) return;   // ended, unknown or half-written: nothing
+    const waiting=c.status==='asking-cover', cover=c.cover.trim(), requester=c.requester.trim();
+    const mark={text:(waiting?'Waiting on ':'Coverage asked: ')+cover,cover,requester,status:c.status,waiting};
+    (Array.isArray(c.slots)?c.slots:[]).forEach(s=>{
+      if(!s||!str(s.event)) return;
+      const b=idx(s.booth), sh=idx(s.shift), d=idx(s.day);
+      const key=s.kind==='show'&&b!=null&&sh!=null&&d!=null?covKey.show(s.event,b,sh,d)
+        :s.kind==='kiosk'&&/^\d{4}-\d{2}-\d{2}$/.test(String(s.date||''))?covKey.kiosk(s.event,s.date):'';
+      if(!key) return;
+      const had=m.get(key); if(had&&had.waiting&&!waiting) return;   // two open asks on one slot (the function refuses that): the one further along
+      m.set(key,mark);
+    });
+  });
+  return m;
+}
+/* the mark sits under the requester's name, so it shows only while the slot still holds them (a split day "A / B" holds both) */
+const covHolds=(mark,rep)=>!!mark&&String(rep||'').split(' / ').some(n=>n.trim().toLowerCase()===mark.requester.toLowerCase());
+/* coverage-map:end */
+let covMap=new Map(), covSig='[]', covSeq=0, covSub=false, covTimer=0;
+const covAt=(key,rep)=>{ if(!covMap.size) return null; const c=covMap.get(key); return c&&covHolds(c,rep)?c:null; };
+const covHtml=c=>c?`<span class="covask" title="${esc(c.requester)} asked ${esc(c.cover)} to cover. ${c.waiting?esc(c.cover)+' has been texted; the shift moves once they reply YES.':'Nothing moves until both say YES by text.'}">${esc(c.text)}</span>`:'';
+async function loadCoverage(){
+  if(!(dbKind==='supabase'&&db&&db.client)) return;   // the seed preview has no coverage asks
+  const seq=++covSeq;
+  try{
+    const {data,error}=await db.client.from('coverage').select('id,data').in('data->>status',COV_OPEN);
+    if(seq!==covSeq) return;   // a newer read is on its way
+    if(error) throw error;
+    const m=coverageMap(data||[]), sg=JSON.stringify([...m]);
+    if(!covSub){ covSub=true;   // only once the table answers: no realtime channel pointed at a table that isn't there
+      db.client.channel('rt-coverage').on('postgres_changes',{event:'*',schema:'public',table:'coverage'},()=>{ clearTimeout(covTimer); covTimer=setTimeout(loadCoverage,400); }).subscribe(); }
+    if(sg===covSig) return;   // the mini touches rows (code, updatedAt) without changing what shows: no redraw
+    covMap=m; covSig=sg; build();
+  }catch(e){ if(seq===covSeq) console.warn('Show Shift Board: coverage asks not shown (the coverage table is missing or unreadable):',(e&&e.message)||e); }
+}
 function splitRep(v){
   v=(v||'').trim(); if(!v) return {rep:'',ft:[]};
   if(/^(x|xx|-)$/i.test(v)) return {rep:'__X__',ft:[]};
@@ -1718,7 +1776,7 @@ function kMallDays(list,shown,P,td,running){
     const cls=['kmr',dw===0||dw===6?'kwe':'',dw===1&&i?'kmon':'',d===td?'ktoday':'',running&&d<td?'kpast':'',st==='Cancelled'?'kcx':!P&&hit?'khit':!P&&kRep&&filled?'kdim':''].filter(Boolean).join(' ');
     const who=P&&st!=='Cancelled'?kCell(k,d,P)
       :v==='__X__'?`<span class="kxw">${esc(day.note||'closed')}</span>`
-      :filled?kNames(v)+(day.note?`<span class="knote">${esc(day.note)}</span>`:'')
+      :filled?kNames(v)+(day.note?`<span class="knote">${esc(day.note)}</span>`:'')+covHtml(covAt(covKey.kiosk(k.id,d),v))
       :(st==='Booked'&&!kPast(d)?'<span class="kopen">open</span>':'<span class="kxw">—</span>');
     return `<li class="${cls}"><span class="kmd">${kDow(d)} <b>${fdate(d)}</b>${d===td?'<i>today</i>':''}</span><span class="kw">${who}</span></li>`; }).join('');
   return `<div class="kmv-days"><ul>${rows||`<li class="kmr"><span class="kmd">${k.startDate?'No days left to show':'Its dates aren\'t set yet'}</span></li>`}</ul></div>`;
@@ -1726,14 +1784,15 @@ function kMallDays(list,shown,P,td,running){
 function kCell(k,d,P){
   const day=kDay(k,d)||{}, v=day.rep||'', st=kStatus(k), hit=!!kRep&&kReps(v).includes(kRep);
   const note=day.note&&v!=='__X__'?`<div class="knote">${esc(day.note)}</div>`:'';
+  const cv=v&&v!=='__X__'?covHtml(covAt(covKey.kiosk(k.id,d),v)):'';
   if(!P||st==='Cancelled'){
     if(v==='__X__') return `<div class="namecell is-x">${esc(day.note||'closed')}</div>`;
     if(!v) return st==='Booked'&&!kPast(d)?`<div class="namecell is-open">open</div>`:`<div class="namecell is-x">—</div>`;
-    return `<div class="namecell${st==='Cancelled'?' kcx':hit?' khit':kRep?' kdim':''}">${kNames(v)}${note}</div>`;
+    return `<div class="namecell${st==='Cancelled'?' kcx':hit?' khit':kRep?' kdim':''}">${kNames(v)}${note}${cv}</div>`;
   }
   const txt=v==='__X__'?(day.note||'closed'):(v||(st==='Booked'?'open':'—'));
   const cls=v==='__X__'?'xd':(v?'filled':'open-slot'+(st==='Booked'?'':' kprosp'));
-  return `<div class="slotbox ${cls}${hit?' khit':''}"><button class="slotpick" data-kid="${esc(k.id)}" data-kday="${d}" aria-haspopup="listbox" aria-label="${esc(k.name)} ${kDow(d)} ${fdate(d)} — ${esc(txt)}">${esc(txt)}</button>${note}</div>`;
+  return `<div class="slotbox ${cls}${hit?' khit':''}"><button class="slotpick" data-kid="${esc(k.id)}" data-kday="${d}" aria-haspopup="listbox" aria-label="${esc(k.name)} ${kDow(d)} ${fdate(d)} — ${esc(txt)}">${esc(txt)}</button>${note}${cv}</div>`;
 }
 function kCard(k,P){
   const s=kStats(k), st=kStatus(k), sk=KSKEY[st], isOpen=kOpen.has(k.id), ly=k.lastYear;
@@ -1820,7 +1879,8 @@ function renderKiosks(){
   let mine='';
   if(kRep){ const items=[];
     dates.forEach(d=>live.forEach(k=>{ const s=kDay(k,d); if(!kIn(k,d)||!s) return; const r=kReps(s.rep); if(!r.includes(kRep)) return;
-      const w=r.filter(x=>x!==kRep); items.push(`<span class="${d<td?'past':d===td?'now':''}">${kDow(d)} ${fdate(d)}${d===td?' (today)':''} · ${esc(k.name)}${w.length?' · split with '+esc(w.join(' & ')):''}</span>`); }));
+      const w=r.filter(x=>x!==kRep), cv=covAt(covKey.kiosk(k.id,d),kRep);   // only this rep's own ask, not their split partner's
+      items.push(`<span class="${d<td?'past':d===td?'now':''}">${kDow(d)} ${fdate(d)}${d===td?' (today)':''} · ${esc(k.name)}${w.length?' · split with '+esc(w.join(' & ')):''}${cv?` · <i class="covin">${esc(cv.text)}</i>`:''}</span>`); }));
     mine=`<div class="kmine"><b>${esc(kRep)}: ${items.length} day${items.length===1?'':'s'}</b>${items.join('')}<button class="linkbtn" data-krep="${esc(kRep)}">clear</button></div>`; }
   /* in season, the days already gone fold into one line, so the page opens on today */
   const gone=running?dates.filter(d=>d<td):[], shown=gone.length&&!kShowPast?dates.filter(d=>d>=td):dates;
@@ -2006,15 +2066,16 @@ function cellFor(e,b,bi,s,si,di,ps,P,wide,runN){
   const sl=s.slots[di]||{rep:'',ft:[]}; const v=val(e,bi,si,di,sl.rep), se=isSE(b.days[di]);
   const cap=x=>String(x).replace(/\b\w/g,ch=>ch.toUpperCase());
   const ft=(sl.ft||[]).length?`<div class="ft">${sl.ft.map(f=>`<span>ft. ${esc(cap(f))}</span>`).join('')}</div>`:'';
+  const cv=v&&v!=='__X__'?covHtml(covAt(covKey.show(e.id,bi,si,di),v)):'';
   if(!P){
     if(v==='__X__') return `<div class="namecell is-x">${wide?'no shift':'—'}</div>`;
     if(!v&&se) return `<div class="namecell is-se" title="${SETIP}">sharpening</div>`;
     if(!v) return `<div class="namecell is-open">${ps.key==='closed'?'—':(runN>1?`open · ${runN} days`:'open')}</div>`;
-    return `<div class="namecell${se?' se-on':''}"${se?` title="${SETIP}"`:''}>${esc(v)}${se?'<span class="setag">SE</span>':''}${ft}</div>`;
+    return `<div class="namecell${se?' se-on':''}"${se?` title="${SETIP}"`:''}>${esc(v)}${se?'<span class="setag">SE</span>':''}${ft}${cv}</div>`;
   }
   const cls=(v==='__X__'?'xd':(v?'filled':'open-slot'))+(se?' se':'');
   const txt=v==='__X__'?'no shift':(v||(se?'nobody':'open'));
-  return `<div class="slotbox ${cls}"${se?` title="${SETIP}"`:''}><button class="slotpick" data-b="${bi}" data-s="${si}" data-d="${di}" aria-haspopup="listbox" aria-label="${esc(s.label)} ${esc(b.days[di])}${se?' (sharpening event)':''} — ${esc(txt)}">${esc(txt)}</button>${ft}</div>`;
+  return `<div class="slotbox ${cls}"${se?` title="${SETIP}"`:''}><button class="slotpick" data-b="${bi}" data-s="${si}" data-d="${di}" aria-haspopup="listbox" aria-label="${esc(s.label)} ${esc(b.days[di])}${se?' (sharpening event)':''} — ${esc(txt)}">${esc(txt)}</button>${ft}${cv}</div>`;
 }
 
 /* Read-only: collapse a run of identical assignments into one cell that spans those days, so
@@ -2026,7 +2087,8 @@ function gridCells(cols,byDate,e,b,bi,s,si,ps,P){
     const sl=s.slots[di]||{rep:'',ft:[]}, v=val(e,bi,si,di,sl.rep), se=isSE(b.days[di])?'SE':'';
     if(!v) return 'OPEN|'+se;
     if(v==='__X__') return 'X|'+se;
-    return 'N|'+v+'|'+((sl.ft||[]).join('&'))+'|'+se;
+    const cv=covAt(covKey.show(e.id,bi,si,di),v);   // a day with a coverage ask is its own cell, never merged into the run
+    return 'N|'+v+'|'+((sl.ft||[]).join('&'))+'|'+se+'|'+(cv?cv.text:'');
   };
   let out='',i=0;
   while(i<cols.length){
@@ -3000,6 +3062,7 @@ async function checkEditor(){
     kiosks.forEach(k=>{ k.year=+(k.year||0); k.shifts=k.shifts||{}; });
     kioskState='ready'; build();
   },()=>{ kioskState='missing'; build(); });   // no kiosks table yet: the tab says so, the rest of the board is untouched
+  loadCoverage();   // the open coverage asks, then live; no coverage table yet = nothing shown, a console.warn
   db.collection('events').onSnapshot(snap=>{
     boardEvents=snap.docs.map(d=>Object.assign({id:d.id,source:'board'},d.data()));
     boardEvents.forEach(e=>{ e.booths=e.booths||[]; e.days=e.days||[]; e.dates=e.dates||[]; e.year=+(e.year||e.season||0); });

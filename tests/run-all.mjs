@@ -1205,6 +1205,39 @@ def post(route, text, mention=None, fallback=True, **k):
     fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });   // as the blocks before left it: the next block checks a missing env
   });
 
+  await section('index.html: coverage asks (read-only marks from the coverage table)', async () => {
+    // The page's one piece of coverage logic, run by itself: the block between the markers may use nothing else from the page.
+    const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    const m = html.match(/\/\* coverage-map:start[^*]*\*\/([\s\S]*?)\/\* coverage-map:end \*\//);
+    ok(!!m, 'index.html: the coverage-map block is marked');
+    const { COV_OPEN, covKey, coverageMap, covHolds } = new Function(m[1] + '\nreturn { COV_OPEN, covKey, coverageMap, covHolds };')();
+    const row = (status, slots, extra = {}) => ({ id: 'cv-' + status, data: { requester: 'Marcus R.', cover: 'Jordan L.', status, slots, ...extra } });
+    const show = { kind: 'show', event: '2026-prescott-fall', booth: 0, shift: 1, day: 2, date: '2026-11-14', label: 'Prescott' };
+    const kiosk = { kind: 'kiosk', event: '2026-arrowhead', date: '2026-11-28', label: 'Arrowhead kiosk' };
+    const sk = covKey.show('2026-prescott-fall', 0, 1, 2), kk = covKey.kiosk('2026-arrowhead', '2026-11-28');
+    ok(JSON.stringify(COV_OPEN) === JSON.stringify(['new', 'waiting-approval', 'asking-requester', 'asking-cover']), 'the open statuses are the contract\'s four');
+    let cm = coverageMap([row('asking-cover', [show, kiosk])]);
+    ok(cm.size === 2 && cm.get(sk).text === 'Waiting on Jordan L.' && cm.get(kk).text === 'Waiting on Jordan L.' && cm.get(sk).waiting, 'asking-cover: "Waiting on <cover>" on a show slot (event + booth/shift/day) and a kiosk day (mall + date)');
+    for (const st of ['new', 'waiting-approval', 'asking-requester']) { cm = coverageMap([row(st, [show])]); ok(cm.size === 1 && cm.get(sk).text === 'Coverage asked: Jordan L.' && !cm.get(sk).waiting, `${st}: "Coverage asked: <cover>"`); }
+    for (const st of ['done', 'partial', 'declined', 'cancelled', 'expired', 'refused', 'someday', '', undefined]) ok(coverageMap([row(st, [show, kiosk])]).size === 0, `status ${JSON.stringify(st)}: shows nothing`);
+    ok(coverageMap([row('new', [show], { cover: '  ' }), row('new', [show], { requester: '' }), row('new', [show], { cover: 7 })]).size === 0, 'no cover or no requester: nothing (fail closed)');
+    cm = coverageMap([row('new', [{ ...show, booth: -1 }, { ...show, shift: 1.5 }, { ...show, day: null }, { ...show, event: '' }, { ...show, kind: 'booth' }, { ...kiosk, date: '11/28' }, { ...kiosk, event: null }, null, 'x'])]);
+    ok(cm.size === 0, 'malformed slots are skipped, none of them throws');
+    cm = coverageMap([row('new', [{ ...show, booth: '0', shift: '1', day: '2' }])]);
+    ok(cm.has(sk), 'indexes written as digit strings still land on the slot');
+    ok(coverageMap(null).size === 0 && coverageMap([null, {}, { data: null }, { data: 'x' }]).size === 0, 'no rows, or rows with no data: an empty map');
+    cm = coverageMap([row('asking-cover', [show], { cover: 'Jordan L.' }), row('new', [show], { cover: 'Sarah' })]);
+    ok(cm.get(sk).text === 'Waiting on Jordan L.', 'two open asks on one slot: the one already asking the cover wins, in either order');
+    cm = coverageMap([row('new', [show], { cover: 'Sarah' }), row('asking-cover', [show], { cover: 'Jordan L.' })]);
+    ok(cm.get(sk).text === 'Waiting on Jordan L.', 'two open asks on one slot, the other order');
+    const mk = coverageMap([row('new', [show])]).get(sk);
+    ok(covHolds(mk, 'Marcus R.') && covHolds(mk, 'marcus r. ') && covHolds(mk, 'Sarah / Marcus R.'), 'the mark shows while the slot holds the requester (any case, either half of a split)');
+    ok(!covHolds(mk, 'Jordan L.') && !covHolds(mk, '') && !covHolds(mk, '__X__') && !covHolds(null, 'Marcus R.'), 'and not once the slot holds someone else, nobody, or no shift');
+    // read-only: the page reads coverage and never writes it or asks for coverage itself
+    ok(/from\('coverage'\)\.select\(/.test(html), 'index.html reads the coverage table');
+    ok(!/from\('coverage'\)\.(insert|update|upsert|delete)\b/.test(html) && !/coverage_request/.test(html) && !/['"]coverage\//.test(html), 'index.html never writes coverage, never calls coverage_request');
+  });
+
   await section('no env', async () => {
     // ---- missing env is a loud failure
     r = await board(['tick'], { BOARD_SUPABASE_URL: '', BOARD_SERVICE_KEY: '' }); ok(r.code !== 0 && /board\.env/.test(r.stderr), 'no env: exits non-zero and says where to put it');
