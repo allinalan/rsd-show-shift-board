@@ -764,6 +764,63 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(r.code === 0 && J(r).books.length === 1 && J(r).books[0].key === 'sept-feb', '--book runs one book alone');
   });
 
+  // ---- the May-Sept roll-in (Alan, 2026-10-24: "upload also events from this link without names to 2027"): last summer's
+  // tab into 2027 once, no names, leaving alone what the board has in 2027 and what the 2026 roll-forward will bring
+  await section('sheet-sync: the May-Sept roll-in', async () => {
+    const SER = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000);
+    const G = [], row = o => { const r = new Array(27).fill(null); for (const [i, v] of Object.entries(o)) r[+i] = v; G.push(r); return G.length - 1; };
+    row({ 0: ' ' });                                                                              // row 1: blank
+    row({ 1: 'Type', 2: 'Status', 4: 'Event Description', 5: 'Elite,Key, Traditional, Pros' });   // row 2: the header
+    row({ 1: 'Weekend 05/01' });
+    row({ 2: 'Booked', 4: 'May Fair', 5: 'Saturday', 12: '100', 13: SER('2026-05-02'), 14: SER('2026-05-02') });   // the Jan-May load has it
+    row({ 4: 'Shift 1', 5: 'Eli' });
+    row({ 2: 'promoter declined', 4: 'Valley Fair', 5: 'Friday', 6: 'Saturday', 12: '300' });
+    row({ 4: 'Shift 1', 5: 'Sarah', 6: 'Sarah' });
+    row({ 1: 'Weekend 06-05' });
+    row({ 1: 'Invite Only', 2: 'Booked', 4: 'Maricopa County Summer Home Show', 5: 'Friday', 6: 'Saturday', 7: 'Sunday', 12: '7099.52', 13: SER('2026-06-05'), 14: SER('2026-06-07') });
+    row({ 4: 'Shift 1', 5: 'Foss', 6: 'Foss', 7: 'Foss' });
+    row({ 2: 'Prospective', 4: 'Gary Rodeo', 5: 'Friday', 12: '350' });
+    row({ 4: 'Booked' });                                                                         // a status typed into a shift label
+    row({ 1: 'Weekend 07-03' });
+    row({ 2: 'moved to OCT', 4: 'Pine Crafts', 5: 'Saturday', 12: '95' });
+    row({ 1: 'Weekend 08-28' });
+    row({ 2: 'Booked', 4: 'Corn Fest', 5: 'Saturday', 12: '125' });                               // fall 2026: same weekend a year earlier
+    row({ 2: 'Booked', 4: 'County Fair', 5: 'Thursday', 6: 'Friday', 12: '100' });                // fall 2026: on 10/2 (it moved)
+    row({ 2: 'Prospective', 4: 'Business Expo', 5: 'Saturday', 12: '100' });                      // not in the fall book
+    for (const t of Object.keys(db)) db[t].clear();
+    T('settings').set('division', { roster: ['Eli', 'Sarah', 'Foss'] });
+    const show = (id, name, weekend, year) => T('events').set(id, { name, weekend, year, startDate: weekend, endDate: weekend, days: ['Saturday'], dates: [weekend], booths: [], status: 'Prospective' });
+    show('2027-may-fair-j1', 'May Fair', '2027-04-30', 2027);
+    show('2026-corn-fest-r3', 'Corn Fest', '2026-08-28', 2026);
+    show('2026-county-fair-r9', 'County Fair', '2026-10-02', 2026);
+    const state = path.join(home, 'rollin-state'), outd = path.join(home, 'rollin-out'), gridFile = path.join(home, 'rollin-grid.json');
+    fs.mkdirSync(state, { recursive: true }); fs.writeFileSync(gridFile, JSON.stringify(G));
+    const roll = (...a) => new Promise(res => execFile(process.execPath, [path.join(REPO, 'scripts/sheet-sync.mjs'), '--roll-in', 'may-sept-2026', '--grid-may-sept-2026', gridFile, '--date', '2026-10-24', '--json', ...a],
+      { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_STATE_DIR: state, BOARD_OUT_DIR: outd } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    const J = x => { try { return JSON.parse(x.stdout); } catch { return {}; } };
+
+    r = await roll();
+    ok(r.code === 1 && /run the Jan-May book's first load before/.test(r.stderr) && T('events').size === 3, 'roll-in: refuses before the Jan-May first load (its May duplicates are judged against the board)');
+    fs.writeFileSync(path.join(state, 'sheet-baseline-jan-may.json'), '[]');
+    r = await roll();
+    let ri = J(r);
+    ok(r.code === 0 && ri.parsed === 8 && T('events').size === 3, 'roll-in (dry): the header row and the "Booked" label row are not shows; nothing written: ' + JSON.stringify({ code: r.code, parsed: ri.parsed, err: r.stderr.slice(0, 300) }));
+    ok(ri.created.map(c => c.name).join() === 'Valley Fair,Maricopa County Summer Home Show,Gary Rodeo,Business Expo' && ri.already.map(c => c.id).join() === '2027-may-fair-j1'
+      && ri.withRoll.map(c => c.id).sort().join() === '2026-corn-fest-r3,2026-county-fair-r9' && ri.skipped.map(c => c.name).join() === 'Pine Crafts',
+      'roll-in: new shows made; the board\'s 2027 May show left alone; the fall book\'s shows (same weekend, or moved) left to the 2026 roll-forward; "moved to OCT" skipped: ' + JSON.stringify({ created: ri.created.map(c => c.name), already: ri.already, withRoll: ri.withRoll, skipped: ri.skipped }));
+    r = await roll('--apply');
+    ri = J(r);
+    const made = name => [...T('events').values()].find(d => d.name === name);
+    const msh = made('Maricopa County Summer Home Show'), vf = made('Valley Fair');
+    ok(r.code === 0 && ri.readBack && ri.readBack.ok === 4 && T('events').size === 7, 'roll-in --apply: four shows written and read back: ' + JSON.stringify({ code: r.code, readBack: ri.readBack, err: r.stderr.slice(0, 300) }));
+    ok(msh && msh.year === 2027 && msh.weekend === '2027-06-04' && msh.startDate === '2027-06-04' && msh.datesEstimated === true && msh.tier === 'Elite' && msh.status === 'Prospective'
+      && msh.booths.every(b => b.shifts.every(s => s.slots.every(sl => !sl.rep))), 'roll-in: last summer\'s row is a 2027 show on its Friday, estimated, Elite by the Maricopa rule, Prospective, no names: ' + JSON.stringify(msh && [msh.weekend, msh.startDate, msh.tier, msh.status]));
+    ok(vf && vf.status === 'Cancelled' && vf.dead === true && made('Business Expo').weekend === '2027-08-27', 'roll-in: "promoter declined" is Cancelled; a show the fall book does not have is made on its own weekend');
+    ok(fs.existsSync(path.join(state, 'roll-in-may-sept-2026.json')) && JSON.parse(fs.readFileSync(path.join(state, 'roll-in-may-sept-2026.json'), 'utf8')).created.length === 4, 'roll-in: what it made is recorded in state/');
+    r = await roll('--apply');
+    ok(r.code === 1 && /already ran/.test(r.stderr) && T('events').size === 7, 'roll-in runs once: a second refuses');
+  });
+
   // ---- tier rules (Alan, 2026-09-24: Maricopa is Elite, always, except the Maricopa County Fair)
   await section('tier rules', async () => {
     const { ruleTier, tierOf } = await import(path.join(REPO, 'scripts/lib/match.mjs'));

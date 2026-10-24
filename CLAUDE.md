@@ -64,7 +64,21 @@ routines in `.claude/skills/` keep it true.
   set-up text in a rep cell ("set-up 11-7", "SET UP DAY") is no shift (`__X__`; Alan: set-up is never a shift);
   the "Service Events" row is not a show; column B "Elite" is kept as `tierTag`; `--season-year` (the Jan-May
   2027 book, tab 2027, is 2026: January-July headers are the year after) and `--date-labels weekday` (that book's
-  day cells hold earlier years' dates). Read the Sept-Feb book exactly as before (checked cell for cell).
+  day cells hold earlier years' dates). Read the Sept-Feb book exactly as before (checked cell for cell). Since
+  2026-10-24 (the May-Sept book): `--season-start-month` (5 for a May-Sept book: every header from May on is
+  `--season-year`), a header row below row 1 ("Event Description") and a status word typed into a shift row's label
+  ("Booked") are not shows.
+- **The May-Sept 2026 roll-in** (Alan, 2026-10-24: "upload also events from this link without names to 2027"; config
+  `rollIns`). The May-Sept book's newest tab is last summer's (May 1 - Sept 25, 2026), so it was rolled into 2027
+  **once** and is **not synced** (the 2027 summer schedule goes on the board at the May 2027 meeting, stage 3):
+  `node scripts/sheet-sync.mjs --roll-in may-sept-2026` (dry), then `--apply`, after the Jan-May first load (it refuses
+  before). Same rules as the March-May load: Prospective 2027 shows with no names, days a year on marked estimated,
+  rows marked out (adds "do not work again") Cancelled, Elite kept, "moved to ..." rows skipped. Left alone: shows the
+  board already has in 2027 on that weekend (the Jan-May book's May copies), and from `fallFrom` (2027-08-27) every show
+  the board has in fall 2026 on any weekend: those come into 2027 with their history and the fall book's newer dates
+  when 2026 is rolled forward (board Roll forward / `board.mjs rollforward 2027`). `state/roll-in-may-sept-2026.json`
+  lists what it made; a second run refuses. Rehearsed 2026-10-24 on a copy of the board: 69 new (1 Cancelled), 16
+  already there, 41 left to the roll-forward, 1 skipped.
 - `scripts/sheet-sync.mjs` — the Sheet -> board sync (stage 2 of the roadmap, live 2026-09-23). **Two books since
   2026-10-23** (Alan: "upload the Jan-May 2027 sheet"): the Sept-Feb and Jan-May schedules are separate Google Sheets
   that both carry January and February (config `sheets`). Each weekend is fed by one book only: until the January

@@ -23,6 +23,14 @@
       }
     }
   ],
+  "rollIns": [
+    {
+      "key": "may-sept-2026", "label": "May-Sept 2026", "fileId": "17gPzz1g5JHIiou5BbMmUZQd2RvlMdvhqHr91l0E7Sgo", "tab": "2026",
+      "seasonYear": 2027, "seasonStartMonth": 5, "dateLabels": "weekday", "year": 2027, "after": "jan-may", "fallFrom": "2027-08-27", "maxCreate": 200,
+      "deadPattern": "no dates|cancel|declin|not allowed|territory|do not work", "skipPattern": "^moved to"
+    }
+  ],
+  "_rollIns": "Alan, 2026-10-24: 'upload also events from this link without names to 2027'. The May-Sept book's newest tab is 2026's summer (headers May 1 to Sept 25), so it is rolled into 2027 once (scripts/sheet-sync.mjs --roll-in may-sept-2026, after the Jan-May first load) and never synced: no names, days a year on and estimated, rows marked out Cancelled (deadPattern, which adds 'do not work again'), 'moved to ...' rows skipped, shows the board already has in 2027 (the Jan-May load's May) left alone, and from fallFrom (2027-08-27, a year after the fall book's first weekend) every show the board has in fall 2026, on any weekend, left to the 2026 roll-forward, which brings their history and the fall book's newer dates. seasonYear 2027 with seasonStartMonth 5: every May-September header is 2027.",
   "_sheets": "Alan, 2026-10-23: the board follows both schedule books, each feeding only its own weekends so a show never flips between them. Until the January meeting the Sept-Feb book feeds through February and the Jan-May book from March 1; from the morning of the meeting (handover.on) the Jan-May book feeds every weekend from January 1, and only what the team changed in that book since its first load comes over then (Alan settled the six shows the two books disagreed on). seasonYear is the year of a weekend header from August on (January-July headers are the next year), so the Jan-May 2027 book is 2026. dateLabels weekday: that book's day cells still hold earlier years' dates. firstLoad (scripts/sheet-sync.mjs --first-load jan-may): its March-May rows were still 2026's, so they came on as Prospective 2027 shows with no reps, a row marked out in column B or C (deadPattern) as Cancelled, column B Elite as Elite, and the skip rows (last year's copies of shows already on the board) left off. Alan's defaults, 2026-10-23.",
   "coordinator": "Matt Foss",
   "scopeDaysBack": 60,

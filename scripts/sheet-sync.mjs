@@ -56,6 +56,10 @@
   written is read back. The held-back cells are kept by board show and used up once the Sheet says anything else
   there; a new row carrying the names of a show gone from that weekend is held, not created.
 
+  ROLL-IN (Alan, 2026-10-24). --roll-in <key> (config rollIns), dry then --apply, once: last year's tab of a book nobody
+  syncs (the May-Sept book's 2026 summer) becomes this year's Prospective shows the same way, leaving alone what the board
+  already has that year and the shows the year before's roll-forward will bring. Nothing follows that Sheet afterwards.
+
   ONE SHOW, ONE BOOK. A row matching a show another book feeds today is not linked, two books writing one show in a
   run stop it (exit 6), and a show a book stops feeding that no other book carries is flagged once.
 
@@ -63,6 +67,7 @@
     sheet-sync.mjs [--apply] [--book <key>] [--vc vc-my-events.json] [--force] [--date YYYY-MM-DD]
                    [--tag <t>] [--requests <id,id>] [--via button|auto]
     sheet-sync.mjs --first-load <key> [--apply] [--date YYYY-MM-DD]
+    sheet-sync.mjs --roll-in <key> [--apply] [--date YYYY-MM-DD]            (--grid-<key> / --xlsx-<key> for the tests)
     --xlsx / --grid <file> stand in for the first book's download, --xlsx-<key> / --grid-<key> for that book's (the
     tests); given any of them, the books without one are not read.
   Dry by default: prints the plan and writes out/reports/sheet-sync-<date>.{md,json} (sheet-sync-<date>-<tag>
@@ -87,7 +92,7 @@ const APPLY = flag('--apply'), FORCE = flag('--force');
 const TAG = (opt('--tag') || '').replace(/[^A-Za-z0-9_-]/g, '');
 const REQUESTS = (opt('--requests') || '').split(',').map(Number).filter(n => Number.isInteger(n) && n > 0);
 const VIA = (opt('--via') || '').replace(/[^a-z]/g, '');
-const ONLY = opt('--book'), FIRST = opt('--first-load');
+const ONLY = opt('--book'), FIRST = opt('--first-load'), ROLL = opt('--roll-in');
 const CFG = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8'));
 const BOOKS = CFG.sheets;
 // BOARD_STATE_DIR / BOARD_OUT_DIR point the tests at temp dirs; production uses the repo's state/ and out/.
@@ -425,7 +430,7 @@ async function record(api, startedAt, r) {
 
 // ---------- the run -----------------------------------------------------------------------------------
 async function main() {
-  const api = boardApi({ actor: 'service:sheet-sync' + (FIRST ? ':first-load' : VIA ? ':' + VIA : '') });
+  const api = boardApi({ actor: 'service:sheet-sync' + (FIRST ? ':first-load' : ROLL ? ':roll-in' : VIA ? ':' + VIA : '') });
   const startedAt = new Date().toISOString();
   let release = null;
   if (APPLY) {
@@ -436,7 +441,7 @@ async function main() {
       return 4;
     }
   }
-  try { return FIRST ? await firstLoad(api, startedAt) : await run(api, startedAt); }
+  try { return FIRST ? await firstLoad(api, startedAt) : ROLL ? await rollIn(api, startedAt) : await run(api, startedAt); }
   catch (e) { if (APPLY) await record(api, startedAt, { date: TODAY, error: String(e.message || e).slice(0, 400) }); throw e; }
   finally { if (release) release(); }
 }
@@ -712,6 +717,34 @@ async function run(api, startedAt) {
   return code;
 }
 
+// ---------- last year's rows as this year's shows (a book's first load, a roll-in) ----------------------------
+/**
+ * A Sheet row from last year as a new show for `year`: none of its picks (they are last year's; the cells are returned,
+ * by the new show's id), days from the weekend header and marked estimated unless the row's Start Date cell is this
+ * year's, Cancelled when column B or C marks it out (`dead`), Elite from column B or a tier rule.
+ */
+function rolledShow(sheet, { resolve, year, dead, createdBy }) {
+  const row = clone(sheet);
+  const id = newId(row, Number(String(row.weekend || '').slice(0, 4)) || year);
+  const cells = takeStale(row, id);
+  const d = datesFor(row, year);
+  const out = dead.test(row.sheetStatus) || dead.test(row.levelCell || '');
+  const doc = newShowDoc(row, { resolve, status: out ? 'Cancelled' : 'Prospective', dead: out, tier: ruleTier(row.name, CFG.tierRules) || row.tierTag || 'Traditional',
+    startDate: d.startDate, endDate: d.endDate, datesEstimated: !d.cellUsed, createdBy, keepReps: false });
+  return { id, row, doc, cells, notCarried: [...new Set(cells.map(c => c.rep).filter(isRep))] };
+}
+/** Read every new show back: there, as written, and with no names on it. Returns the ids that are not. */
+async function readBackShows(api, writes) {
+  const bad = [];
+  for (const w of writes) {
+    const back = await api.row('events', w.id);
+    const filled = back && (back.booths || []).some(b => b.shifts.some(s => s.slots.some(sl => t(sl.rep) || (sl.ft || []).length)));
+    if (!back || back.name !== w.doc.name || back.weekend !== w.doc.weekend || back.status !== w.doc.status || back.startDate !== w.doc.startDate || filled) bad.push(w.id);
+  }
+  return bad;
+}
+const createdLine = c => `- ${c.weekend} ${c.name}: ${c.status}${c.tier !== 'Traditional' ? `, ${c.tier}` : ''}, ${c.startDate}${c.endDate !== c.startDate ? '..' + c.endDate : ''}${c.estimated ? ' (est.)' : ''}${c.cost ? `, ${c.cost}` : ''}${c.notCarried.length ? `; last year's names not carried: ${c.notCarried.join(', ')}` : ''} [${c.id}]`;
+
 // ---------- a book's first load ---------------------------------------------------------------------------
 async function firstLoad(api, startedAt) {
   const book = BOOKS.find(b => b.key === FIRST);
@@ -754,19 +787,13 @@ async function firstLoad(api, startedAt) {
     }
     if (existing) { baseline.push({ ...clone(sheet), id: existing.id }); plan.linked.push({ name: sheet.name, weekend: sheet.weekend, id: existing.id }); continue; }
     // a new show from last year's row: none of its picks are this year's (the cells are kept, by the new show's id)
-    const row = clone(sheet);
-    const id = newId(row, Number(String(row.weekend || '').slice(0, 4)) || FL.year);
-    const cells = takeStale(row, id);
+    const { id, row, doc, cells, notCarried } = rolledShow(sheet, { resolve, year: FL.year, dead, createdBy: 'service:sheet-sync:first-load' });
     stale.push(...cells);
-    const d = datesFor(row, FL.year);
-    const out = dead.test(row.sheetStatus) || dead.test(row.levelCell || '');
-    const doc = newShowDoc(row, { resolve, status: out ? 'Cancelled' : 'Prospective', dead: out, tier: ruleTier(row.name, CFG.tierRules) || row.tierTag || 'Traditional',
-      startDate: d.startDate, endDate: d.endDate, datesEstimated: !d.cellUsed, createdBy: 'service:sheet-sync:first-load', keepReps: false });
     writes.push({ id, doc });
     // the baseline keeps the Sheet's own cells (blank or last year's): staying that way is no change, and the team's
     // real date coming in replaces the board's estimate (planEvent: estimated board dates are nobody's edit)
     baseline.push({ ...row, id });
-    plan.created.push({ id, name: row.name, weekend: row.weekend, status: doc.status, tier: doc.tier, startDate: doc.startDate, endDate: doc.endDate, estimated: doc.datesEstimated, cost: doc.cost, notCarried: [...new Set(cells.map(c => c.rep).filter(r => r && r !== '__X__'))] });
+    plan.created.push({ id, name: row.name, weekend: row.weekend, status: doc.status, tier: doc.tier, startDate: doc.startDate, endDate: doc.endDate, estimated: doc.datesEstimated, cost: doc.cost, notCarried });
   }
 
   // What the handover will leave behind or trip on, said now: the other books' shows on the weekends this book takes over
@@ -791,12 +818,7 @@ async function firstLoad(api, startedAt) {
     writeCombined();
     result.wrote = true;
     // every show written is read back
-    const bad = [];
-    for (const w of writes) {
-      const back = await api.row('events', w.id);
-      const filled = back && (back.booths || []).some(b => b.shifts.some(s => s.slots.some(sl => t(sl.rep) || (sl.ft || []).length)));
-      if (!back || back.name !== w.doc.name || back.weekend !== w.doc.weekend || back.status !== w.doc.status || back.startDate !== w.doc.startDate || filled) bad.push(w.id);
-    }
+    const bad = await readBackShows(api, writes);
     result.readBack = { checked: writes.length, ok: writes.length - bad.length, bad };
     if (bad.length) code = 1;
     await record(api, startedAt, { date: TODAY, wrote: true, parsed: sheetEvents.length, eventsTouched: writes.length, slotChanges: 0, noVcPull: true,
@@ -809,7 +831,7 @@ async function firstLoad(api, startedAt) {
   md.push(`${plan.created.length} new on the board (${plan.created.filter(c => c.status === 'Cancelled').length} of them Cancelled), ${plan.skipped.length} skipped, ${plan.linked.length} already on the board, ${plan.later.length} remembered for the handover, ${plan.unlinked.length} the board has no match for. ${stale.length} filled cell(s) from last year not carried.`);
   if (result.stopped) md.push('', `**STOPPED:** ${result.stopped}`);
   if (result.readBack) md.push('', `Read back: ${result.readBack.ok} of ${result.readBack.checked} as written${result.readBack.bad.length ? `; NOT as written: ${result.readBack.bad.join(', ')}` : ''}.`);
-  if (plan.created.length) { md.push('', '## New on the board'); for (const c of plan.created) md.push(`- ${c.weekend} ${c.name}: ${c.status}${c.tier !== 'Traditional' ? `, ${c.tier}` : ''}, ${c.startDate}${c.endDate !== c.startDate ? '..' + c.endDate : ''}${c.estimated ? ' (est.)' : ''}${c.cost ? `, ${c.cost}` : ''}${c.notCarried.length ? `; last year's names not carried: ${c.notCarried.join(', ')}` : ''} [${c.id}]`); }
+  if (plan.created.length) { md.push('', '## New on the board'); for (const c of plan.created) md.push(createdLine(c)); }
   if (plan.skipped.length) { md.push('', '## Skipped'); for (const s of plan.skipped) md.push(`- ${s.weekend} ${s.name}: ${s.why}`); }
   if (plan.linked.length) { md.push('', '## Already on the board (followed from now on, nothing written)'); for (const s of plan.linked) md.push(`- ${s.weekend} ${s.name} [${s.id}]`); }
   if (plan.later.length) { md.push('', `## Remembered for the handover (${plan.later.length} shows another book feeds until then)`); md.push(plan.later.map(s => `${s.weekend} ${s.name}`).join('; ')); }
@@ -819,6 +841,85 @@ async function firstLoad(api, startedAt) {
   if (warnings.length) md.push('', `Parser warnings: ${warnings.join('; ')}`);
   fs.mkdirSync(OUT, { recursive: true });
   const stem = `sheet-first-load-${book.key}-${TODAY}`;
+  fs.writeFileSync(path.join(OUT, `${stem}.md`), md.join('\n') + '\n');
+  fs.writeFileSync(path.join(OUT, `${stem}.json`), JSON.stringify(result, null, 1));
+  if (flag('--json')) console.log(JSON.stringify(result, null, 1)); else console.log(md.join('\n'));
+  return code;
+}
+
+// ---------- a roll-in: last year's tab of a book nobody syncs, once (config rollIns) ------------------------------
+/**
+ * Alan, 2026-10-24: "upload also events from this link without names to 2027" (the May-Sept book, whose newest tab is
+ * 2026's summer). Each row becomes a show for `year` the way the first load makes them (rolledShow), except a show the
+ * board already has that year on that weekend (the Jan-May load's May), a show the board has the year before on the
+ * weekend a year earlier (the fall book's: it comes over with its history when that year is rolled forward), and a row
+ * whose column C matches `skipPattern` ("moved to OCT"). Nothing follows the Sheet afterwards; state/roll-in-<key>.json
+ * records what was made, and a second run refuses.
+ */
+async function rollIn(api, startedAt) {
+  const src = (CFG.rollIns || []).find(r => r.key === ROLL);
+  if (!src) throw new Error(`no roll-in "${ROLL}" in config rollIns (${(CFG.rollIns || []).map(r => r.key).join(', ') || 'none'})`);
+  const marker = path.join(STATE, `roll-in-${src.key}.json`);
+  if (fs.existsSync(marker)) throw new Error(`the ${src.label} roll-in already ran (state/roll-in-${src.key}.json lists what it made): it runs once`);
+  // its duplicates are judged against the board, so a book that loads the same weekends goes first
+  const after = src.after && BOOKS.find(b => b.key === src.after);
+  if (after && !fs.existsSync(baselineFile(after))) throw new Error(`run the ${after.label} book's first load before the ${src.label} roll-in: until then the board does not have the shows this one must not repeat`);
+  const given = opt(`--grid-${src.key}`), xlsx = opt(`--xlsx-${src.key}`);
+  let file, grid;
+  if (given) { file = given; grid = JSON.parse(fs.readFileSync(given, 'utf8')); }
+  else { file = xlsx || await sheetFile({ ...src, key: src.key }, -1); grid = await readGrid(file, src.tab); }
+  const [boardEvents, settings] = await Promise.all([api.events(), api.settings()]);
+  const resolve = makeRepResolver([...(settings.roster || []), ...(settings.former || [])]);
+  const { events: sheetEvents, warnings } = parseAll(grid, { seasonYear: src.seasonYear, seasonStartMonth: src.seasonStartMonth ?? 8, dateLabels: src.dateLabels || 'keep' });
+  const yearOf = e => +(e.year || e.season || 0);
+  const sameShow = (a, b) => normName(a) === normName(b) || nameScore(a, b) >= (src.sameNameScore ?? 0.75);
+  const yearOn = w => { const d = new Date(`${w}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 364); return d.toISOString().slice(0, 10); };
+  const dead = new RegExp(src.deadPattern || '(?!)', 'i'), skipRe = new RegExp(src.skipPattern || '(?!)', 'i');
+
+  const plan = { created: [], already: [], withRoll: [], skipped: [] }, writes = [];
+  for (const sheet of sheetEvents) {
+    const at = { name: sheet.name, weekend: sheet.weekend };
+    if (skipRe.test(sheet.sheetStatus)) { plan.skipped.push({ ...at, why: `column C says "${sheet.sheetStatus}"` }); continue; }
+    const here = boardEvents.find(b => yearOf(b) === src.year && b.weekend === sheet.weekend && sameShow(sheet.name, b.name));
+    if (here) { plan.already.push({ ...at, id: here.id, boardName: here.name }); continue; }
+    // the year before's shows on the board come over with their history when that year is rolled forward: the same show
+    // on the weekend a year earlier, or, from `fallFrom` on (the weekends the fall book covers), on any of its weekends
+    // (shows like Northern Gila County Fair moved in 2026, and the fall book has the newer dates)
+    const fallFrom = src.fallFrom && sheet.weekend >= src.fallFrom ? yearOn(src.fallFrom).replace(/^\d{4}/, String(src.year - 1)) : null;
+    const before = boardEvents.find(b => yearOf(b) === src.year - 1 && b.weekend && yearOn(b.weekend) === sheet.weekend && sameShow(sheet.name, b.name))
+      || (fallFrom && boardEvents.find(b => yearOf(b) === src.year - 1 && (b.weekend || '') >= fallFrom && sameShow(sheet.name, b.name)));
+    if (before) { plan.withRoll.push({ ...at, id: before.id, boardName: before.name, boardWeekend: before.weekend }); continue; }
+    const { id, row, doc, notCarried } = rolledShow(sheet, { resolve, year: src.year, dead, createdBy: 'service:sheet-sync:roll-in' });
+    writes.push({ id, doc });
+    plan.created.push({ id, name: row.name, weekend: row.weekend, status: doc.status, tier: doc.tier, startDate: doc.startDate, endDate: doc.endDate, estimated: doc.datesEstimated, cost: doc.cost, notCarried });
+  }
+
+  const result = { date: TODAY, mode: APPLY ? 'apply' : 'dry', rollIn: src.label, sheetFile: path.basename(file), parsed: sheetEvents.length, ...plan, warnings, wrote: false, readBack: null };
+  let code = 0;
+  if (writes.length > (src.maxCreate ?? 150)) { result.stopped = `${writes.length} new shows is more than maxCreate (${src.maxCreate ?? 150}). Nothing written.`; code = 3; }
+  else if (APPLY) {
+    for (const w of writes) await api.createEvent(w.id, w.doc);
+    writePrivate(marker, { key: src.key, label: src.label, date: TODAY, created: writes.map(w => w.id) });
+    result.wrote = true;
+    const bad = await readBackShows(api, writes);
+    result.readBack = { checked: writes.length, ok: writes.length - bad.length, bad };
+    if (bad.length) code = 1;
+    await record(api, startedAt, { date: TODAY, wrote: true, parsed: sheetEvents.length, eventsTouched: writes.length, slotChanges: 0, noVcPull: true,
+      created: plan.created.map(c => ({ name: c.name, weekend: c.weekend, staffed: 0, status: c.status })), applied: [], held: [], conflicts: [],
+      flagged: bad.length ? [`${bad.length} new show(s) did not read back as written: ${bad.join(', ')}`] : [], unresolved: [], duplicates: [], books: [{ label: src.label, parsed: sheetEvents.length, created: writes.length }] });
+  }
+
+  const md = [`# ${src.label}: rolled into ${src.year} on the board, ${TODAY} (${result.mode}${result.wrote ? ', written' : ', nothing written'})`, ''];
+  md.push(`Parsed ${result.parsed} shows. ${plan.created.length} new on the board (${plan.created.filter(c => c.status === 'Cancelled').length} of them Cancelled), ${plan.already.length} the board already has in ${src.year}, ${plan.withRoll.length} that come over with the ${src.year - 1} roll-forward, ${plan.skipped.length} skipped. No names carried; nothing follows this Sheet from now on.`);
+  if (result.stopped) md.push('', `**STOPPED:** ${result.stopped}`);
+  if (result.readBack) md.push('', `Read back: ${result.readBack.ok} of ${result.readBack.checked} as written${result.readBack.bad.length ? `; NOT as written: ${result.readBack.bad.join(', ')}` : ''}.`);
+  if (plan.created.length) { md.push('', '## New on the board'); for (const c of plan.created) md.push(createdLine(c)); }
+  if (plan.already.length) { md.push('', `## Already on the board in ${src.year} (left alone)`); for (const s of plan.already) md.push(`- ${s.weekend} ${s.name}${normName(s.boardName) !== normName(s.name) ? ` (the board's "${s.boardName}")` : ''} [${s.id}]`); }
+  if (plan.withRoll.length) { md.push('', `## On the board in ${src.year - 1} (they come over, with their history and the fall book's dates, when ${src.year - 1} is rolled forward)`); for (const s of plan.withRoll) md.push(`- ${s.weekend} ${s.name} (the board's ${s.boardWeekend}${normName(s.boardName) !== normName(s.name) ? ` "${s.boardName}"` : ''}) [${s.id}]`); }
+  if (plan.skipped.length) { md.push('', '## Skipped'); for (const s of plan.skipped) md.push(`- ${s.weekend} ${s.name}: ${s.why}`); }
+  if (warnings.length) md.push('', `Parser warnings: ${warnings.join('; ')}`);
+  fs.mkdirSync(OUT, { recursive: true });
+  const stem = `sheet-roll-in-${src.key}-${TODAY}`;
   fs.writeFileSync(path.join(OUT, `${stem}.md`), md.join('\n') + '\n');
   fs.writeFileSync(path.join(OUT, `${stem}.json`), JSON.stringify(result, null, 1));
   if (flag('--json')) console.log(JSON.stringify(result, null, 1)); else console.log(md.join('\n'));
