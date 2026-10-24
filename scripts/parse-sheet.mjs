@@ -16,8 +16,15 @@
     parse-sheet.mjs <schedule.xlsx> --diff [--out report.md]  what changed since the seed
     parse-sheet.mjs --grid <grid.json> [...]                  take a pre-dumped grid instead of xlsx
     ... --seed <events.json>                                  check against a file other than seed/events.json
+    ... --season-year 2026                                    the year a weekend header from August on falls in (Jan-Jul
+                                                              headers are the year after). Default: --tab when it is a
+                                                              year, else 2026. The Jan-May 2027 book (tab 2027) is 2026.
+    ... --date-labels weekday                                 a day cell holding a date reads as its weekday (the Jan-May
+                                                              book: its rows still carry earlier years' dates there)
+    ... --season-start-month 5                                the month a book's season starts (default 8, August: a
+                                                              Sept-Feb book); headers from it on are --season-year
 
-  Pull the Sheet with no auth:
+  Pull the Sheet with no auth (the books are in config/event-check.json `sheets`):
     curl -sL -o /tmp/schedule.xlsx \
       "https://docs.google.com/spreadsheets/d/10p5Ro2WpeJ7mMOyS92OWIT3w3Nl-KGX4vBMkXJoOCTs/export?format=xlsx"
 
@@ -151,6 +158,8 @@ export function splitRep(raw) {
   let s = str(raw);
   if (!s) return { rep: '', ft: [] };
   if (/^x+$/i.test(s)) return { rep: '__X__', ft: [] };
+  // "set-up 11-7", "SET UP DAY", "(Set Up)" in a rep cell: that day is set-up, never a shift (Alan, 2026-10-23)
+  if (/^\(?\s*(set\s*-?\s*up|tear\s*-?\s*down)\b/i.test(s)) return { rep: '__X__', ft: [] };
   const ft = [];
   s = s.replace(/\(\s*f\.?t\.?[\s.:-]*([^)]*)\)?/gi, (_, inner) => { ft.push(inner); return ' '; });
   s = s.replace(/\bf\.?t\.?[\s.:-]+(.*)$/i, (_, rest) => { ft.push(rest); return ' '; });
@@ -204,8 +213,17 @@ function resolveDates(dayLabels, weekendDate, start, end) {
   return best.dates;
 }
 
+/**
+ * The board keys a weekend by its Friday. A header that lands on another day is a year-old header (the Jan-May 2027
+ * book kept 2026's "Weekend 03/13" from March on, a Saturday in 2027): it means the Friday of that week.
+ */
+const toFriday = d => { let off = (5 - d.getUTCDay() + 7) % 7; if (off > 3) off -= 7; return addDays(d, off); };
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+/** Not a show: the coordinators' row for the week's service-call days, and a header row below row 1 (the May-Sept book's). */
+const NOT_A_SHOW = /^(service\s+events?|event\s+description)$/i;
+
 // ---------- the walk ----------------------------------------------------------------------
-export function parseSheet(grid, { seasonYear = 2026 } = {}) {
+export function parseSheet(grid, { seasonYear = 2026, seasonStartMonth = 8, dateLabels = 'keep' } = {}) {
   const events = [], warnings = [];
   let weekend = null, ev = null, booth = null, repairs = 0;
 
@@ -226,8 +244,8 @@ export function parseSheet(grid, { seasonYear = 2026 } = {}) {
       if (m) { banner = { mo: +m[1], day: +m[2] }; break; }
     }
     if (banner) {
-      const year = banner.mo >= 8 ? seasonYear : seasonYear + 1;
-      weekend = iso(new Date(Date.UTC(year, banner.mo - 1, banner.day)));
+      const year = banner.mo >= seasonStartMonth ? seasonYear : seasonYear + 1;   // a May-Sept book starts in May
+      weekend = iso(toFriday(new Date(Date.UTC(year, banner.mo - 1, banner.day))));
       continue;
     }
     if (row.every(c => str(c) === '')) continue;
@@ -250,12 +268,16 @@ export function parseSheet(grid, { seasonYear = 2026 } = {}) {
     // day header is an event too; the migration named those "Unnamed event (<venue>)".
     const isEventRow = !isShiftRow && (desc !== '' || (hasDayHeader && hasEventFields));
 
+    if (isEventRow && NOT_A_SHOW.test(desc)) { ev = null; booth = null; continue; }
+    // a status word typed into a shift row's label ("Booked" under Gary Hardt Memorial Rodeo, the May-Sept book), with no
+    // days and no fields of its own, is not a show
+    if (isEventRow && !hasEventFields && !dayCells.some(v => str(v) !== '') && /^(booked|prospective|pending|in progress|submitted|cancell?ed)$/i.test(desc)) continue;
     if (isEventRow) {
       // Every non-empty cell in F–L is a day label, junk included: the migration kept
       // "SE Surprise" and a spilled "Tucson, AZ" as labels, and the slot arrays line up with them.
       const dayCols = [];
       for (let c = C.DAY0; c <= C.DAY9; c++) if (str(row[c]) !== '') dayCols.push(c);
-      const days = dayCols.map(c => { const d = toDate(row[c]); return d ? asSheetDate(d) : str(row[c]); });
+      const days = dayCols.map(c => { const d = toDate(row[c]); return d ? (dateLabels === 'weekday' ? WEEKDAY_NAMES[d.getUTCDay()] : asSheetDate(d)) : str(row[c]); });
       const start = toDate(row[C.START]), end = toDate(row[C.END]);
       const weekendDate = weekend ? new Date(`${weekend}T00:00:00Z`) : null;
       const name = desc ? desc.replace(/\s+/g, ' ').trim()
@@ -280,6 +302,8 @@ export function parseSheet(grid, { seasonYear = 2026 } = {}) {
         row: r, weekend,
         flag: /^mf$/i.test(str(row[C.FLAG])) ? 'MF' : '',
         level: normLevel(row[C.LEVEL]),
+        levelCell: str(row[C.LEVEL]),               // column B as written ("Elite", "no dates"): a new show's tier and status read it
+        tierTag: /^elite$/i.test(str(row[C.LEVEL])) ? 'Elite' : '',
         sheetStatus: str(row[C.STATUS]),
         bestCPO: str(row[C.BESTCPO]),
         name,
@@ -528,8 +552,10 @@ async function main() {
     process.exit(1);
   }
   const grid = flags.grid ? JSON.parse(fs.readFileSync(String(flags.grid), 'utf8')) : await readGrid(pos[0], flags.tab);
-  const seasonYear = flags.tab && flags.tab !== true && /^\d{4}$/.test(String(flags.tab)) ? Number(flags.tab) : 2026;
-  const { events, warnings, repairs } = parseAll(grid, { seasonYear });
+  const seasonYear = /^\d{4}$/.test(String(flags['season-year'])) ? Number(flags['season-year'])
+    : flags.tab && flags.tab !== true && /^\d{4}$/.test(String(flags.tab)) ? Number(flags.tab) : 2026;
+  const seasonStartMonth = /^\d{1,2}$/.test(String(flags['season-start-month'])) ? Number(flags['season-start-month']) : 8;
+  const { events, warnings, repairs } = parseAll(grid, { seasonYear, seasonStartMonth, dateLabels: flags['date-labels'] === 'weekday' ? 'weekday' : 'keep' });
   for (const w of warnings) console.error('warning: ' + w);
   if (repairs) console.error(`${repairs} of ${Object.keys(SHEET_REPAIRS).length} known column-spill repair(s) applied`);
 

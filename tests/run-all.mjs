@@ -147,7 +147,9 @@ try {
     ok((await due('2027-08-15')).join() === 'freshmen-roster', 'tick: freshmen roster on Aug 15 when no August meeting is on the calendar');
     T('settings').set('division', { meetings: ['2027-08-03'] });
     ok((await due('2027-08-15')).length === 0 && (await due('2027-08-05')).join() === 'booking-sweep,freshmen-roster', 'tick: with an August meeting, the reminder follows the meeting, not the fixed day');
-    ok((await due('2026-12-28')).join() === 'season-changeover', 'tick: season changeover reminder on Dec 28');
+    ok((await due('2026-12-28')).length === 0, 'tick: no Dec 28 changeover reminder (the board has followed the Jan-May book since 2026-10-23)');
+    T('settings').set('division', { meetings: ['2027-01-15'] });
+    ok((await due('2027-01-12')).join() === 'handover-preview' && (await due('2027-01-11')).length === 0, 'tick: the day before the books hand over (config sheets handover.on), preview that sync');
     T('settings').set('division', { meetings: ['2027-01-15'] });
 
     // ---- seed: refuses a public seed that carries contacts; the real seed is clean
@@ -211,11 +213,11 @@ try {
     fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
     fs.writeFileSync(path.join(home, '.rsd', 'board.env'), `BOARD_SUPABASE_URL=${base}\nBOARD_SERVICE_KEY=test\nBOARD_ALAN_IMESSAGE=+15555550100\n`);
     T('settings').set('division', { meetings: ['2027-01-15'] });
-    for (const f of ['deploy/tick.py', 'scripts/board.mjs', 'scripts/lib/roster-sync.mjs', '.gitignore']) { fs.mkdirSync(path.dirname(path.join(stage, f)), { recursive: true }); fs.copyFileSync(path.join(REPO, f), path.join(stage, f)); }
+    for (const f of ['deploy/tick.py', 'scripts/board.mjs', 'scripts/lib/roster-sync.mjs', 'config/event-check.json', '.gitignore']) { fs.mkdirSync(path.dirname(path.join(stage, f)), { recursive: true }); fs.copyFileSync(path.join(REPO, f), path.join(stage, f)); }
     fs.writeFileSync(path.join(stage, 'ROSTER-PAUSED'), '');     // these blocks are about the due list; the roster step has its own block
     const tickpy = (...a) => run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', ...a]);
-    r = await tickpy('--date', '2026-12-28');
-    ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /WOULD iMESSAGE ALAN/.test(r.stdout) && /say "set up the Jan-May changeover for the board"/.test(r.stdout), 'tick.py --dry: a due routine produces one Slack + one iMessage notice: ' + r.stderr);
+    r = await tickpy('--date', '2027-01-17');
+    ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /WOULD iMESSAGE ALAN/.test(r.stdout) && /training sign-in sheet/.test(r.stdout), 'tick.py --dry: a due routine produces one Slack + one iMessage notice: ' + r.stderr);
     r = await tickpy('--date', '2027-01-08');
     ok(r.code === 0 && /due, runs itself: date-research/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: the date research runs itself, no notice: ' + r.stdout);
     r = await tickpy('--date', '2027-01-14');
@@ -269,8 +271,8 @@ sys.exit(tick.main())
     r = await tickreal('--date', '2027-01-14');
     ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 1 && /AUTOMATION FAILURE/.test(r.stdout) && /tree is dirty, pull skipped: \?\? stray\.txt/.test(r.stdout) && r.stdout.includes(stage), 'tick.py: a dirty tree posts one Slack alert naming the repo and the path: ' + r.stdout + r.stderr);
     ok(/tree is dirty/.test(r.log) && /nothing due/.test(r.log), 'tick.py: a dirty tree is not fatal, the tick still decides');
-    r = await tickreal('--date', '2026-12-28');
-    ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 2 && count(r.stdout, /^IMESSAGE: /gm) === 1 && /say "set up the Jan-May changeover for the board"/.test(r.stdout), 'tick.py: a dirty tree on a due day sends the alert and still the due notice: ' + r.stdout + r.stderr);
+    r = await tickreal('--date', '2027-01-17');
+    ok(r.code === 0 && count(r.stdout, /^SLACK: /gm) === 2 && count(r.stdout, /^IMESSAGE: /gm) === 1 && /training sign-in sheet/.test(r.stdout), 'tick.py: a dirty tree on a due day sends the alert and still the due notice: ' + r.stdout + r.stderr);
     r = await tickpy('--date', '2027-01-14');
     ok(r.code === 0 && /nothing due/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: a dirty tree sends nothing, --dry pulls nothing');
     fs.rmSync(path.join(stage, 'stray.txt'));
@@ -321,20 +323,20 @@ def post(route, text, mention=None, fallback=True, **k):
     const ROOMED = REAL.replace("tick.slack = lambda text: print('SLACK: ' + text) or True\n", '');
     const tickroom = async (...a) => { fs.rmSync(tickLog, { force: true }); const o = await run('/usr/bin/python3', ['-B', '-c', ROOMED, ...a]); return { ...o, log: fs.existsSync(tickLog) ? fs.readFileSync(tickLog, 'utf8') : '' }; };
     roomSays({ live: ['rsd.board'] });
-    r = await tickroom('--date', '2026-12-28');
+    r = await tickroom('--date', '2027-01-17');
     let got = roomGot();
-    ok(r.code === 0 && got.length === 1 && got[0].route === 'rsd.board' && got[0].mention === true && got[0].fallback === false && /Due today, waiting on you/.test(got[0].text) && /say "set up the Jan-May changeover for the board"/.test(got[0].text),
+    ok(r.code === 0 && got.length === 1 && got[0].route === 'rsd.board' && got[0].mention === true && got[0].fallback === false && /Due today, waiting on you/.test(got[0].text) && /training sign-in sheet/.test(got[0].text),
       'tick.py: #rsd-board live, a due routine is one message there, naming Alan, strict: ' + JSON.stringify(got) + r.stderr);
     ok(!/IMESSAGE: /.test(r.stdout) && /due list posted in #rsd-board/.test(r.log), 'tick.py: #rsd-board live, no iMessage goes to Alan: ' + r.stdout);
-    r = await tickpy('--date', '2026-12-28');
+    r = await tickpy('--date', '2027-01-17');
     ok(r.code === 0 && /WOULD POST IN #rsd-board/.test(r.stdout) && !/WOULD iMESSAGE ALAN/.test(r.stdout) && roomGot().length === 1, 'tick.py --dry: #rsd-board live, it says so and posts nothing');
     roomSays({ live: [] });
-    r = await tickroom('--date', '2026-12-28');
+    r = await tickroom('--date', '2027-01-17');
     got = roomGot();
     ok(r.code === 0 && got.length === 1 && got[0].route === 'rsd.alerts' && got[0].fallback === true && /Due today/.test(got[0].text) && count(r.stdout, /^IMESSAGE: /gm) === 1,
       'tick.py: #rsd-board not live, the notice goes the old way (the alert route and an iMessage): ' + JSON.stringify(got) + r.stdout);
     roomSays({ live: ['rsd.board'], fail: ['rsd.board'] });
-    r = await tickroom('--date', '2026-12-28');
+    r = await tickroom('--date', '2027-01-17');
     got = roomGot();
     ok(r.code === 0 && got.map(g => g.route).join() === 'rsd.board,rsd.alerts' && count(r.stdout, /^IMESSAGE: /gm) === 1 && /SLACK FAILED \(#rsd-board: channel_not_found\); notifying the old way/.test(r.log),
       'tick.py: #rsd-board live but Slack refuses it, the old notice goes instead, so a due routine is never left unseen: ' + JSON.stringify(got) + r.log);
@@ -583,6 +585,240 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(runs.length === 2 && runs.every(x => x.status === 'done' && x.requested_by === 'service:sheet-sync' && x.finished_at) && runs[0].result.eventsTouched === 2 && runs[0].result.counts.held === 1,
       'sheet-sync --apply: each run is on the record for the page (the dry run is not): ' + JSON.stringify(runs.map(x => [x.status, x.requested_by, x.result && x.result.eventsTouched])));
     ok(!fs.existsSync(path.join(state, 'sheet-sync.lock')), 'sheet-sync --apply: the lock is released when the run ends');
+  });
+
+  // ---- two books (Alan, 2026-10-23): the Sept-Feb and Jan-May schedules, each feeding its own weekends, the Jan-May
+  // book's first load (last year's March-May rows: no reps, estimated days, Cancelled, Elite, skips), and the handover
+  await section('sheet-sync: two books, a first load, the handover', async () => {
+    const S = await import(path.join(REPO, 'scripts/sheet-sync.mjs'));
+    const PS = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
+    const SER = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000);
+    const grid = () => { const G = []; G.row = o => { const r = new Array(27).fill(null); for (const [i, v] of Object.entries(o)) r[+i] = v; G.push(r); return G.length - 1; }; return G; };
+
+    // the reader: a year-old header means its week's Friday, set-up in a rep cell is no shift, the Jan-May book's date
+    // cells read as weekdays, the service-call row is not a show, column B Elite is kept
+    const P = grid();
+    P.row({ 2: 'Status', 4: 'header' });
+    P.row({ 1: 'Weekend 03/13' });
+    P.row({ 1: 'Elite', 2: 'Booked', 4: 'Spring Fest', 5: SER('2024-03-15'), 6: 'Saturday', 7: 'Sunday SE', 12: '4250', 13: SER('2026-03-13'), 14: SER('2026-03-15') });
+    P.row({ 4: 'Shift 1', 5: 'set-up 11-7', 6: 'Eli', 7: 'SET UP DAY' });
+    P.row({ 4: 'Service Events', 5: 'Monday (3/10)', 6: 'Tuesday' });
+    P.row({ 4: 'Shift 1', 5: 'Sarah' });
+    let pe = PS.parseAll(P, { seasonYear: 2026, dateLabels: 'weekday' }).events;
+    ok(pe.length === 1 && pe[0].weekend === '2027-03-12', 'parse: "Weekend 03/13" in the Jan-May 2027 book (a Saturday) is the 2027-03-12 weekend, and the service-call row is not a show: ' + JSON.stringify(pe.map(e => [e.name, e.weekend])));
+    ok(pe[0].days.join('|') === 'Friday|Saturday|Sunday SE' && pe[0].dates.join('|') === '2027-03-12|2027-03-13|2027-03-14', 'parse: a day cell holding an old date reads as its weekday, so the days fall in 2027: ' + JSON.stringify([pe[0].days, pe[0].dates]));
+    ok(pe[0].booths[0].shifts.length === 1 && pe[0].booths[0].shifts[0].slots.map(s => s.rep).join('|') === '__X__|Eli|__X__', 'parse: set-up text in a rep cell is no shift, and the service-call row\'s names went nowhere: ' + JSON.stringify(pe[0].booths[0].shifts));
+    ok(pe[0].tierTag === 'Elite' && pe[0].level === '', 'parse: column B "Elite" is kept as the tier tag');
+    pe = PS.parseAll(P, { seasonYear: 2026 }).events;
+    ok(pe[0].days[0] === '3/15/2024', 'parse: without dateLabels the Sept-Feb book\'s date cells stay as the migration wrote them');
+
+    // planEvent: a blank Start Date never blanks the board; estimated board dates give way to the Sheet's; column C carries
+    const resolve = PS.makeRepResolver(['Cameron', 'Eli', 'Sarah', 'Kendall', 'Zach']);
+    const ev = (extra = {}) => ({ name: 'Corn Fest', weekend: '2027-03-12', startDate: '2027-03-13', endDate: '2027-03-14', days: ['Saturday', 'Sunday'], dates: ['2027-03-13', '2027-03-14'],
+      booths: [{ label: '', days: ['Saturday', 'Sunday'], dates: ['2027-03-13', '2027-03-14'], shifts: [{ label: 'Shift 1', slots: [{ rep: '', ft: [] }, { rep: '', ft: [] }] }] }], ...extra });
+    let p = S.planEvent({ base: ev(), sheet: ev({ startDate: '', endDate: '' }), board: ev(), resolve, vcRow: null, today: '2026-10-24' });
+    ok(!('startDate' in p.patch) && !p.conflicts.length && p.keepBase.fields.has('startDate'), 'sync: a Start Date cell emptied on the Sheet does not empty the board\'s, and the baseline keeps the date (the next one typed is a move, not a conflict)');
+    p = S.planEvent({ base: ev({ startDate: '2026-03-14', endDate: '2026-03-15' }), sheet: ev({ startDate: '2027-03-20', endDate: '2027-03-21' }), board: ev({ datesEstimated: true }), resolve, vcRow: null, today: '2026-10-24' });
+    ok(p.patch.startDate === '2027-03-20' && p.patch.datesEstimated === false && !p.conflicts.length, 'sync: the Sheet\'s real date replaces an estimated one on the board (not a conflict): ' + JSON.stringify([p.patch, p.conflicts]));
+    p = S.planEvent({ base: ev({ startDate: '2026-03-14', endDate: '2026-03-15' }), sheet: ev(), board: ev({ datesEstimated: true }), resolve, vcRow: null, today: '2026-10-24' });
+    ok(p.patch.datesEstimated === false && !('startDate' in p.patch), 'sync: the Sheet confirming the estimate just clears "est."');
+    p = S.planEvent({ base: ev({ sheetStatus: 'Prospective' }), sheet: ev({ sheetStatus: 'Booked' }), board: ev({ sheetStatus: 'In Progress' }), resolve, vcRow: null, today: '2026-10-24' });
+    ok(p.patch.sheetStatus === 'Booked' && !p.conflicts.length, 'sync: column C is the Sheet\'s own words, so its change carries even where the board holds another book\'s');
+    ok(S.owned(S.rangeOn({ weekends: { from: '2027-03-01' }, handover: { on: '2027-01-13', weekends: { from: '2027-01-01' } } }, '2027-01-12'), '2027-01-08') === false
+      && S.owned(S.rangeOn({ weekends: { from: '2027-03-01' }, handover: { on: '2027-01-13', weekends: { from: '2027-01-01' } } }, '2027-01-13'), '2027-01-08') === true, 'sync: a book feeds January only from handover morning');
+
+    // the two books end to end. Sept-Feb: a December show and a January one. Jan-May: the same January show (its Sunday
+    // differs from day one: Alan's call keeps Sept-Feb's), and last year's March rows.
+    const A = grid();
+    A.row({ 2: 'Status', 4: 'header' });
+    A.row({ 1: 'Weekend 12-04' });
+    A.row({ 2: 'Booked', 4: 'Winter Fair', 5: 'Saturday', 6: 'Sunday', 12: '100', 13: SER('2026-12-05'), 14: SER('2026-12-06'), 15: 'Mesa, AZ' });
+    A.row({ 4: 'Shift 1', 5: 'Eli', 6: '' });
+    A.row({ 1: 'Weekend 01-08' });
+    const aJan = A.row({ 2: 'Booked', 4: 'Jan Show', 5: 'Saturday', 6: 'Sunday', 12: '200', 13: SER('2027-01-09'), 14: SER('2027-01-10'), 15: 'Phoenix, AZ' });
+    A.row({ 4: 'Shift 1', 5: 'Cam', 6: 'Sarah' });
+    A.row({ 1: 'Weekend 02-12' });                                   // only in this book (Casa Grande's case)
+    A.row({ 2: 'Booked', 4: 'Feb Only Show', 5: 'Saturday', 12: '75', 13: SER('2027-02-13'), 14: SER('2027-02-13'), 15: 'Casa Grande, AZ' });
+    A.row({ 4: 'Shift 1', 5: 'Eli' });
+    A.row({ 1: 'Weekend 02-26' });                                   // moved to the 3/5 weekend on the board (research)
+    A.row({ 2: 'Booked', 4: 'Border Fest', 5: 'Saturday', 12: '300', 13: SER('2027-02-27'), 14: SER('2027-02-27'), 15: 'Yuma, AZ' });
+    A.row({ 4: 'Shift 1', 5: 'Sarah' });
+    const B = grid();
+    B.row({ 2: 'Status', 4: 'header' });
+    B.row({ 1: 'Weekend 1/8' });
+    const bJan = B.row({ 2: 'Prospective', 4: 'Jan Show', 5: 'Saturday', 6: 'Sunday', 12: '200', 13: SER('2027-01-09'), 14: SER('2027-01-10'), 15: 'Phoenix, AZ' });
+    B.row({ 4: 'Shift 1', 5: 'Cameron', 6: 'Kendall' });
+    B.row({ 1: 'Weekend 03/06' });
+    const bElPaso = B.row({ 2: 'Booked', 4: 'El Paso Home & Garden Show', 5: 'Friday', 6: 'Saturday', 12: '1315', 15: 'El Paso, TX' });   // config skip: last year's row
+    B.row({ 4: 'Shift 1', 5: 'Jerry', 6: 'Jerry' });
+    B.row({ 1: 'Weekend 03/13' });
+    const bSpring = B.row({ 1: 'Elite', 2: 'Booked', 4: 'Spring Fest', 5: 'Friday', 6: 'Saturday', 7: 'Sunday', 12: '4250', 13: SER('2026-03-13'), 14: SER('2026-03-15'), 15: 'Tempe, AZ' });
+    B.row({ 4: 'Shift 1', 5: 'TC', 6: 'TC', 7: 'TC' });
+    B.row({ 4: 'Shift 2', 5: 'Zach', 6: 'Zach', 7: 'x' });
+    const bCorner = B.row({ 2: 'Prospective', 4: 'Corner Market', 5: 'Saturday', 12: '50', 15: 'Gilbert, AZ' });
+    B.row({ 4: 'Shift 1', 5: 'Kendall' });                            // one name only: too few to recognise a rename by
+    B.row({ 1: 'no dates', 2: 'Prospective', 4: 'Gone Fair', 5: 'Saturday', 12: '90', 15: 'Mesa, AZ' });
+    B.row({ 4: 'Shift 1', 5: '' });
+    B.row({ 4: 'Service Events', 5: 'Monday (3/10)', 6: 'Tuesday' });
+
+    for (const t of Object.keys(db)) db[t].clear();
+    T('settings').set('division', { roster: ['Cameron', 'Eli', 'Sarah', 'Kendall', 'Zach', 'Jerry'] });
+    const { events: aEvents } = PS.parseAll(JSON.parse(JSON.stringify(A)), { seasonYear: 2026 });
+    const aIds = ['2026-winter-fair-t1', '2027-jan-show-t2', '2027-feb-only-t3', '2027-border-fest-t4'];
+    const legacy = aEvents.map((e, i) => ({ ...e, id: aIds[i] }));
+    legacy.forEach(e => { const { id, ...d } = e; T('events').set(id, { ...JSON.parse(JSON.stringify(d)), year: +d.weekend.slice(0, 4), booths: d.booths.map(b => ({ ...b, shifts: b.shifts.map(s => ({ ...s, slots: s.slots.map(sl => ({ ...sl, rep: sl.rep === 'Cam' ? 'Cameron' : sl.rep })) })) })) }); });
+    T('events').get('2027-border-fest-t4').weekend = '2027-03-05';
+    const state = path.join(home, 'books-state'), outd = path.join(home, 'books-out');
+    fs.mkdirSync(state, { recursive: true }); fs.writeFileSync(path.join(state, 'sheet-baseline.json'), JSON.stringify(legacy));   // the one-book baseline, as on the mini
+    const gA = path.join(home, 'books-a.json'), gB = path.join(home, 'books-b.json');
+    const save = () => { fs.writeFileSync(gA, JSON.stringify(A)); fs.writeFileSync(gB, JSON.stringify(B)); };
+    save();
+    const sync = (...a) => new Promise(res => execFile(process.execPath, [path.join(REPO, 'scripts/sheet-sync.mjs'), '--json', ...a],
+      { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_STATE_DIR: state, BOARD_OUT_DIR: outd } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    const J = r => { try { return JSON.parse(r.stdout); } catch { return {}; } };
+    const ev2 = id => T('events').get(id), named = n => [...T('events')].find(([, d]) => d.name === n);
+    const reps = d => d.booths.map(b => b.shifts.map(s => s.slots.map(sl => sl.rep).join(',')).join(' / ')).join(' | ');
+
+    r = await sync('--grid', gA, '--grid-jan-may', gB, '--date', '2026-10-24', '--apply');
+    ok(r.code === 5 && /Jan-May book has no baseline yet \(run sheet-sync\.mjs --first-load jan-may/.test(J(r).stopped || '') && T('events').size === 4 && !fs.existsSync(path.join(state, 'sheet-baseline-sept-feb.json')),
+      'two books: a book with no baseline stops the whole run (exit 5) and says to first-load it; nothing written: ' + r.code + ' ' + (J(r).stopped || r.stderr.slice(0, 200)));
+
+    r = await sync('--first-load', 'jan-may', '--grid-jan-may', gB, '--date', '2026-10-24');
+    let fl = J(r);
+    ok(r.code === 0 && fl.created.length === 3 && fl.skipped.length === 1 && fl.later.length === 1 && fl.later[0].id === '2027-jan-show-t2' && T('events').size === 4,
+      'first load (dry): three new shows, last year\'s El Paso row skipped, the January show remembered against the board\'s id, nothing written: ' + JSON.stringify({ code: r.code, created: fl.created, skipped: fl.skipped, later: fl.later, err: r.stderr.slice(0, 300) }));
+    ok((fl.onlyInOther || []).map(x => x.id).sort().join() === '2027-border-fest-t4,2027-feb-only-t3', 'first load: the report names the Sept-Feb shows on January-February weekends this book does not have: ' + JSON.stringify(fl.onlyInOther));
+
+    r = await sync('--first-load', 'jan-may', '--grid-jan-may', gB, '--date', '2026-10-24', '--apply');
+    fl = J(r);
+    const spring = named('Spring Fest'), gone = named('Gone Fair');
+    ok(r.code === 0 && fl.readBack && fl.readBack.ok === 3 && spring && gone && T('events').size === 7, 'first load --apply: all three shows written and read back: ' + JSON.stringify({ code: r.code, readBack: fl.readBack, err: r.stderr.slice(0, 300) }));
+    const sp = spring[1];
+    ok(sp.year === 2027 && sp.weekend === '2027-03-12' && sp.startDate === '2027-03-12' && sp.endDate === '2027-03-14' && sp.datesEstimated === true, 'first load: last year\'s row lands on its 2027 weekend, days placed from the header and marked estimated: ' + JSON.stringify([sp.weekend, sp.startDate, sp.endDate, sp.datesEstimated]));
+    ok(sp.status === 'Prospective' && sp.tier === 'Elite' && reps(sp) === ',, / ,,' && ![sp, gone[1]].some(d => PRIV.some(k => k in d)), 'first load: Prospective (last year\'s "Booked" is not this year\'s), Elite from column B, no reps, no contacts in events: ' + JSON.stringify([sp.status, sp.tier, reps(sp)]));
+    ok(gone[1].status === 'Cancelled' && gone[1].dead === true, 'first load: a row column B marks "no dates" is Cancelled');
+    ok(!named('El Paso Home & Garden Show') && ![...T('events').values()].some(d => /service events/i.test(d.name)), 'first load: the skipped row and the service-call row are not on the board');
+    const mode = f => fs.statSync(path.join(state, f)).mode % 0o1000;
+    ok(['sheet-baseline-jan-may.json', 'sheet-stale-jan-may.json', 'sheet-baseline-sept-feb.json', 'sheet-baseline.json'].every(f => fs.existsSync(path.join(state, f)) && mode(f) === 0o600),
+      'first load: each book\'s baseline, the stale cells and the combined baseline are written, mode 600 (the Sept-Feb book\'s moved out of the one-book file)');
+    let combined = JSON.parse(fs.readFileSync(path.join(state, 'sheet-baseline.json'), 'utf8'));
+    ok(combined.filter(e => e.id === '2027-jan-show-t2').map(e => e.book).join() === 'sept-feb' && combined.some(e => e.book === 'jan-may' && e.name === 'Spring Fest'),
+      'combined baseline (the coverage agent\'s): the January show once, from the book that feeds it today: ' + JSON.stringify(combined.map(e => [e.book, e.name, e.id])));
+    r = await sync('--first-load', 'jan-may', '--grid-jan-may', gB, '--date', '2026-10-24', '--apply');
+    ok(r.code === 1 && /already on the board/.test(r.stderr) && T('events').size === 7, 'first load runs once: a second refuses');
+    const staleN = () => JSON.parse(fs.readFileSync(path.join(state, 'sheet-stale-jan-may.json'), 'utf8')).length;
+    ok(staleN() === 7, 'first load: last year\'s seven filled cells are kept, by show: ' + staleN());
+
+    r = await sync('--grid', gA, '--grid-jan-may', gB, '--date', '2026-10-25', '--apply');
+    ok(r.code === 0 && J(r).wrote && J(r).eventsTouched === 0 && J(r).books.length === 2 && !J(r).conflicts.length, 'two books: right after the first load, both books agree with the board: ' + JSON.stringify(J(r).books) + r.stderr.slice(0, 200));
+
+    // the team edits: last year's TC overwritten on Friday, Spring Fest's real dates, a January pick in the Jan-May book,
+    // a December pick in the Sept-Feb book
+    B[bSpring + 1][5] = 'Zach';
+    B[bSpring][13] = SER('2027-03-12'); B[bSpring][14] = SER('2027-03-14');
+    B[bJan + 1][5] = 'Eli';
+    A[3][6] = 'Sarah';
+    B[bSpring + 2][6] = '';                                          // last year's Zach on Saturday, Shift 2, cleared
+    B[bElPaso][4] = 'El Paso Home & Garden Expo';                    // the skipped row renamed: it stays skipped
+    B.row({ 1: 'Weekend 03/06' });                                   // the show the Sept-Feb book feeds, added to this book too
+    B.row({ 2: 'Prospective', 4: 'Border Fest', 5: 'Saturday', 12: '300', 15: 'Yuma, AZ' });
+    B.row({ 4: 'Shift 1', 5: 'Cameron' });
+    save();
+    r = await sync('--grid', gA, '--grid-jan-may', gB, '--date', '2026-10-26', '--apply');
+    let s2 = ev2(spring[0]);
+    ok(r.code === 0 && reps(s2) === 'Zach,, / ,,' && s2.datesEstimated === false, 'two books: a name written over last year\'s comes over; last year\'s names nobody touched do not; the real dates clear "est.": ' + JSON.stringify([reps(s2), s2.datesEstimated]) + r.stderr.slice(0, 200));
+    ok(ev2('2026-winter-fair-t1').booths[0].shifts[0].slots[1].rep === 'Sarah' && ev2('2027-jan-show-t2').booths[0].shifts[0].slots[0].rep === 'Cameron', 'two books: the Sept-Feb book still feeds December and January; the Jan-May book\'s January pick waits for the handover');
+    ok(T('events').size === 7 && J(r).flagged.some(f => /Border Fest .*the other book feeds today \(2027-border-fest-t4\): not linked/.test(f)) && ev2('2027-border-fest-t4').booths[0].shifts[0].slots[0].rep === 'Sarah',
+      'one show, one book: a row matching a show the other book feeds is not linked, and the board keeps that book\'s: ' + JSON.stringify(J(r).flagged));
+    ok(!named('El Paso Home & Garden Expo'), 'a skipped row renamed stays skipped (never created with last year\'s names)');
+    ok(staleN() === 5, 'held-back cells are used up once the Sheet says anything else there, a blank included: ' + staleN());
+    B[bSpring + 2][6] = 'Zach'; save();                              // Zach picks Saturday again, typed in fresh
+    r = await sync('--grid', gA, '--grid-jan-may', gB, '--date', '2026-10-27', '--apply');
+    s2 = ev2(spring[0]);
+    ok(r.code === 0 && reps(s2) === 'Zach,, / ,Zach,', 'a rep typed back into a cleared cell of last year\'s comes over (it is not held back for ever): ' + reps(s2));
+    B[bCorner][4] = 'Totally New Thing'; save();                     // renamed past recognition, last year's Kendall still on it
+    r = await sync('--grid', gA, '--grid-jan-may', gB, '--date', '2026-10-28', '--apply');
+    ok(r.code === 0 && T('events').size === 7 && J(r).held.some(h => h.name === 'Totally New Thing' && /may be that show renamed/.test(h.why)),
+      'a new row carrying the names of a show gone from that weekend is held, not created with last year\'s names: ' + JSON.stringify(J(r).held) + JSON.stringify(J(r).created));
+    B[bCorner][4] = 'Corner Market'; B[bSpring][4] = 'Spring Fest Tempe'; save();
+    r = await sync('--grid', gA, '--grid-jan-may', gB, '--date', '2026-10-29', '--apply');
+    s2 = ev2(spring[0]);
+    ok(r.code === 0 && reps(named('Corner Market')[1]) === '' && s2.name === 'Spring Fest Tempe' && reps(s2) === 'Zach,, / ,Zach,',
+      'renames do not set last year\'s names loose: the cells stay held back by show, not by name: ' + JSON.stringify([reps(named('Corner Market')[1]), s2.name, reps(s2)]));
+
+    r = await sync('--grid', gA, '--grid-jan-may', gB, '--date', '2027-01-13', '--apply');
+    const jan = ev2('2027-jan-show-t2').booths[0].shifts[0].slots;
+    ok(r.code === 0 && jan[0].rep === 'Eli' && jan[1].rep === 'Sarah', 'handover morning: what changed in the Jan-May book since its first load comes over (Eli); where the books disagreed that day, the board keeps what it had (Sarah, not Kendall): ' + JSON.stringify(jan) + r.stderr.slice(0, 200));
+    combined = JSON.parse(fs.readFileSync(path.join(state, 'sheet-baseline.json'), 'utf8'));
+    ok(combined.filter(e => e.id === '2027-jan-show-t2').map(e => e.book).join() === 'jan-may', 'handover: the combined baseline follows the January show to the Jan-May book');
+    const fl13 = J(r).flagged;
+    ok(fl13.some(f => /Feb Only Show .*only in the Sept-Feb book/.test(f)) && !fl13.some(f => /Border Fest .*only in the Sept-Feb book/.test(f)) && combined.some(e => e.id === '2027-feb-only-t3' && e.book === 'sept-feb') && combined.some(e => e.id === '2027-border-fest-t4' && e.book === 'jan-may'),
+      'handover: a show only the Sept-Feb book had is flagged (and stays in the combined baseline); one the Jan-May book takes the same morning is not: ' + JSON.stringify(fl13));
+    A[aJan + 1][6] = 'Zach'; save();
+    r = await sync('--grid', gA, '--grid-jan-may', gB, '--date', '2027-01-14', '--apply');
+    ok(r.code === 0 && ev2('2027-jan-show-t2').booths[0].shifts[0].slots[1].rep === 'Sarah' && J(r).eventsTouched === 0, 'after the handover the Sept-Feb book no longer feeds January');
+    ok(!J(r).flagged.some(f => /Feb Only Show/.test(f)), 'a show left behind at the handover is said once');
+    ok(ev2('2027-border-fest-t4').booths[0].shifts[0].slots[0].rep === 'Sarah' && J(r).conflicts.some(c => c.id === '2027-border-fest-t4'),
+      'a show both sides had, on which the Jan-May book disagrees (Cameron vs the board\'s Sarah), stays a conflict run after run: the Sheet does not quietly win the second time: ' + JSON.stringify(J(r).conflicts));
+    r = await sync('--grid', gA, '--grid-jan-may', gB, '--book', 'sept-feb', '--date', '2027-01-14');
+    ok(r.code === 0 && J(r).books.length === 1 && J(r).books[0].key === 'sept-feb', '--book runs one book alone');
+  });
+
+  // ---- the May-Sept roll-in (Alan, 2026-10-24: "upload also events from this link without names to 2027"): last summer's
+  // tab into 2027 once, no names, leaving alone what the board has in 2027 and what the 2026 roll-forward will bring
+  await section('sheet-sync: the May-Sept roll-in', async () => {
+    const SER = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000);
+    const G = [], row = o => { const r = new Array(27).fill(null); for (const [i, v] of Object.entries(o)) r[+i] = v; G.push(r); return G.length - 1; };
+    row({ 0: ' ' });                                                                              // row 1: blank
+    row({ 1: 'Type', 2: 'Status', 4: 'Event Description', 5: 'Elite,Key, Traditional, Pros' });   // row 2: the header
+    row({ 1: 'Weekend 05/01' });
+    row({ 2: 'Booked', 4: 'May Fair', 5: 'Saturday', 12: '100', 13: SER('2026-05-02'), 14: SER('2026-05-02') });   // the Jan-May load has it
+    row({ 4: 'Shift 1', 5: 'Eli' });
+    row({ 2: 'promoter declined', 4: 'Valley Fair', 5: 'Friday', 6: 'Saturday', 12: '300' });
+    row({ 4: 'Shift 1', 5: 'Sarah', 6: 'Sarah' });
+    row({ 1: 'Weekend 06-05' });
+    row({ 1: 'Invite Only', 2: 'Booked', 4: 'Maricopa County Summer Home Show', 5: 'Friday', 6: 'Saturday', 7: 'Sunday', 12: '7099.52', 13: SER('2026-06-05'), 14: SER('2026-06-07') });
+    row({ 4: 'Shift 1', 5: 'Foss', 6: 'Foss', 7: 'Foss' });
+    row({ 2: 'Prospective', 4: 'Gary Rodeo', 5: 'Friday', 12: '350' });
+    row({ 4: 'Booked' });                                                                         // a status typed into a shift label
+    row({ 1: 'Weekend 07-03' });
+    row({ 2: 'moved to OCT', 4: 'Pine Crafts', 5: 'Saturday', 12: '95' });
+    row({ 1: 'Weekend 08-28' });
+    row({ 2: 'Booked', 4: 'Corn Fest', 5: 'Saturday', 12: '125' });                               // fall 2026: same weekend a year earlier
+    row({ 2: 'Booked', 4: 'County Fair', 5: 'Thursday', 6: 'Friday', 12: '100' });                // fall 2026: on 10/2 (it moved)
+    row({ 2: 'Prospective', 4: 'Business Expo', 5: 'Saturday', 12: '100' });                      // not in the fall book
+    for (const t of Object.keys(db)) db[t].clear();
+    T('settings').set('division', { roster: ['Eli', 'Sarah', 'Foss'] });
+    const show = (id, name, weekend, year) => T('events').set(id, { name, weekend, year, startDate: weekend, endDate: weekend, days: ['Saturday'], dates: [weekend], booths: [], status: 'Prospective' });
+    show('2027-may-fair-j1', 'May Fair', '2027-04-30', 2027);
+    show('2026-corn-fest-r3', 'Corn Fest', '2026-08-28', 2026);
+    show('2026-county-fair-r9', 'County Fair', '2026-10-02', 2026);
+    const state = path.join(home, 'rollin-state'), outd = path.join(home, 'rollin-out'), gridFile = path.join(home, 'rollin-grid.json');
+    fs.mkdirSync(state, { recursive: true }); fs.writeFileSync(gridFile, JSON.stringify(G));
+    const roll = (...a) => new Promise(res => execFile(process.execPath, [path.join(REPO, 'scripts/sheet-sync.mjs'), '--roll-in', 'may-sept-2026', '--grid-may-sept-2026', gridFile, '--date', '2026-10-24', '--json', ...a],
+      { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_STATE_DIR: state, BOARD_OUT_DIR: outd } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    const J = x => { try { return JSON.parse(x.stdout); } catch { return {}; } };
+
+    r = await roll();
+    ok(r.code === 1 && /run the Jan-May book's first load before/.test(r.stderr) && T('events').size === 3, 'roll-in: refuses before the Jan-May first load (its May duplicates are judged against the board)');
+    fs.writeFileSync(path.join(state, 'sheet-baseline-jan-may.json'), '[]');
+    r = await roll();
+    let ri = J(r);
+    ok(r.code === 0 && ri.parsed === 8 && T('events').size === 3, 'roll-in (dry): the header row and the "Booked" label row are not shows; nothing written: ' + JSON.stringify({ code: r.code, parsed: ri.parsed, err: r.stderr.slice(0, 300) }));
+    ok(ri.created.map(c => c.name).join() === 'Valley Fair,Maricopa County Summer Home Show,Gary Rodeo,Business Expo' && ri.already.map(c => c.id).join() === '2027-may-fair-j1'
+      && ri.withRoll.map(c => c.id).sort().join() === '2026-corn-fest-r3,2026-county-fair-r9' && ri.skipped.map(c => c.name).join() === 'Pine Crafts',
+      'roll-in: new shows made; the board\'s 2027 May show left alone; the fall book\'s shows (same weekend, or moved) left to the 2026 roll-forward; "moved to OCT" skipped: ' + JSON.stringify({ created: ri.created.map(c => c.name), already: ri.already, withRoll: ri.withRoll, skipped: ri.skipped }));
+    r = await roll('--apply');
+    ri = J(r);
+    const made = name => [...T('events').values()].find(d => d.name === name);
+    const msh = made('Maricopa County Summer Home Show'), vf = made('Valley Fair');
+    ok(r.code === 0 && ri.readBack && ri.readBack.ok === 4 && T('events').size === 7, 'roll-in --apply: four shows written and read back: ' + JSON.stringify({ code: r.code, readBack: ri.readBack, err: r.stderr.slice(0, 300) }));
+    ok(msh && msh.year === 2027 && msh.weekend === '2027-06-04' && msh.startDate === '2027-06-04' && msh.datesEstimated === true && msh.tier === 'Elite' && msh.status === 'Prospective'
+      && msh.booths.every(b => b.shifts.every(s => s.slots.every(sl => !sl.rep))), 'roll-in: last summer\'s row is a 2027 show on its Friday, estimated, Elite by the Maricopa rule, Prospective, no names: ' + JSON.stringify(msh && [msh.weekend, msh.startDate, msh.tier, msh.status]));
+    ok(vf && vf.status === 'Cancelled' && vf.dead === true && made('Business Expo').weekend === '2027-08-27', 'roll-in: "promoter declined" is Cancelled; a show the fall book does not have is made on its own weekend');
+    ok(fs.existsSync(path.join(state, 'roll-in-may-sept-2026.json')) && JSON.parse(fs.readFileSync(path.join(state, 'roll-in-may-sept-2026.json'), 'utf8')).created.length === 4, 'roll-in: what it made is recorded in state/');
+    r = await roll('--apply');
+    ok(r.code === 1 && /already ran/.test(r.stderr) && T('events').size === 7, 'roll-in runs once: a second refuses');
   });
 
   // ---- tier rules (Alan, 2026-09-24: Maricopa is Elite, always, except the Maricopa County Fair)

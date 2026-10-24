@@ -55,6 +55,12 @@ TZNAME="$(readlink /etc/localtime | sed 's|.*/zoneinfo/||')"; [ "$TZNAME" = "Ame
 # the Sync button's listener runs the Sheet sync, which reads the xlsx with a sibling project's SheetJS
 XLSX="$(cd "$PROJECT" && /usr/local/bin/node --input-type=module -e "import {XLSX_PATHS} from './scripts/parse-sheet.mjs'; import fs from 'fs'; console.log(XLSX_PATHS.find(p => fs.existsSync(p)) || '')" 2>/dev/null)"
 [ -n "$XLSX" ] && ok "SheetJS for the Sheet sync: $XLSX" || bad "no SheetJS in any sibling project (scripts/parse-sheet.mjs XLSX_PATHS): the Sheet sync cannot read the Sheet"
+# each schedule book the sync follows (config sheets, 2026-10-23) needs its baseline, or every sync stops (exit 5)
+for B in $(cd "$PROJECT" && /usr/local/bin/node -e "for (const b of require('./config/event-check.json').sheets) console.log([b.key, b.baseline, b.legacyBaseline ? 1 : 0].join(':'))" 2>/dev/null); do
+  K="${B%%:*}"; F="$(echo "$B" | cut -d: -f2)"; L="${B##*:}"
+  if [ -f "$PROJECT/state/$F" ] || { [ "$L" = 1 ] && [ -f "$PROJECT/state/sheet-baseline.json" ]; }; then ok "the $K book has a sync baseline"
+  else bad "the $K book has no sync baseline (state/$F): every sync stops until it does (node scripts/sheet-sync.mjs --first-load $K, then --apply)"; fi
+done
 # ...and the button's requests live in sheet_syncs (supabase/schema.sql, 2026-09-28). A read with the service key; writes nothing.
 SYNCS="$(cd "$PROJECT" && /usr/local/bin/node --input-type=module -e "import {boardApi} from './scripts/lib/board-api.mjs'; const r = await boardApi().syncs.open(); console.log('ok ' + r.length)" 2>&1 | tail -1)"
 case "$SYNCS" in "ok "*) ok "sheet_syncs table reachable (${SYNCS#ok } open request(s))";; *) bad "sheet_syncs not reachable: run supabase/schema.sql in the Supabase SQL editor (${SYNCS:0:160})";; esac
