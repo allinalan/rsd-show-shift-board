@@ -19,7 +19,9 @@
                              [--apply] [--max-date-changes N] [--date YYYY-MM-DD]
 
   targets: upcoming, live (not dead or never-work), not Mesa (outside VC), not on the exclude list, not of a tier in
-  --skip-tiers (Alan, 2026-09-24: Elite events are handled by the team, never researched; they are counted). Each target
+  --skip-tiers (Alan, 2026-09-24: Elite events are handled by the team, never researched; they are counted), not a show
+  rolled forward for next year that nobody has touched and that starts more than config research.rolledLaterDays (183)
+  out (Alan, 2026-10-24; listed as rolledLater, researched once inside the window or once touched). Each target
   carries what the research needs (and, for the preflight, the promoter contacts: the file is mode 600, machine-
   local). Refuses an event check that is not from today or did not trust its VC data (exit 4).
 
@@ -48,7 +50,7 @@ import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { normName, dayDiff, tierOf, lastDay } from './lib/match.mjs';
-import { sellingRun, within, sameRun, planMove, runDays, isSE } from './lib/dates.mjs';
+import { sellingRun, within, sameRun, planMove, runDays, isSE, rolledForLater } from './lib/dates.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -58,6 +60,7 @@ const opt = (f, d = null) => { const i = argv.indexOf(f); return i > -1 && argv[
 const CFG = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8'));
 const TODAY = opt('--date') || new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Phoenix' }).format(new Date());
 const MESA = new RegExp(CFG.mesaPattern, 'i');
+const LATER_DAYS = (CFG.research && CFG.research.rolledLaterDays) ?? 183;
 const t = v => String(v ?? '').replace(/\s+/g, ' ').trim();
 const OUT_BASE = process.env.BOARD_OUT_DIR || path.join(REPO, 'out');
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -79,6 +82,7 @@ async function targets() {
   // name words never looked up (Alan, 2026-10-06: no search money on golf tournaments or builder expos)
   const skipNames = String(opt('--skip-names') || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
   const skipped = [];
+  const later = [];                                                    // rolled for next year, untouched, too far out (lib/dates.mjs rolledForLater)
   const recById = new Map((check.events || []).map(r => [r.id, r]));
   // one VC record claimed by several shows = a multi-week show: researched, never moved
   const claims = new Map();
@@ -89,6 +93,7 @@ async function targets() {
     const run = sellingRun(e);
     const end = lastDay(e) || '';                                      // the show's own days, not a stale End Date cell
     if (!end || end < TODAY || e.dead || e.neverWork || MESA.test(e.name || '') || exclude.has(normName(e.name))) continue;
+    if (rolledForLater(e, TODAY, LATER_DAYS)) { later.push({ id: e.id, name: t(e.name), weekend: e.weekend }); continue; }
     const tier = t(tierOf(e, CFG.tierRules));                          // a tier rule (Maricopa = Elite) wins over the tag
     if (skipTiers.has(tier.toLowerCase())) { skipped.push({ id: e.id, name: t(e.name), tier }); continue; }
     const word = skipNames.find(p => t(e.name).toLowerCase().includes(p));
@@ -109,9 +114,10 @@ async function targets() {
   const rank = x => (x.mismatch ? 0 : x.datesEstimated ? 1 : x.staffed ? 2 : 3);
   out.sort((a, b) => rank(a) - rank(b) || String(a.weekend).localeCompare(String(b.weekend)));
   const file = opt('--out');
-  const payload = { date: TODAY, mode, count: out.length, targets: out, skippedTiers: skipped };
+  const payload = { date: TODAY, mode, count: out.length, targets: out, skippedTiers: skipped, rolledLater: later };
   if (file) writeJson(file, payload); else console.log(JSON.stringify(payload, null, 1));
-  console.error(`board-research targets (${mode}): ${out.length} show(s)${mode !== 'mismatches' ? `, ${out.filter(x => x.mismatch).length} disagree with VC` : ''}`);
+  console.error(`board-research targets (${mode}): ${out.length} show(s)${mode !== 'mismatches' ? `, ${out.filter(x => x.mismatch).length} disagree with VC` : ''}` +
+    (later.length ? `; ${later.length} rolled for next year and untouched, left until within ${LATER_DAYS} days` : ''));
   return 0;
 }
 

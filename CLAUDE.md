@@ -107,7 +107,8 @@ routines in `.claude/skills/` keep it true.
   (`--research`, rsd-shift-picking's research-events.js; at most $3 a week there, each show looked up once). Writes
   `startDate` / `endDate` with `startDateSource` (sheet-days | vc | web); a VC or web date also gets the usual `datesNote` /
   `datesSource` ("VC dates" / "checked" on the page). Never searched: golf and builder shows (`--skip-names`), Elite
-  (`--skip-tiers`), a junk row name; those stay blank and are listed. The day columns are never touched and the Sheet is
+  (`--skip-tiers`), a junk row name, an untouched rolled show more than 183 days out (below); those stay blank and are
+  listed. The day columns are never touched and the Sheet is
   never written. More than `fillDates.maxAtOnce` (60) fills at once writes none (exit 5). Output
   `out/fill-dates/latest.json` and `out/reports/fill-dates-<date>.md`.
 - `scripts/booking-sweep.mjs` — the board's half of the post-meeting booking sweep (2026-09-23), run by
@@ -126,7 +127,10 @@ routines in `.claude/skills/` keep it true.
   board's half; rsd-shift-picking owns the Claude API calls (web search), the texts and the email. `targets`
   lists what to research (`--mode dates|full|mismatches`: every upcoming live non-Mesa show, or only the ones whose
   board days are not inside VC's run; `--skip-tiers Elite` leaves out, and counts, the tiers the team handles itself; `--skip-names golf,builder` the shows Alan
-  spends no search money on, 2026-10-06);
+  spends no search money on, 2026-10-06; a show rolled forward that nobody has touched since (dates still estimated,
+  Prospective, no VC number, no reps) and that starts more than `research.rolledLaterDays` (183) out is left out and listed
+  as `rolledLater`, Alan 2026-10-24: a roll must not spend the next meeting's research money or trip the 25-move limit;
+  `rolledForLater()` in lib/dates.mjs, shared with fill-dates);
   `apply` takes the findings and writes the board. Alan's date rule: the date
   a page states for this edition wins (quote and URL kept); nothing found online and VC disagrees = VC's dates,
   with `datesNote` on the board saying so; a failed lookup changes nothing; a cancellation is reported, never
@@ -247,7 +251,9 @@ the service key moves them on.
   never sent to Olean (rsd-shift-picking skipTiers / excludeTiers).
 - Same-year series (Queen Creek, Mesa) share name/promoter/cost/notes; shifts and status are per date.
 - `notes` roll forward and are read into VC booking-request Comments. Don't overwrite them; append.
-- Roll-forward holds back `skipNext`, `neverWork`, and Never-list series keys. Idempotent.
+- Roll-forward holds back `skipNext`, `neverWork`, and Never-list series keys. Idempotent. On the board a year's own tab
+  rolls it into the next ("Roll 2026 into 2027"); an empty tab offers rolling the year before into itself (Alan,
+  2026-10-24: the button used to live only on the target tab, so 2026 looked impossible to roll).
 - The routines never text the whole roster. Only staffed reps on events whose status changed.
 - Set `BOARD_ACTOR=service:<routine>` so the changelog says who did what.
 - **A script's "am I the one that was started?" check is `isMain(import.meta.url)`** (`scripts/lib/is-main.mjs`), never

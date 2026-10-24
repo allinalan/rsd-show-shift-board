@@ -8,7 +8,8 @@
     2. VectorConnect's dates for the show's record (--vc, the My Events pull)
     3. a page online (--research, research-events.js results): only a date a page states, with its URL
   A show none of these answers is listed, and goes to the search unless it is skipped: --skip-names (Alan: no money
-  on golf tournaments or builder expos), --skip-tiers (Elite: the team handles those), Mesa, a junk row name.
+  on golf tournaments or builder expos), --skip-tiers (Elite: the team handles those), Mesa, a junk row name, a show
+  rolled forward for next year that nobody has touched and starts more than config research.rolledLaterDays out.
 
   It writes startDate / endDate and says where they came from (startDateSource: sheet-days | vc | web, startDateFilledAt).
   A date from VC or a page also gets the board's usual datesNote / datesSource, so the page shows "VC dates" / "checked".
@@ -29,7 +30,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
 import { tierOf, dayDiff } from './lib/match.mjs';
-import { sellingRun } from './lib/dates.mjs';
+import { sellingRun, rolledForLater } from './lib/dates.mjs';
 import { isMain } from './lib/is-main.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -64,7 +65,7 @@ export function webRun(res, weekend) {
  * What to do about one show's blank date. Pure.
  * @returns { kind: 'fill', start, end, source: 'sheet-days'|'vc'|'web', url? } | { kind: 'search' } | { kind: 'skip', why } | { kind: 'unfound', why }
  */
-export function decide(e, { vcRow, res, skipNames = [], skipTiers = [], researched = false }) {
+export function decide(e, { vcRow, res, skipNames = [], skipTiers = [], researched = false, today = null }) {
   const run = sellingRun(e);
   if (run) return { kind: 'fill', start: run.start, end: run.end, source: 'sheet-days' };
   const own = [...(e.dates || []), ...(e.booths || []).flatMap(b => b.dates || [])].filter(d => ISO.test(d || ''));
@@ -79,6 +80,8 @@ export function decide(e, { vcRow, res, skipNames = [], skipTiers = [], research
   if (hit) return { kind: 'skip', why: `not searched ("${hit}" shows are never looked up)` };
   const tier = t(tierOf(e, CFG.tierRules));
   if (skipTiers.includes(tier.toLowerCase())) return { kind: 'skip', why: `not searched (${tier}: the team handles it)` };
+  const later = (CFG.research && CFG.research.rolledLaterDays) ?? 183;
+  if (today && rolledForLater(e, today, later)) return { kind: 'skip', why: `not searched yet (rolled forward for next year and untouched; looked up once it is within ${later} days)` };
   if (researched) return { kind: 'unfound', why: res && !res.ok ? `the lookup failed (${t(res.error) || 'no reason'})` : res && res.notResearched ? 'not looked up (this week\'s search money was used up)' : 'no page online gives the date' };
   return { kind: 'search' };
 }
@@ -123,7 +126,7 @@ async function main() {
   const patches = [];
   for (const e of blank) {
     const row = { id: e.id, name: t(e.name), weekend: t(e.weekend) };
-    const d = decide(e, { vcRow: vcByNumber.get(t(e.vcNumber)) || null, res: results[e.id], skipNames, skipTiers, researched: !!RS && e.id in results });
+    const d = decide(e, { vcRow: vcByNumber.get(t(e.vcNumber)) || null, res: results[e.id], skipNames, skipTiers, researched: !!RS && e.id in results, today: TODAY });
     if (d.kind === 'skip') { r.skipped.push({ ...row, why: d.why }); continue; }
     if (d.kind === 'unfound') { r.unfound.push({ ...row, why: d.why }); continue; }
     if (d.kind === 'search') { r.search.push({ ...row, e }); continue; }

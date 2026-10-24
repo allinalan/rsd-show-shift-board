@@ -39,6 +39,20 @@ export const within = (board, other) => !!board && !!other && other.start <= boa
 export const runDays = r => { const out = []; for (let d = r.start; d <= r.end && out.length < 60; d = addDaysIso(d, 1)) out.push(d); return out; };
 
 /**
+ * A show rolled forward from last year that nobody has touched since (dates still the +364 guess, still Prospective,
+ * no VC number, nobody on a shift) and whose first day is more than `days` after `today`. The web research leaves
+ * these until they come inside the window (Alan, 2026-10-24: rolling 2026 into 2027 must not spend January's
+ * research money on next fall's shows, nor trip the 25-move limit on them). Touch it in any of those ways and it is
+ * researched like any other show.
+ */
+export function rolledForLater(e, today, days) {
+  if (!e || !e.rolledFrom || !e.datesEstimated || (e.status || 'Prospective') !== 'Prospective' || e.vcNumber) return false;
+  if ((e.booths || []).some(b => (b.shifts || []).some(s => (s.slots || []).some(x => x && x.rep && x.rep !== '__X__')))) return false;
+  const first = (sellingRun(e) || {}).start || e.startDate || e.weekend;
+  return !!first && ISO.test(first) && dayDiff(first, today) > days;
+}
+
+/**
  * Move a show to its true run. Per booth: a selling day whose date is in the new run stays (same rep); a day
  * whose weekday occurs once in the new run moves there (its rep with it); anything else is gone (its reps are
  * affected). New days the booth did not have come in empty, but only for a booth that sold every day of the old

@@ -1580,7 +1580,7 @@ function renderHeader(){
   if(dbState==='none') parts.push(`<span class="stamp-db">shared storage unavailable in this view</span>`);
   if(!nS&&!nB) parts.push(`<span>nothing in ${year()} yet</span>`);
   st.innerHTML=parts.join('');
-  document.getElementById('btnRoll').hidden=!(dbState==='ready'&&!viewNever()&&eventsIn(year()-1).length>0);
+  { const b=document.getElementById('btnRoll'); b.hidden=!(dbState==='ready'&&!viewNever()&&eventsIn(year()).length>0); b.textContent=`Roll ${year()} into ${year()+1}`; }
   document.getElementById('btnQuickAdd').hidden=dbState!=='ready';
   document.getElementById('btnImport').hidden=dbState!=='ready';
   const lg=document.getElementById('legend');
@@ -1639,7 +1639,7 @@ function build(){
     const y=year(), prev=eventsIn(y-1).length;
     if(dbState==='loading'){board.innerHTML=`<div class="sk-list" aria-busy="true"><span class="ksr" role="status">Loading ${y}…</span>${'<div class="sk"></div>'.repeat(4)}</div>`;return;}
     if(dbState==='none'){board.innerHTML=`<div class="empty-season"><b>Nothing in ${y} here.</b><span>The board couldn't reach its database. Check config.js and the README.</span></div>`;return;}
-    board.innerHTML=`<div class="empty-season"><b>${y} is empty.</b><span>${plan()?(prev?`Roll ${y-1} forward to start from its ${prev} shows, or add events one at a time.`:'Add events one at a time, or roll forward once the year before has shows.'):'Turn on Plan mode to roll forward or add events.'}</span>${plan()&&prev&&dbState==='ready'?`<button class="btn" id="emptyRoll">Roll ${y-1} forward</button>`:''}</div>`;return;
+    board.innerHTML=`<div class="empty-season"><b>${y} is empty.</b><span>${plan()?(prev?`Roll ${y-1} forward to start from its ${prev} shows, or add events one at a time.`:'Add events one at a time, or roll forward once the year before has shows.'):'Turn on Plan mode to roll forward or add events.'}</span>${plan()&&prev&&dbState==='ready'?`<button class="btn" id="emptyRoll">Roll ${y-1} into ${y}</button>`:''}</div>`;return;
   }
   if(!list.length){board.innerHTML='<p class="empty-state">Nothing matches those filters.</p>';return;}
   const byW={};
@@ -2361,8 +2361,12 @@ function rollDoc(e,Y){
     rolledFrom:String(yearOf(e)),rolledFromId:e.id,createdAt:new Date().toISOString()};
 }
 const rollId=(e,Y)=>Y+'-'+baseId(e.id).replace(/[^A-Za-z0-9_\-.~:@+]/g,'-');
+/* The year being rolled INTO. A year's own tab rolls it into the next ("Roll 2026 into 2027"); an empty tab rolls the
+   year before into itself. Until 2026-10-24 only the target tab had the button, and the 2026 tab never showed it
+   (no 2025 on the board), so "roll 2026 over" looked impossible (Alan). */
+let rollY=year()+1;
 function rollPlan(includeDead){
-  const Y=year(), nk=neverKeys();
+  const Y=rollY, nk=neverKeys();
   const all=eventsIn(Y-1);
   const held=all.filter(e=>e.skipNext||e.neverWork||nk.has(seriesKey(e)));
   const src=all.filter(e=>!held.includes(e)).filter(e=>includeDead||!e.dead);
@@ -2383,14 +2387,15 @@ async function rollForward(includeDead){
   await Promise.all([worker(),worker(),worker(),worker()]);
   try{ await db.doc('seasons/'+Y).set({id:String(Y),label:String(Y),source:'board',rolledFrom:String(Y-1),rolledAt:new Date().toISOString(),count:done-failed}); }catch(e){}
   prog.hidden=true; bar.style.width='0';
-  toast(failed?`Rolled ${done-failed} events into ${Y}, ${failed} failed`:`Rolled ${done} events into ${Y}`,failed?{tone:'error'}:null);
+  const there=Y===year()?'':` (on the ${Y} tab)`;
+  toast(failed?`Rolled ${done-failed} events into ${Y}${there}, ${failed} failed`:`Rolled ${done} events into ${Y}${there}`,failed?{tone:'error'}:null);
   document.getElementById('rollPanel').hidden=true;
 }
 
 /* ---- events ---- */
 const board=document.getElementById('board');
 board.addEventListener('click',async ev=>{
-  if(ev.target.id==='emptyRoll'){openRoll();return;}
+  if(ev.target.id==='emptyRoll'){openRoll(year());return;}
   const rc=ev.target.closest('.rchip[data-rep]');
   if(rc){ F.rep=(F.rep===rc.dataset.rep)?'':rc.dataset.rep; document.getElementById('rep').value=F.rep; build(); return; }
   const sp=ev.target.closest('.slotpick');
@@ -2766,8 +2771,8 @@ function refreshRoll(){ const inc=P('rollDead').checked, {Y,todo,skipped,held}=r
   P('rollFrom').textContent=Y-1; P('rollTarget').textContent=Y; P('rollN').textContent=todo.length;
   P('rollDeadN').textContent=eventsIn(Y-1).filter(e=>e.dead).length;
   P('rollSkip').textContent=skipped?`${skipped} already in ${Y} — they'll be left as they are.`:''; P('rollGo').disabled=!todo.length; }
-function openRoll(){ closePanels(); P('rollDead').checked=false; refreshRoll(); P('rollPanel').hidden=false; P('rollPanel').scrollIntoView({behavior:'smooth',block:'nearest'}); }
-P('btnRoll').addEventListener('click',openRoll);
+function openRoll(Y){ closePanels(); rollY=Y; P('rollDead').checked=false; refreshRoll(); P('rollPanel').hidden=false; P('rollPanel').scrollIntoView({behavior:'smooth',block:'nearest'}); }
+P('btnRoll').addEventListener('click',()=>openRoll(year()+1));
 P('rollDead').addEventListener('change',refreshRoll);
 P('rollCancel').addEventListener('click',closePanels);
 P('rollGo').addEventListener('click',async()=>{ if(!db)return; P('rollGo').disabled=true; await rollForward(P('rollDead').checked); P('rollGo').disabled=false; });
