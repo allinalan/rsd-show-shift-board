@@ -225,7 +225,7 @@ const NOT_A_SHOW = /^(service\s+events?|event\s+description)$/i;
 // ---------- the walk ----------------------------------------------------------------------
 export function parseSheet(grid, { seasonYear = 2026, seasonStartMonth = 8, dateLabels = 'keep' } = {}) {
   const events = [], warnings = [];
-  let weekend = null, ev = null, booth = null, repairs = 0;
+  let weekend = null, ev = null, booth = null, boothFromHeader = false, repairs = 0;
 
   const newBooth = (e, label) => {
     const b = { label, status: '', days: e.days.slice(), dates: e.dates.slice(), shifts: [] };
@@ -255,7 +255,7 @@ export function parseSheet(grid, { seasonYear = 2026, seasonStartMonth = 8, date
 
     if (desc && looksBooth(desc)) {            // "Booth #2 10x10" is a sub-header, not an event
       if (!ev) { warnings.push(`row ${r}: booth header with no event above it`); continue; }
-      booth = newBooth(ev, desc);
+      booth = newBooth(ev, desc); boothFromHeader = true;
       continue;
     }
 
@@ -329,6 +329,11 @@ export function parseSheet(grid, { seasonYear = 2026, seasonStartMonth = 8, date
     const cols = ev.dayCols.length ? ev.dayCols : Array.from({ length: C.DAY9 - C.DAY0 + 1 }, (_, i) => C.DAY0 + i);
     const anyName = cols.some(c => { const v = str(row[c]); return v !== '' && !looksNumericCell(v) && splitRep(v).rep !== ''; });
     if (!isShiftRow && !anyName) continue;
+    // A booth named in column B of its first shift row, with no booth row above (Maricopa Summer Home & Landscape, the
+    // May-Sept book: "Booth #301-303" beside Shift 1). Until 2026-10-24 those rows all fell into one unnamed booth. Under
+    // a booth row of its own, column B only repeats it ("Booth #2 (10x10 Corner)" under "Booth #2 (10x10 Corner) #520").
+    const boothCell = str(row[C.LEVEL]);
+    if (looksBooth(boothCell) && !(booth && boothFromHeader && !booth.shifts.length)) { booth = newBooth(ev, boothCell); boothFromHeader = false; }
     if (!booth) booth = newBooth(ev, '');
     booth.shifts.push({
       label: desc || 'Shift',

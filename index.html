@@ -535,7 +535,13 @@ body.ksheet .top{position:static}   /* the board's header (220px on a phone) let
 .series-note{margin-bottom:12px}
 .acc-Freshmen{color:var(--warn);background:var(--warn-bg)}
 .tagfield.v-Freshmen select{color:var(--warn)}
-.boothh.edit{gap:10px}
+/* a rolled Maricopa booth name: where we were last year, not this year's spot until someone fixes it (the dashed
+   edge is the "est." look; the text stays --ink-2, since --warn is under 4.5:1 on the light ground) */
+.spot{font-family:var(--f-body);font-size:var(--t-cap2);font-weight:600;color:var(--ink-2);border:1px dashed var(--warn);
+  border-radius:3px;padding:0 5px;white-space:nowrap;flex:none}
+.gboin .spot{margin-left:2px}
+.boothh.edit{gap:10px;flex-wrap:wrap}   /* on a phone the tag and its buttons drop under the name, not squeeze it */
+.boothh.edit .linkbtn{white-space:nowrap}
 .boothh.edit input{font:inherit;font-family:var(--f-disp);font-weight:600;font-size:var(--t-foot);color:var(--ink);background:var(--surface);
   border:1px solid var(--line);border-radius:6px;padding:4px 8px;min-width:0;flex:1 1 180px;max-width:360px}
 .boothh.edit input:focus{border-color:var(--navy);outline:none}
@@ -1351,7 +1357,7 @@ function boothsOf(e){
     const shifts=b.shifts.map(s=>({label:s.label,labelInferred:!!s.labelInferred,slots:b.days.map((d,i)=>s.slots[i]||{rep:'',ft:[]})}));
     if(e.source==='sheet'){ const ex=store.extra[e.id+'|'+bi]||0;
       for(let k=0;k<ex;k++) shifts.push({label:'Shift '+(b.shifts.length+k+1),slots:b.days.map(()=>({rep:'',ft:[]}))}); }
-    return {label:b.label,status:b.status||'',days:b.days,dates:b.dates,shifts};
+    return {label:b.label,status:b.status||'',days:b.days,dates:b.dates,shifts,rolledLabel:b.rolledLabel,rolledLabelYear:b.rolledLabelYear};
   });
 }
 const val=(e,bi,si,di,dflt)=>{ if(e.source==='board') return dflt; const k=e.id+'|'+bi+'|'+si+'|'+di; return (k in store.slots)?store.slots[k]:dflt; };
@@ -2040,7 +2046,7 @@ function weekendCols(w,evs){
 }
 function boothTitle(b,bi){
   const raw=(b.label||('Booth #'+(bi+1))).trim();
-  const m=raw.match(/^booth\s*#?\s*(\d+)\s*(.*)$/i);
+  const m=raw.match(/^booth\s*#?\s*(\d+(?:\s*[-–\/]\s*\d+)?)\s*(.*)$/i);   // a spot range ("Booth #301-303") is one number
   if(!m) return `<b>${esc(raw)}</b>`;
   const rest=(m[2]||'').trim(), inner=[]; let mm; const re=/\(([^)]*)\)/g;
   while((mm=re.exec(rest))) inner.push(mm[1].trim());
@@ -2048,6 +2054,19 @@ function boothTitle(b,bi){
   const tail=[plain,...inner].filter(Boolean).join(' · ');
   return `<b>Booth #${m[1]}</b>${tail?` <span class="bdesc">${esc(tail)}</span>`:''}`;
 }
+/* booth-spots:start (Alan, 2026-10-24) A Maricopa booth name is a spot on that show's floor plan, so a roll carries it
+   forward tagged as last year's spot (rolledLabel, rolledLabelYear) until someone fixes it. The tag stands only while
+   the name still says exactly what was rolled, so a rename anywhere clears it. Same rule as config/event-check.json
+   boothSpots and scripts/lib/booth-spots.mjs: change both (the tests hold them together, and run this block by itself). */
+const SPOT_RULE={match:'maricopa',except:['maricopa county fair']};
+const spotNorm=s=>' '+String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()+' ';
+const spotShow=name=>{const n=spotNorm(name); return n.includes(spotNorm(SPOT_RULE.match))&&!SPOT_RULE.except.some(x=>n.includes(spotNorm(x)));};
+const lastYearsSpot=b=>!!(b&&String(b.rolledLabel||'').trim()&&String(b.label||'').trim()===String(b.rolledLabel).trim());
+const rollSpot=(b,fromYear)=>{const l=String(b.label||'').trim(); return l?{rolledLabel:l,rolledLabelYear:lastYearsSpot(b)&&b.rolledLabelYear?b.rolledLabelYear:fromYear}:{};};
+const spotYear=b=>/^\d{4}$/.test(String(b.rolledLabelYear))?String(b.rolledLabelYear):'Last year';
+const spotTag=b=>lastYearsSpot(b)?`<span class="spot" title="Where we were in ${spotYear(b)==='Last year'?'the last show':spotYear(b)}. Not this year's spot until someone fixes the name.">${spotYear(b)}'s spot</span>`:'';
+const unspot=b=>{delete b.rolledLabel; delete b.rolledLabelYear;};
+/* booth-spots:end */
 const shortBooth=(l,bi)=>{ l=(l||'').replace(/\s*\(.*$/,'').trim()||('Booth '+(bi+1)); return l.length>22?l.slice(0,21)+'…':l; };
 const ACCCLS=a=>a==='Unassigned'?'none':a.replace('/','');
 const ACCSHORT={'Trade/Industry':'Trade','Unassigned':'any level'};
@@ -2122,7 +2141,7 @@ function gridTable(w,evs){
     boothsOf(e).forEach((b,bi)=>{
       /* Booths get their own titled row, the way the Sheet lays them out — "Booth #2  Ag Building"
          once, with its shifts beneath — instead of a truncated label repeated on every shift row. */
-      if(multi) out+=`<tr class="gbooth" data-id="${e.id}"><td class="gbo" colspan="${cols.length+1}"><div class="gboin">${boothTitle(b,bi)}${b.status?`<span class="bstat">${esc(b.status)}</span>`:''}</div></td></tr>`;
+      if(multi) out+=`<tr class="gbooth" data-id="${e.id}"><td class="gbo" colspan="${cols.length+1}"><div class="gboin">${boothTitle(b,bi)}${spotTag(b)}${b.status?`<span class="bstat">${esc(b.status)}</span>`:''}</div></td></tr>`;
       b.shifts.forEach((s,si)=>{
       const ds=slotDates(b,w), byDate={}; b.days.forEach((d,i)=>{ if(ds[i]&&byDate[ds[i]]==null) byDate[ds[i]]=i; });
       /* every booth gets named on every one of its rows, so a merged show's A Row is never implied */
@@ -2232,9 +2251,10 @@ function grid(e,b,bi,ps,P){
   let bh='';
   if(P&&B&&(multi||b.label)){
     bh=`<div class="boothh edit"><input type="text" data-booth-label="${bi}" value="${esc(b.label)}" placeholder="Booth #${bi+1}" aria-label="Booth name">`+
+       (lastYearsSpot(b)?`${spotTag(b)}<button class="linkbtn" data-spot-ok="${bi}">same spot in ${yearOf(e)}</button>`:'')+
        (multi?boothDelBtn(e,bi):'')+`</div>`;
   } else if(b.label){
-    bh=`<div class="boothh"><span>${boothTitle(b,bi)}</span>${b.status?`<span class="bstat">${esc(b.status)}</span>`:''}</div>`;
+    bh=`<div class="boothh"><span>${boothTitle(b,bi)}</span>${spotTag(b)}${b.status?`<span class="bstat">${esc(b.status)}</span>`:''}</div>`;
   }
   return `${bh}<div class="gridwrap"><table class="shift"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`+
     (P?`<button class="addshift" data-add="${bi}">+ Add shift row${b.label?' to '+esc(b.label.split(' ').slice(0,2).join(' ')):''}</button>`:'');
@@ -2348,7 +2368,8 @@ function rollDoc(e,Y){
   const sd=parseUS(e.startDate);
   const n=sd?Math.max(0,Y-sd.getFullYear()):1;          // stale dates from two years back still land in Y
   const nsd=sd?addDays(sd,364*n):null, startISO=nsd?iso(nsd):null;
-  const booths=e.booths.map(b=>({label:b.label||'',status:'',days:b.days,dates:startISO?dayDates(b.days,startISO):b.days.map(()=>null),
+  const spot=spotShow(e.name)?b=>rollSpot(b,yearOf(e)):()=>({});
+  const booths=e.booths.map(b=>({label:b.label||'',...spot(b),status:'',days:b.days,dates:startISO?dayDates(b.days,startISO):b.days.map(()=>null),
     shifts:b.shifts.map(s=>({label:s.label,slots:b.days.map(()=>({rep:'',ft:[]}))}))}));
   let weekend=startISO?fridayKey(startISO):'';
   if(!weekend&&e.weekend){const wd=wkDate(e.weekend); if(wd){const k=Math.max(1,Y-wd.getFullYear()); weekend=iso(addDays(wd,364*k));}}
@@ -2415,6 +2436,11 @@ board.addEventListener('click',async ev=>{
     if(art.classList.contains('ev')) art.querySelector('.ev-b').innerHTML=open.has(id)?`<div class="ev-bi">${bodyHtml(e)}</div>`:''; else build();
     return;
   }
+  const so=ev.target.closest('[data-spot-ok]');
+  if(so&&e.source==='board'){ const bi=+so.dataset.spotOk, b=e.booths[bi]; if(!b) return;
+    const booths=withBooths(e,bs=>unspot(bs[bi]));
+    if(await patchEvent(id,{booths})) toast(`${b.label||'Booth #'+(bi+1)}: same spot in ${yearOf(e)}`);
+    return; }
   const add=ev.target.closest('[data-add]');
   if(add){ const bi=+add.dataset.add;
     if(e.source==='board'){ const booths=withBooths(e,bs=>{const b=bs[bi]; b.shifts.push({label:'Shift '+(b.shifts.length+1),slots:b.days.map(()=>({rep:'',ft:[]}))});}); await patchEvent(id,{booths}); }
@@ -2541,7 +2567,7 @@ board.addEventListener('change',async ev=>{
   const fi=ev.target.closest('.fld[data-f]');
   if(fi){ let v=fi.value.trim(); if(fi.dataset.f==='cost'&&v&&/^\d+(\.\d+)?$/.test(v)) v='$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0}); await setField(e,fi.dataset.f,v); return; }
   const bl=ev.target.closest('input[data-booth-label]');
-  if(bl&&B){ const bi=+bl.dataset.boothLabel; const booths=withBooths(e,bs=>{bs[bi].label=bl.value.trim();}); await patchEvent(id,{booths}); return; }
+  if(bl&&B){ const bi=+bl.dataset.boothLabel; const booths=withBooths(e,bs=>{bs[bi].label=bl.value.trim(); if(!lastYearsSpot(bs[bi])) unspot(bs[bi]);}); await patchEvent(id,{booths}); return; }
   const ds=ev.target.closest('input[data-start]');
   if(ds&&B){ if(!ds.value)return; await patchEvent(id,recomputeDates(e,ds.value)); return; }
   const hc=ev.target.closest('input[data-hist-cpo],input[data-hist-orders]');
@@ -3069,7 +3095,10 @@ async function checkEditor(){
   },()=>{ kioskState='missing'; build(); });   // no kiosks table yet: the tab says so, the rest of the board is untouched
   loadCoverage();   // the open coverage asks, then live; no coverage table yet = nothing shown, a console.warn
   db.collection('events').onSnapshot(snap=>{
-    boardEvents=snap.docs.map(d=>Object.assign({id:d.id,source:'board'},d.data()));
+    // Every row in the database is a board show, whoever made it. The row's own `source` ("sheet-sync" on the 166 shows
+    // the Sheet sync made) used to win here, and the page took those for read-only Sheet rows: no booth names, shift rows
+    // or dates could be edited on them (found 2026-10-24). It is kept as `madeBy`.
+    boardEvents=snap.docs.map(d=>{const x=d.data()||{}; return Object.assign({id:d.id},x,{source:'board',madeBy:x.source||'board'});});
     boardEvents.forEach(e=>{ e.booths=e.booths||[]; e.days=e.days||[]; e.dates=e.dates||[]; e.year=+(e.year||e.season||0); });
     build();
   },err=>{ dbState='none'; build(); });
