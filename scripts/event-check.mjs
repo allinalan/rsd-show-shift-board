@@ -439,8 +439,9 @@ async function writeXlsx(r, out, defs) {
     ...r.sync.held.map(x => ['held', x.weekend, x.name, x.why]), ...r.sync.conflicts.map(x => ['conflict', x.weekend, x.name, x.why]),
     ...r.sync.flagged.map(x => ['flagged', '', '', x]), ...r.sync.created.map(x => ['new event', x.weekend, x.name, `${x.staffed} shift(s), ${x.status}`])], [10, 11, 44, 90]);
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-  fs.writeFileSync(path.join(OUT_R, `Event_Check_${CFG.sheet.label}_${r.date}.xlsx`), buf);
-  r.xlsx = `out/reports/Event_Check_${CFG.sheet.label}_${r.date}.xlsx`;
+  const label = CFG.sheets.map(s => s.label).join('_');                // the books the board follows: Sept-Feb_Jan-May
+  fs.writeFileSync(path.join(OUT_R, `Event_Check_${label}_${r.date}.xlsx`), buf);
+  r.xlsx = `out/reports/Event_Check_${label}_${r.date}.xlsx`;
   fs.writeFileSync(path.join(OUT_EC, 'latest.json'), JSON.stringify(r, null, 1));
 }
 

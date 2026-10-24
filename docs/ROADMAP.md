@@ -60,11 +60,13 @@ days before each meeting and the preflight 2 days before, Claude with web search
 pages (VC's dates, noted, when nothing online confirms), the report texted to Alan and emailed to the
 coordinators. Its first real runs are January 6 and 11, 2027. Roll-forward is the last routine still hand-run.
 
-**Before the January 2027 meeting: the Jan-May book.** The board and the sync hold only the Sept-Feb tab.
-Add the Jan-May book to the sync (its own tab and column map, checked with `parse-sheet.mjs --verify`)
-before the team moves to it, or the Wednesday check silently goes blind from March. The tick reminds on
-Dec 28; the old Cowork "Jan-May Schedule Changeover Prep" task (bound to the MacBook) was written for the
-Sheet-based routine and should be deleted.
+~~**Before the January 2027 meeting: the Jan-May book.**~~ Done 2026-10-23 (Alan sent the Jan-May 2027 Sheet). The
+sync follows both books (`config/event-check.json` `sheets`), each feeding only its own weekends; the Jan-May book takes
+over January and February on the morning of the January 13 meeting. Its March-May rows were still 2026's, so the first
+load put them on the board as 2027 Prospective shows with no reps and estimated days, which the January 6 date research
+then checks. When Matt and JP rebuild March-May for 2027, the first sync after a big batch of edits will stop over the
+40-show limit; read its report and run it with `--force` on the mini. The Dec 28 reminder is gone; the old Cowork "Jan-May
+Schedule Changeover Prep" task (bound to the MacBook) was written for the Sheet-based routine and should be deleted.
 
 **Stage 3 — the first meeting on the board (the May 2027 meeting).**
 Coordinators enter picks in plan mode. Direction flips: board → Sheet export (a script writes the
@@ -98,7 +100,7 @@ Sheet path now.
 | end of Oct 2026 | Matt, JP | Sign in once, on the device they would use at a meeting (on iPhone, the Home Screen icon). Use the board for the one question the Sheet can no longer answer: is this show booked? VC status lives only on the board; the Sheet's Z/AA columns froze on 9/9. | both have signed in; booking questions get answered from the board |
 | ~~Nov 2026~~ done 2026-10-03 | Alan + Claude | SUNNY reads the board directly instead of a twice-a-month copy (Alan, 2026-10-03). There was no side-by-side run: both of SUNNY's old copies had stopped updating (Aug 28 and Sep 6), so there was nothing current to diff. Checked instead with sunny-bot's `scripts/board-audit/test-board.js` against the live board. **SUNNY is now a reader of the board: a change to the `events` / `event_contacts` shape (`booths[].shifts[].slots[]`, `days`/`dates`, `status`, `vcNumber`, `costNum`, `dead`) needs that test run.** | the board test passes; SUNNY's answers match the board page |
 | Nov–Dec 2026 | Alan + Claude | The board → Sheet mirror (stage 3's script), writing to a **copy** of the Sheet, never the Sheet itself, and diffed against the real Sheet after each sync. The fields rsd-shift-picking and the analyzer need (font-color meanings, field-training markers, stable rep ids) go on the board. | the copy matches the Sheet cell for cell for two weeks |
-| Jan 6, 2027 | Alan + Claude | The Jan-May book on the sync (above), before the date research's first real run: it can only research shows the board has. | `parse-sheet.mjs --verify` clean on the new tab |
+| ~~Jan 6, 2027~~ done 2026-10-23 | Alan + Claude | The Jan-May book on the sync (above), before the date research's first real run: it can only research shows the board has. | the first load read back; the next sync of both books changed nothing |
 | Jan 13, 2027 meeting | all three | Dress rehearsal: Matt and JP run the meeting on the Sheet as usual; Alan enters the same picks on the board live. Afterwards the two are compared, and whatever was slow or missing on the board is the list to fix before May. | the gap list is fixed |
 | Feb–Apr 2027 | Alan + Claude | count-mesa-shifts and show-shift-calendar-sync: board adapters, both paths, diffed. The mirror keeps running against its copy. | clean diffs, then switch |
 | May 2027 meeting | Matt, JP | Stage 3: picks go on the board, and the mirror starts writing the real Sheet. The flip is all at once: the Sheet → board sync stops the day the mirror starts (both directions at once is a two-way sync). From then on nobody edits the Sheet. | the mirror matches the board after the meeting and after the sweep |

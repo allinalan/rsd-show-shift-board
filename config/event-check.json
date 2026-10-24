@@ -1,11 +1,29 @@
 {
   "_about": "Settings for scripts/sheet-sync.mjs and scripts/event-check.mjs. Aliases and rejects are keyed by EVENT NAME, never by Sheet row (the Sheet is reordered constantly). Add an alias only when Alan confirms it. This repo is public: event names only, no contacts.",
-  "sheet": {
-    "fileId": "10p5Ro2WpeJ7mMOyS92OWIT3w3Nl-KGX4vBMkXJoOCTs",
-    "tab": "2026",
-    "label": "Sept-Feb",
-    "_changeover": "January: the team moves to the Jan-May book. The board holds only what this sync has read, so the Jan-May book must be added here (and parse-sheet's column map re-checked) before the January meeting. The board tick reminds on Dec 28."
-  },
+  "sheets": [
+    {
+      "key": "sept-feb", "label": "Sept-Feb", "fileId": "10p5Ro2WpeJ7mMOyS92OWIT3w3Nl-KGX4vBMkXJoOCTs", "tab": "2026", "seasonYear": 2026,
+      "baseline": "sheet-baseline-sept-feb.json", "legacyBaseline": true, "seedBaseline": true,
+      "weekends": { "to": "2027-02-28" },
+      "handover": { "on": "2027-01-13", "weekends": { "to": "2026-12-31" } }
+    },
+    {
+      "key": "jan-may", "label": "Jan-May", "fileId": "1Z8SN4FVBPzZrxe3F4FbmwjsSLRPH9GWJZratALVK0vk", "tab": "2027", "seasonYear": 2026, "dateLabels": "weekday",
+      "baseline": "sheet-baseline-jan-may.json",
+      "weekends": { "from": "2027-03-01" },
+      "handover": { "on": "2027-01-13", "weekends": { "from": "2027-01-01" } },
+      "firstLoad": {
+        "year": 2027, "maxCreate": 150,
+        "deadPattern": "no dates|cancel|declin|not allowed|territory",
+        "skip": [
+          { "name": "El Paso Home & Garden Show", "weekend": "2027-03-05", "why": "last year's row: this year's show is on the board on the 2/19 weekend" },
+          { "name": "Bluegrass on the Beach Music Festival", "weekend": "2027-03-05", "why": "last year's row: the board has this year's show (the 2/26 row, moved to the 3/5 weekend on the board)" },
+          { "name": "Off the Vine Wine Festival", "weekend": "2027-04-16", "why": "column C says moved to FEB: the board has it on the 2/19 weekend" }
+        ]
+      }
+    }
+  ],
+  "_sheets": "Alan, 2026-10-23: the board follows both schedule books, each feeding only its own weekends so a show never flips between them. Until the January meeting the Sept-Feb book feeds through February and the Jan-May book from March 1; from the morning of the meeting (handover.on) the Jan-May book feeds every weekend from January 1, and only what the team changed in that book since its first load comes over then (Alan settled the six shows the two books disagreed on). seasonYear is the year of a weekend header from August on (January-July headers are the next year), so the Jan-May 2027 book is 2026. dateLabels weekday: that book's day cells still hold earlier years' dates. firstLoad (scripts/sheet-sync.mjs --first-load jan-may): its March-May rows were still 2026's, so they came on as Prospective 2027 shows with no reps, a row marked out in column B or C (deadPattern) as Cancelled, column B Elite as Elite, and the skip rows (last year's copies of shows already on the board) left off. Alan's defaults, 2026-10-23.",
   "coordinator": "Matt Foss",
   "scopeDaysBack": 60,
   "scopeDaysAhead": 200,

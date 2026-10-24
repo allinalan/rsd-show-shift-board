@@ -59,16 +59,42 @@ routines in `.claude/skills/` keep it true.
 - `scripts/parse-sheet.mjs` — reads the Sheet into board shape while the Sheet is still the truth
   (stage 1). `--verify` lines the parse up against `seed/events.json` field by field and exits
   non-zero if a structural field has drifted; `--diff` is the change report. Needs SheetJS from a
-  sibling project, or `--grid` with a pre-dumped grid.
-- `scripts/sheet-sync.mjs` — the Sheet -> board sync (stage 2 of the roadmap, live 2026-09-23). Three-way:
-  the Sheet now vs the Sheet at the last sync (`state/sheet-baseline.json`, gitignored, 600) vs the board
+  sibling project, or `--grid` with a pre-dumped grid. Since 2026-10-23 (the Jan-May book): a weekend header
+  that lands on another day means that week's Friday (the Jan-May 2027 book kept 2026's headers from March on);
+  set-up text in a rep cell ("set-up 11-7", "SET UP DAY") is no shift (`__X__`; Alan: set-up is never a shift);
+  the "Service Events" row is not a show; column B "Elite" is kept as `tierTag`; `--season-year` (the Jan-May
+  2027 book, tab 2027, is 2026: January-July headers are the year after) and `--date-labels weekday` (that book's
+  day cells hold earlier years' dates). Read the Sept-Feb book exactly as before (checked cell for cell).
+- `scripts/sheet-sync.mjs` — the Sheet -> board sync (stage 2 of the roadmap, live 2026-09-23). **Two books since
+  2026-10-23** (Alan: "upload the Jan-May 2027 sheet"): the Sept-Feb and Jan-May schedules are separate Google Sheets
+  that both carry January and February (config `sheets`). Each weekend is fed by one book only: until the January
+  13 meeting the Sept-Feb book feeds through February and the Jan-May book from March 1; from that morning
+  (`handover.on`) the Jan-May book feeds from January 1. Each book has its own baseline
+  (`state/sheet-baseline-<key>.json`); the Jan-May book's January-February part stays as it was read on its first
+  load (2026-10-23), so on handover morning only what the team changed in that book since then comes over: Alan
+  settled the six shows the books disagreed on that day (Gold Canyon keeps J. Parker; Foss stays on the Arabian
+  Horse Shows; Foss off Downtown Chandler Saturday; the Boat, RV & Outdoor Expo has no Thursday shift, J. Parker
+  Friday-Sunday), and those stay as he set them. `state/sheet-baseline.json` is now every book's current part in one
+  file (each entry tagged `book`), kept for rsd-shift-picking's coverage agent. A run reads every book and writes
+  all of them or none; a book with no baseline stops it (exit 5). `--book <key>` runs one book alone. The first load
+  (`--first-load <key>`, dry, then `--apply`; once) brought the Jan-May book's March-May rows on as 2027 Prospective
+  shows **with no reps** (every name there was 2026's), days from the header marked estimated, column B/C "no
+  dates / cancelled / declined / not allowed / territory" as Cancelled, column B Elite as Elite, and the
+  `firstLoad.skip` rows (last year's copies of shows already on the board) left off; the cells it cleared are in
+  `state/sheet-stale-<key>.json` and read as empty while they still say the same thing, so a name the team writes
+  over one comes over and an untouched one never does. Expect a stop when Matt and JP rebuild March-May for 2027:
+  more than 40 shows changed at once is exit 3 (read the report, then `--force` by hand on the mini); their date and
+  cost fixes on rows still carrying last year's dates are not counted as parser drift. Three-way:
+  the Sheet now vs the Sheet at the last sync (the book's baseline, gitignored, 600) vs the board
   now. Carries shifts added/removed/re-staffed, shift rows, new events and event details; never status
   (VC's), never promoter contacts (edited on the board: the parser misreads spilled contact cells). VC
   wins: a rep added to a VC-dead show, or a date moved away from a VC booking, is held; an event deleted or
   moved on the Sheet is flagged, never deleted or duplicated. Board edits win ties (both changed = held,
   named in the report; both changed to the same thing, shift rows included, = settled). Two identical rows for one market on one day are one event (the extra row is reported,
   never added); a start date weeks away from the event's own banner-resolved days is a stale cell and is never
-  copied. Stops on parser drift (exit 2) or an oversized change set (exit 3). Dry unless `--apply`. `--apply`
+  copied, and a blank Start Date cell never blanks the board's; board dates marked `datesEstimated` are a placeholder
+  the Sheet's real date replaces (and clears "est."); column C (`sheetStatus`) always carries, the board never edits
+  it. Stops on parser drift (exit 2) or an oversized change set (exit 3). Dry unless `--apply`. `--apply`
   takes `state/sheet-sync.lock` first (a second run waits up to 3 minutes, then exits 4) and records its outcome
   in `sheet_syncs` for the page (best effort). With no VC pull (the button's and the hourly runs) a date moved on a
   show VC has a record for is held for the Wednesday run. `--tag` names the report `sheet-sync-<date>-<tag>`, so
@@ -149,9 +175,9 @@ routines in `.claude/skills/` keep it true.
   no longer "due" (the event check runs unattended); the date research (7 days before a meeting), the preflight
   (2 days before) and the booking sweep (days 2-8 after) are marked `auto` (they run themselves from
   rsd-shift-picking), so they are logged, never a "go run it" notice. It reminds Alan to send the freshmen training sign-in
-  sheet two days after a January/August meeting (Jan 20 / Aug 15 when none is set) and about the Jan-May
-  changeover on Dec 28, and wakes Messages with a cheap read before texting (a cold Messages after the
-  2026-09-22 reboot timed out the 2026-09-23 notice).
+  sheet two days after a January/August meeting (Jan 20 / Aug 15 when none is set), and wakes Messages with a cheap
+  read before texting (a cold Messages after the 2026-09-22 reboot timed out the 2026-09-23 notice). The Dec 28
+  "add the Jan-May book" reminder is gone: the sync has followed both books since 2026-10-23.
 - `install.sh` — preflight + both plists (the tick and the sync listener), disarmed by default; `--arm`, `--disarm`,
   `--check` act on both. The preflight also checks SheetJS and that `sheet_syncs` exists.
 - `scripts/lib/is-main.mjs` — `isMain(import.meta.url)`: "is this file the script node was started with?", by real path.
@@ -301,12 +327,18 @@ the service key moves them on.
   writes the slot (actor `service:coverage`) after both reps reply YES and emails rsdcoordinator2 the confirmed change; the
   coordinators change the Sheet as they always have, and the hourly sync then finds the two agreeing. Until they do, the board
   holding the cover and the Sheet still holding the requester is the sync's "board edited, Sheet unchanged" case: kept, not a
-  conflict. The agent reads `state/sheet-baseline.json` a day later to see whether the Sheet caught up. SUNNY is the only
-  caller of `coverage_request()`; nothing in this repo texts a rep about it.
+  conflict. The agent reads `state/sheet-baseline.json` a day later to see whether the Sheet caught up (since 2026-10-23
+  that file is both books' current part combined, written by every sync, so a show in either book is found there; keep
+  it an array of shows with their board `id`). SUNNY is the only caller of `coverage_request()`; nothing in this repo
+  texts a rep about it.
 - **Nothing here writes the Sheet** (Alan, 2026-09-23: VC status lives on the board now; the Sheet's
   Z/AA columns froze "as of 9/9"). The sync only reads it; the team keeps editing it until stage 3.
-- `state/` and `out/` hold private data (the baseline can carry promoter contacts; reports name reps).
-  Both are gitignored. Tests point `BOARD_STATE_DIR` / `BOARD_OUT_DIR` at temp dirs.
+- `state/` and `out/` hold private data (the baselines can carry promoter contacts; reports and the stale-cell files
+  name reps). Both are gitignored. Tests point `BOARD_STATE_DIR` / `BOARD_OUT_DIR` at temp dirs. The sync's files there:
+  `sheet-baseline-sept-feb.json`, `sheet-baseline-jan-may.json` (each book's), `sheet-stale-jan-may.json` (last year's
+  cells the first load did not carry) and `sheet-baseline.json` (the combined view). Losing a book's baseline stops the
+  sync (exit 5). Do not re-run `--first-load` to "fix" it without Alan: it would link to the shows already on the board,
+  but it would also treat every name on the tab at that moment as last year's and never carry it.
 
 ## Production
 
