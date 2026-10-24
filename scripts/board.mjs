@@ -312,7 +312,13 @@ const commands = {
     for (const m of janAug) if (Math.round((t - m) / 864e5) === 2) due.push({ routine: 'freshmen-roster', meeting: iso(m), note: freshNote });
     if (((t.getMonth() === 0 && t.getDate() === 20) || (t.getMonth() === 7 && t.getDate() === 15)) && !janAug.some(m => m.getFullYear() === t.getFullYear() && m.getMonth() === t.getMonth()))
       due.push({ routine: 'freshmen-roster', note: freshNote + ' (no meeting on the calendar this month)' });
-    // (the Dec 28 "add the Jan-May book" reminder is gone: the sync has followed both books since 2026-10-23)
+    // (the Dec 28 "add the Jan-May book" reminder is gone: the sync has followed both books since 2026-10-23). The day
+    // before a book hands its weekends to another (config sheets handover.on), preview that first sync: a stop on handover
+    // morning (over the limits, two books on one show) would otherwise land on meeting day.
+    const books = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8')).sheets || [];
+    const handovers = [...new Set(books.map(b => b.handover && b.handover.on).filter(Boolean))];
+    for (const on of handovers) if (iso(addDays(fromISO(on), -1)) === iso(t))
+      due.push({ routine: 'handover-preview', handover: on, note: `tomorrow (${on}) the schedule books hand over their weekends: preview that sync today (node scripts/sheet-sync.mjs --date ${on}, dry) and fix what it would stop on` });
     out(json ? { date: iso(t), due } : (due.length ? due.map(d => `${d.routine}${d.meeting ? ' (meeting ' + d.meeting + ')' : ''} — ${d.note}`).join('\n') : `nothing due on ${iso(t)}`));
   },
   async changelog() { out(await rest('GET', `changelog?select=at,actor,tbl,doc_id,op,patch&order=at.desc&limit=${+flags.limit || 50}`)); },

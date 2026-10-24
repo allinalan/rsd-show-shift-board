@@ -53,7 +53,11 @@
   placed from the weekend header and marked estimated (the date research finds the real ones), a row column B or C
   marks out (no dates, cancelled, declined, not allowed, another rep's territory) is Cancelled, column B "Elite" is
   Elite, and the rows `firstLoad.skip` names are last year's copies of shows already on the board. Every show
-  written is read back.
+  written is read back. The held-back cells are kept by board show and used up once the Sheet says anything else
+  there; a new row carrying the names of a show gone from that weekend is held, not created.
+
+  ONE SHOW, ONE BOOK. A row matching a show another book feeds today is not linked, two books writing one show in a
+  run stop it (exit 6), and a show a book stops feeding that no other book carries is flagged once.
 
   Usage:
     sheet-sync.mjs [--apply] [--book <key>] [--vc vc-my-events.json] [--force] [--date YYYY-MM-DD]
@@ -65,7 +69,7 @@
   with --tag); touches neither the board nor the baseline. --apply writes the board, then the baselines.
   Exit: 0 ok · 1 error · 2 parser drift · 3 over the change limits (read the plan, then --force)
         · 4 another sync held the lock for three minutes (nothing read or written)
-        · 5 a book has no baseline yet (run --first-load <key>)
+        · 5 a book has no baseline yet (run --first-load <key>) · 6 two books would write the same show (nothing written)
 */
 import fs from 'fs';
 import path from 'path';
@@ -153,42 +157,58 @@ function loadBaseline(book) {
   return { events: seed, source: 'seed/events.json (first sync: the Sheet as of 2026-09-20)' };
 }
 const writePrivate = (f, v) => { fs.mkdirSync(STATE, { recursive: true }); fs.writeFileSync(f + '.tmp', JSON.stringify(v, null, 1), { mode: 0o600 }); fs.renameSync(f + '.tmp', f); };
-/** state/sheet-baseline.json: each book's entries for the weekends it feeds today, tagged with the book. */
+/** Which books feed each board show today: id -> Set of book keys (the entries on the weekends each book feeds). */
+function fedToday() {
+  const fed = new Map();
+  for (const b of BOOKS) {
+    const lb = loadBaseline(b), range = rangeOn(b, TODAY);
+    for (const e of (lb && lb.events) || []) if (e.id && owned(range, e.weekend)) { if (!fed.has(e.id)) fed.set(e.id, new Set()); fed.get(e.id).add(b.key); }
+  }
+  return fed;
+}
+/**
+ * state/sheet-baseline.json: each book's entries for the weekends it feeds today, tagged with the book, plus once each
+ * show no book feeds any more (a Sept-Feb-only show after the handover), so the coverage agent still finds it.
+ */
 function writeCombined() {
-  const all = [];
+  const fed = fedToday(), all = [], left = new Set();
   for (const b of BOOKS) {
     const lb = loadBaseline(b); if (!lb) continue;
     const range = rangeOn(b, TODAY);
-    for (const e of lb.events) if (owned(range, e.weekend)) all.push({ ...e, book: b.key });
+    for (const e of lb.events) {
+      if (owned(range, e.weekend)) all.push({ ...e, book: b.key });
+      else if (e.id && !fed.has(e.id) && !left.has(e.id)) { all.push({ ...e, book: b.key }); left.add(e.id); }
+    }
   }
   writePrivate(COMBINED, all);
 }
 
 /**
- * Cells the first load did not carry (last year's picks on a row rolled into this year). While a cell still says
- * exactly that, in that booth, shift row and day of that show, it reads as empty; once the team writes anything else
- * there, it is theirs. The place is by label, not position, so a row added elsewhere does not move it.
+ * Cells the first load did not carry (last year's picks on a row rolled into this year), kept per board show. While a
+ * cell still says exactly that, in that booth, shift row and day, it reads as empty; once the team writes anything else
+ * there (a blank included), the entry is used up and the cell is theirs from then on. Tied to the show's board id, so a
+ * rename on the Sheet does not set last year's names loose; the place is by label, so a row added elsewhere does not
+ * move it.
  */
 const cellKey = sl => [sl && sl.rep, ...((sl && sl.ft) || [])].map(x => String(x || '').toLowerCase().replace(/[^a-z0-9_]/g, '')).join('|');
 const placeKey = (b, s, d) => [b.label, s.label, (b.days || [])[d]].map(x => t(x).toLowerCase()).join('#');
-export function dropStale(events, stale) {
-  if (!stale || !stale.length) return 0;
-  const set = new Set(stale.map(s => `${s.event}#${s.place}#${s.cell}`));
-  let n = 0;
-  for (const e of events) {
-    const k = keyOf(e);
-    for (const b of e.booths || []) for (const s of b.shifts || []) (s.slots || []).forEach((sl, d) => {
-      if (set.has(`${k}#${placeKey(b, s, d)}#${cellKey(sl)}`)) { s.slots[d] = { rep: '', ft: [] }; n++; }
-    });
-  }
-  return n;
+/** Blank the cells of one show that still hold what the first load left out; returns the entries that matched. */
+export function dropStaleFor(e, entries) {
+  if (!entries || !entries.length) return [];
+  const byPlace = new Map(entries.map(x => [`${x.place}#${x.cell}`, x]));
+  const used = [];
+  for (const b of e.booths || []) for (const s of b.shifts || []) (s.slots || []).forEach((sl, d) => {
+    const x = byPlace.get(`${placeKey(b, s, d)}#${cellKey(sl)}`);
+    if (x) { s.slots[d] = { rep: '', ft: [] }; used.push(x); }
+  });
+  return used;
 }
 /** Empty every filled cell of a show, and say which ones they were. */
-function takeStale(e) {
+function takeStale(e, id) {
   const cells = [];
   for (const b of e.booths || []) for (const s of b.shifts || []) (s.slots || []).forEach((sl, d) => {
     if (!t(sl && sl.rep) && !((sl && sl.ft) || []).length) return;
-    cells.push({ event: keyOf(e), place: placeKey(b, s, d), cell: cellKey(sl), rep: t(sl.rep) });
+    cells.push({ id, place: placeKey(b, s, d), cell: cellKey(sl), rep: t(sl.rep) });
     s.slots[d] = { rep: '', ft: [] };
   });
   return cells;
@@ -280,6 +300,9 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull 
     }
     if (datesHeld) { for (const f of [...DATE_FIELDS, 'dates']) keepBase.fields.add(f); }
   }
+  // a Start Date cell emptied on the Sheet: the board keeps its date, and so does the baseline, so the date the team
+  // types next is a move from the one the board has, not a "board edited" conflict
+  if (!t(sheet.startDate) && t(base.startDate)) for (const f of DATE_FIELDS) keepBase.fields.add(f);
 
   // shifts
   let slotChanges = 0;
@@ -316,7 +339,7 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull 
     // The Sheet added or removed shift rows, booths or days. Safe only if the board still matches the old shape.
     const boardAsBase = sig(board) === sig(base) && slotsOf(board) === slotsOf(base);
     const addsReps = (sheet.booths || []).some(b => b.shifts.some(s => s.slots.some(sl => isRep(sl.rep))));
-    if (!boardAsBase) { conflicts.push('the Sheet changed the shift rows, and the board\'s shifts were edited too'); keepBase.whole = true; }
+    if (!boardAsBase) { conflicts.push('the Sheet changed the shift rows, and the board\'s shifts no longer match the Sheet\'s last version (edited on the board, or set from the other book): make the two match'); keepBase.whole = true; }
     else if (deadByVc && addsReps) { held.push(`the Sheet rebuilt the shift rows with reps on them, but VectorConnect says ${vcStatus}`); keepBase.whole = true; }
     else if (datesHeld) { held.push('the Sheet rebuilt the shift rows along with a date change that is held'); keepBase.whole = true; }
     else {
@@ -328,7 +351,7 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull 
     }
   } else {
     const sheetAsBase = slotsOf(sheet) === slotsOf(base);
-    if (!sheetAsBase) { conflicts.push('the board\'s shift rows were edited, and the Sheet changed shifts too'); keepBase.whole = true; }
+    if (!sheetAsBase) { conflicts.push('the Sheet changed shifts, and the board\'s shift rows (rows, booths or days) differ from the Sheet\'s (edited on the board, or set from the other book): make the two match'); keepBase.whole = true; }
   }
   if (keepBase.whole) { delete patch.booths; delete patch.days; delete patch.dates; }
   return { patch, held, conflicts, changes, slotChanges, keepBase };
@@ -377,7 +400,7 @@ const cap = (a, n = 40) => (a || []).slice(0, n);
 export const syncSummary = r => ({
   date: r.date, wrote: !!r.wrote, stopped: r.stopped || null, error: r.error || null,
   parsed: r.parsed ?? null, eventsTouched: r.eventsTouched ?? 0, slotChanges: r.slotChanges ?? 0, noVcPull: !!r.noVcPull,
-  books: (r.books || []).map(b => ({ label: b.label, parsed: b.parsed ?? null, eventsTouched: b.eventsTouched ?? 0, slotChanges: b.slotChanges ?? 0, created: b.created ?? 0 })),
+  books: (r.books || []).map(b => ({ label: b.label, parsed: b.parsed ?? null, eventsTouched: b.eventsTouched ?? 0, slotChanges: b.slotChanges ?? 0, created: b.created ?? 0, lastYearsNamesHeldBack: b.staleDropped ?? 0 })),
   counts: Object.fromEntries(['applied', 'created', 'held', 'conflicts', 'flagged', 'duplicates', 'unresolved'].map(k => [k, (r[k] || []).length])),
   applied: cap(r.applied).map(a => ({ name: a.name, weekend: a.weekend, changes: cap(a.changes, 20) })),
   created: cap(r.created).map(c => ({ name: c.name, weekend: c.weekend, staffed: c.staffed, status: c.status })),
@@ -436,17 +459,24 @@ function datesFor(sheet, year = null) {
   return { startDate: sheet.weekend || '', endDate: sheet.weekend || '', cellUsed: false };
 }
 
-/** What one book would change on the board: the three-way merge over the weekends it feeds today. */
-function planBook({ book, sheetEvents, baseEvents, boardById, boardByKey, resolve, vcByNumber, noVcPull }) {
+/**
+ * What one book would change on the board: the three-way merge over the weekends it feeds today. `stale` is the
+ * book's held-back cells (by board id); `fed` says which books feed each board show today (fedToday()).
+ */
+function planBook({ book, sheetEvents, baseEvents, boardById, boardByKey, resolve, vcByNumber, noVcPull, stale = [], fed = new Map() }) {
   const range = rangeOn(book, TODAY), mine = e => owned(range, e.weekend);
   const sheetIn = sheetEvents.filter(mine), baseIn = baseEvents.filter(mine);
   const { pairs, liveOnly, seedOnly } = matchToSeed(sheetIn, baseIn);
+  const elsewhere = id => [...(fed.get(id) || [])].some(k => k !== book.key);   // another book feeds this show today
 
-  // the drift guard: a structural field that moved on most events is the parser (or the Sheet's layout), not the team
+  // the drift guard: a structural field that moved on most events is the parser (or the Sheet's layout), not the team.
+  // A show coming in on handover morning (its baseline set aside since the first load) is not counted: three months of
+  // the team's edits are not the parser drifting, and the shows compared every run still catch a moved column.
   const drift = [];
+  const counted = pairs.filter(p => !p.seed.frozen);
   for (const [k, f] of Object.entries(STRUCTURAL)) {
-    const bad = pairs.filter(p => !(ROLLED_FIELDS.has(k) && (lastYearRow(p.seed) || lastYearRow(p.live))) && f(p.live) !== f(p.seed)).length;
-    if (pairs.length >= 20 && bad > pairs.length * (CFG.sync.structuralDriftShare ?? 0.1)) drift.push(`${book.label}: ${k} differs on ${bad} of ${pairs.length}`);
+    const bad = counted.filter(p => !(ROLLED_FIELDS.has(k) && (lastYearRow(p.seed) || lastYearRow(p.live))) && f(p.live) !== f(p.seed)).length;
+    if (counted.length >= 20 && bad > counted.length * (CFG.sync.structuralDriftShare ?? 0.1)) drift.push(`${book.label}: ${k} differs on ${bad} of ${counted.length}`);
   }
 
   // Two identical rows for one market on one day (a row copied up and the old one left behind) are one event:
@@ -460,15 +490,21 @@ function planBook({ book, sheetEvents, baseEvents, boardById, boardByKey, resolv
   }
   const dupSet = new Set(duplicates.map(d => d.sheet));
 
+  // last year's cells, by show; a show's names for matching include them (its board copy is blank)
+  const staleBy = new Map();
+  for (const x of stale) { if (!staleBy.has(x.id)) staleBy.set(x.id, []); staleBy.get(x.id).push(x); }
+  const repSet = e => new Set([...(e.booths || []).flatMap(b => b.shifts.flatMap(s => s.slots.map(sl => repKey(sl.rep, resolve)))),
+    ...(staleBy.get(e.id) || []).map(x => repKey(x.rep, resolve))].filter(k => k && k !== '__X__'));
+
   // renames (same weekend) and moves (same name, another weekend) among the unmatched. Only against events the
-  // board still has: an old-weekend event someone deleted on the board is settled, and the Sheet's row is new.
+  // board still has, or a row the first load skipped (it stays skipped): an old-weekend event someone deleted on the
+  // board is settled, and the Sheet's row is new.
   const renames = [], moves = [];
-  const repSet = e => new Set((e.booths || []).flatMap(b => b.shifts.flatMap(s => s.slots.map(sl => repKey(sl.rep, resolve)).filter(k => k && k !== '__X__'))));
   for (const s of [...liveOnly]) {
     if (dupSet.has(s)) continue;
     let best = null;
     for (const b of seedOnly) {
-      if (!b.id || !boardById.get(b.id)) continue;
+      if (!b.skipped && (!b.id || !boardById.get(b.id))) continue;
       if (renames.some(r => r.base === b) || moves.some(m => m.base === b)) continue;
       if (normName(s.name) === normName(b.name) && s.weekend !== b.weekend) { best = { kind: 'move', b }; break; }
       if (s.weekend === b.weekend) {
@@ -482,12 +518,22 @@ function planBook({ book, sheetEvents, baseEvents, boardById, boardByKey, resolv
   }
   const pairedSheet = new Set([...renames, ...moves].map(x => x.sheet)), pairedBase = new Set([...renames, ...moves].map(x => x.base));
 
-  const plan = { label: book.label, key: book.key, applied: [], held: [], conflicts: [], created: [], flagged: [],
+  const plan = { label: book.label, key: book.key, applied: [], held: [], conflicts: [], created: [], flagged: [], heldBack: [], orphans: [],
     duplicates: duplicates.map(d => ({ name: d.sheet.name, weekend: d.sheet.weekend, rows: [d.twin.row, d.sheet.row] })) };
-  // the weekends another book feeds today stay as they are (the Jan-May book's January-February until the handover)
-  const newBaseline = baseEvents.filter(e => !mine(e)).map(clone);
-  let eventsTouched = 0, slotChanges = 0;
-  const writes = [];
+  // The weekends another book feeds today stay as they are (the Jan-May book's January-February until the handover),
+  // marked frozen for the drift guard. A show no book feeds any more (a Sept-Feb-only show after the handover) is said once.
+  const newBaseline = [];
+  for (const e of baseEvents) {
+    if (mine(e)) continue;
+    const c = { ...clone(e), frozen: true };
+    if (c.id && !c.orphanNoted && !fed.has(c.id) && boardById.has(c.id)) {
+      c.orphanNoted = true;   // run() says it, unless another book takes the show in the same run
+      plan.orphans.push({ id: c.id, text: `${c.name} (${c.weekend}) is only in the ${book.label} book, which no longer feeds that weekend${book.handover ? ` (since ${book.handover.on})` : ''}: changes to it on a Sheet no longer reach the board. Add it to the book that feeds it, or keep it up to date on the board (said once).` });
+    }
+    newBaseline.push(c);
+  }
+  let eventsTouched = 0, slotChanges = 0, staleDropped = 0;
+  const writes = [], seenIds = new Set(), usedStale = new Set();
 
   for (const { live: sheet, seed: base } of [...pairs, ...renames.map(r => ({ live: r.sheet, seed: r.base }))]) {
     // a row the first load named as last year's copy of a show the board already has: followed, never written
@@ -499,6 +545,11 @@ function planBook({ book, sheetEvents, baseEvents, boardById, boardByKey, resolv
       if (base.id) newBaseline.push({ ...clone(sheet), id: base.id, boardDeleted: true });
       continue;
     }
+    // one show, one book: if another book feeds this show today, this one leaves it alone
+    if (elsewhere(board.id)) { plan.flagged.push(`${sheet.name} (${sheet.weekend}): the other book feeds this show today (${board.id}), so the ${book.label} book does not write it.`); newBaseline.push(clone(base)); continue; }
+    seenIds.add(board.id);
+    const used = dropStaleFor(sheet, staleBy.get(board.id));
+    if (used.length) { staleDropped += used.length; used.forEach(x => usedStale.add(x)); plan.heldBack.push({ name: board.name, weekend: board.weekend, reps: [...new Set(used.map(x => x.rep).filter(isRep))] }); }
     // a placeholder record (00092192) books no particular date, so it can neither hold nor bless a date change
     const vcRow = board.vcNumber && !(CFG.placeholders || []).includes(String(board.vcNumber)) ? vcByNumber.get(String(board.vcNumber)) || null : null;
     const r = planEvent({ base, sheet, board, resolve, vcRow, today: TODAY, noVcPull });
@@ -509,6 +560,7 @@ function planBook({ book, sheetEvents, baseEvents, boardById, boardByKey, resolv
   }
 
   for (const { sheet, base } of moves) {
+    if (base.skipped) { newBaseline.push({ ...clone(sheet), id: null, skipped: base.skipped }); continue; }   // a skipped row stays skipped wherever it goes
     plan.held.push({ id: base.id, name: base.name, weekend: base.weekend, why: `moved on the ${book.label} Sheet from the ${base.weekend} weekend to the ${sheet.weekend} weekend (start ${sheet.startDate || '?'}). Not moved on the board: say which is right.` });
     newBaseline.push(clone(base));
   }
@@ -523,11 +575,25 @@ function planBook({ book, sheetEvents, baseEvents, boardById, boardByKey, resolv
     if (pairedSheet.has(sheet) || dupSet.has(sheet)) continue;
     const existing = boardByKey.get(keyOf(sheet));
     if (existing) {
-      // added on both sides independently: carry only what fills a blank on the board
-      const r = planEvent({ base: { booths: (existing.booths || []).map(b => ({ ...b, shifts: b.shifts.map(s => ({ ...s, slots: s.slots.map(() => ({ rep: '', ft: [] })) })) })) }, sheet, board: existing, resolve, vcRow: existing.vcNumber ? vcByNumber.get(String(existing.vcNumber)) : null, today: TODAY, noVcPull });
+      // one show, one book: a row matching a show another book feeds today is not linked (it links once that book lets go)
+      if (elsewhere(existing.id)) { plan.flagged.push(`${sheet.name} (${sheet.weekend}) on the ${book.label} Sheet is a show the other book feeds today (${existing.id}): not linked, so the two books never both write it.`); continue; }
+      // added on both sides independently: carry only what fills a blank on the board. What the two disagree on stays
+      // blank in the baseline too, so it comes back as a conflict until someone decides (with the board's values there,
+      // the next run took the Sheet's change over the board's)
+      const fresh = { name: sheet.name, weekend: sheet.weekend, booths: (existing.booths || []).map(b => ({ ...b, shifts: b.shifts.map(s => ({ ...s, slots: s.slots.map(() => ({ rep: '', ft: [] })) })) })) };
+      const r = planEvent({ base: fresh, sheet, board: existing, resolve, vcRow: existing.vcNumber ? vcByNumber.get(String(existing.vcNumber)) : null, today: TODAY, noVcPull });
       if (Object.keys(r.patch).length) { eventsTouched++; slotChanges += r.slotChanges; writes.push({ id: existing.id, patch: r.patch }); plan.applied.push({ id: existing.id, name: existing.name, weekend: existing.weekend, changes: r.changes }); }
       for (const c of r.conflicts) plan.conflicts.push({ id: existing.id, name: existing.name, weekend: existing.weekend, why: c });
-      newBaseline.push({ ...nextBase({ ...sheet, booths: existing.booths }, sheet, r.keepBase), id: existing.id });
+      newBaseline.push({ ...nextBase(fresh, sheet, r.keepBase), id: existing.id });
+      continue;
+    }
+    // A new row on a weekend where a show this book carries has gone missing, with names that show had: most likely
+    // that show renamed past recognition ("Spring Fest 2026" -> "Spring Fest 2027"). Creating it could put last year's
+    // names on the board as a staffed show; it waits for a person instead (and comes back each run until then).
+    const reps = repSet(sheet);
+    const lookalike = reps.size && seedOnly.find(b => !pairedBase.has(b) && b.weekend === sheet.weekend && [...repSet(b)].some(k => reps.has(k)));
+    if (lookalike) {
+      plan.held.push({ id: lookalike.id || null, name: sheet.name, weekend: sheet.weekend, why: `new on the ${book.label} Sheet, but it has names that ${lookalike.name} (gone from that weekend) had, so it may be that show renamed: not created. Put the old name back on the Sheet, or add it on the board.` });
       continue;
     }
     const staffed = staffedCount(sheet);
@@ -543,10 +609,13 @@ function planBook({ book, sheetEvents, baseEvents, boardById, boardByKey, resolv
     newBaseline.push({ ...clone(sheet), id });
   }
 
+  // a held-back cell is used up once its show was read and the cell said something else (a blank included); a show not
+  // read this run (moved, gone, fed by the other book) keeps its entries
+  const staleLeft = stale.filter(x => !seenIds.has(x.id) || usedStale.has(x));
   const over = [];
   if (eventsTouched > (CFG.sync.maxEventsTouched ?? 40)) over.push(`${book.label}: ${eventsTouched} events would change (limit ${CFG.sync.maxEventsTouched})`);
   if (slotChanges > (CFG.sync.maxSlotChanges ?? 250)) over.push(`${book.label}: ${slotChanges} shift changes (limit ${CFG.sync.maxSlotChanges})`);
-  return { ...plan, range, inRange: sheetIn.length, matched: pairs.length, renames: renames.length, moves: moves.length, eventsTouched, slotChanges, drift, over, writes, newBaseline };
+  return { ...plan, range, inRange: sheetIn.length, matched: pairs.length, renames: renames.length, moves: moves.length, eventsTouched, slotChanges, drift, over, writes, newBaseline, staleLeft, staleDropped, staleUsedUp: stale.length - staleLeft.length };
 }
 
 async function run(api, startedAt) {
@@ -561,6 +630,7 @@ async function run(api, startedAt) {
   const vc = opt('--vc') && fs.existsSync(opt('--vc')) ? JSON.parse(fs.readFileSync(opt('--vc'), 'utf8')) : null;
   const noVcPull = !vc;
   const vcByNumber = new Map(((vc && vc.rows) || []).map(r => [String(r.eventNumber), r]));
+  const fed = fedToday();                                    // every book's, read or not this run (one show, one book)
 
   const results = [], missing = [], unresolved = new Set(), files = [];
   const roster = new Set(known.map(r => repKey(r, null)));
@@ -571,36 +641,48 @@ async function run(api, startedAt) {
     files.push(path.basename(file));
     const { events: sheetEvents, warnings } = parseBook(book, grid);
     const stale = fs.existsSync(staleFile(book)) ? JSON.parse(fs.readFileSync(staleFile(book), 'utf8')) : [];
-    const staleDropped = dropStale(sheetEvents, stale);
-    const r = planBook({ book, sheetEvents, baseEvents: lb.events, boardById, boardByKey, resolve, vcByNumber, noVcPull });
-    // reps nobody can place are carried as written, and named
+    const r = planBook({ book, sheetEvents, baseEvents: lb.events, boardById, boardByKey, resolve, vcByNumber, noVcPull, stale, fed });
+    // reps nobody can place are carried as written, and named (last year's held-back names are not carried, so not named)
     for (const e of sheetEvents) if (owned(r.range, e.weekend)) for (const b of e.booths || []) for (const s of b.shifts) for (const sl of s.slots) {
       const x = t(sl.rep); if (isRep(x) && !roster.has(repKey(resolve(x), null))) unresolved.add(x);
     }
-    results.push({ ...r, parsed: sheetEvents.length, warnings: warnings.map(w => `${book.label}: ${w}`), baseline: lb.source, staleDropped });
+    results.push({ ...r, parsed: sheetEvents.length, warnings: warnings.map(w => `${book.label}: ${w}`), baseline: lb.source, hadStale: fs.existsSync(staleFile(book)) });
   }
+  // a show a book let go of is flagged only if no book took it in this same run (the Jan-May book linking it on handover morning)
+  const nowFed = new Set(results.flatMap(r => r.newBaseline.filter(e => e.id && owned(r.range, e.weekend)).map(e => e.id)));
+  for (const r of results) r.flagged.push(...r.orphans.filter(o => !nowFed.has(o.id)).map(o => o.text));
+  // a show two books would both write in one run (the guards above should make this impossible): nothing is written,
+  // because the second write would silently replace the first
+  const writers = new Map();
+  for (const r of results) for (const w of r.writes) { if (!writers.has(w.id)) writers.set(w.id, new Set()); writers.get(w.id).add(r.label); }
+  const twice = [...writers].filter(([, s]) => s.size > 1).map(([id, s]) => `${id} (${[...s].join(' and ')})`);
 
   const cat = k => results.flatMap(r => r[k] || []), sum = k => results.reduce((n, r) => n + (r[k] || 0), 0);
   const result = {
     date: TODAY, mode: APPLY ? 'apply' : 'dry', noVcPull, sheetFile: files.join(', '),
     baseline: results.map(r => `${r.label}: ${r.baseline}`).join('; '),
-    books: results.map(r => ({ label: r.label, key: r.key, weekends: r.range, parsed: r.parsed, inRange: r.inRange, matched: r.matched, eventsTouched: r.eventsTouched, slotChanges: r.slotChanges, created: r.created.length, staleDropped: r.staleDropped })),
+    books: results.map(r => ({ label: r.label, key: r.key, weekends: r.range, parsed: r.parsed, inRange: r.inRange, matched: r.matched, eventsTouched: r.eventsTouched, slotChanges: r.slotChanges, created: r.created.length, staleDropped: r.staleDropped, staleUsedUp: r.staleUsedUp })),
     parsed: sum('parsed'), matched: sum('matched'), renames: sum('renames'), moves: sum('moves'), eventsTouched: sum('eventsTouched'), slotChanges: sum('slotChanges'),
     drift: cat('drift'), over: cat('over'),
     applied: cat('applied'), held: cat('held'), conflicts: cat('conflicts'), created: cat('created'), flagged: cat('flagged'), duplicates: cat('duplicates'),
-    unresolved: [...unresolved], warnings: cat('warnings'), wrote: false,
+    heldBack: cat('heldBack'), unresolved: [...unresolved], warnings: cat('warnings'), wrote: false,
   };
 
   let code = 0;
   if (missing.length) { result.stopped = `${missing.map(b => `the ${b.label} book has no baseline yet (run sheet-sync.mjs --first-load ${b.key}, then again with --apply)`).join('; ')}. Nothing written.`; code = 5; }
   else if (result.drift.length) { result.stopped = `parser drift: ${result.drift.join('; ')}. Nothing written. Fix parse-sheet.mjs (or the column map) first.`; code = 2; }
+  else if (twice.length) { result.stopped = `two books would both write the same show: ${twice.join('; ')}. Nothing written (one write would replace the other). Say which book feeds it.`; code = 6; }
   else if (result.over.length && !FORCE) { result.stopped = `over the limits: ${result.over.join('; ')}. Nothing written. Read the plan; re-run with --force if it is right.`; code = 3; }
   else if (APPLY) {
     for (const r of results) for (const w of r.writes) {
       if (w.create) await api.createEvent(w.id, w.create);
       else await api.patchEvent(w.id, w.patch);
     }
-    for (const r of results) writePrivate(baselineFile(BOOKS.find(b => b.key === r.key)), r.newBaseline);
+    for (const r of results) {
+      const b = BOOKS.find(x => x.key === r.key);
+      writePrivate(baselineFile(b), r.newBaseline);
+      if (r.hadStale) writePrivate(staleFile(b), r.staleLeft);
+    }
     writeCombined();
     result.wrote = true;
   }
@@ -609,7 +691,7 @@ async function run(api, startedAt) {
   const md = [];
   md.push(`# Sheet -> board sync, ${TODAY} (${result.mode}${result.wrote ? ', written' : ', nothing written'})`, '');
   md.push(`${result.eventsTouched} event(s) changed, ${result.slotChanges} shift change(s); ${result.created.length} new; ${result.held.length} held; ${result.conflicts.length} conflict(s); ${result.flagged.length} flagged.${noVcPull ? ' No VC pull on this run: date moves on shows VC has a record for are held.' : ''}`);
-  for (const r of results) md.push(`- ${r.label} book: parsed ${r.parsed} events, ${r.inRange} on the weekends it feeds (${r.range.from || 'the start'} to ${r.range.to || 'the end'}); baseline ${r.baseline}${r.staleDropped ? `; ${r.staleDropped} cell(s) still holding last year's picks read as empty` : ''}.`);
+  for (const r of results) md.push(`- ${r.label} book: parsed ${r.parsed} events, ${r.inRange} on the weekends it feeds (${r.range.from || 'the start'} to ${r.range.to || 'the end'}); baseline ${r.baseline}${r.staleDropped ? `; ${r.staleDropped} cell(s) still holding last year's picks read as empty` : ''}${r.staleUsedUp ? `; ${r.staleUsedUp} of last year's cells now changed on the Sheet (theirs from now on)` : ''}.`);
   if (result.stopped) md.push('', `**STOPPED:** ${result.stopped}`);
   const each = (title, k, line) => { const rows = results.filter(r => (r[k] || []).length); if (!rows.length) return; md.push('', title); for (const r of rows) { if (results.length > 1) md.push(`### ${r.label} book`); for (const x of r[k]) md.push(line(x)); } };
   each('## Held (VectorConnect or a move says no; comes back next run until decided)', 'held', h => `- ${h.weekend} ${h.name}: ${h.why}`);
@@ -618,6 +700,7 @@ async function run(api, startedAt) {
   each('## The same event twice on the Sheet (the board keeps one; tidy the Sheet when convenient)', 'duplicates', d => `- ${d.weekend} ${d.name}: rows ${d.rows.join(' and ')}, same day, same staffing`);
   each('## New events', 'created', c => `- ${c.weekend} ${c.name} (${c.staffed} shift(s), ${c.status}) [${c.id}]`);
   if (result.applied.length) { md.push('', '## Changed'); for (const r of results) { if (!r.applied.length) continue; if (results.length > 1) md.push(`### ${r.label} book`); for (const a of r.applied) { md.push(`- ${a.weekend} ${a.name}`); for (const c of a.changes) md.push(`    - ${c}`); } } }
+  each('## Last year\'s names still on the Sheet, not on the board (a rep who took the same slot again only shows once the cell is cleared and typed again)', 'heldBack', h => `- ${h.weekend} ${h.name}: ${h.reps.join(', ') || '(x or set-up marks)'}`);
   if (result.unresolved.length) md.push('', `Names the roster cannot place (carried as written): ${result.unresolved.join(', ')}`);
   if (result.warnings.length) md.push('', `Parser warnings: ${result.warnings.join('; ')}`);
   fs.mkdirSync(OUT, { recursive: true });
@@ -649,6 +732,7 @@ async function firstLoad(api, startedAt) {
   for (const e of boardEvents) if (!linkIds.has(keyOf(e))) linkIds.set(keyOf(e), e.id);
   const skip = new Map((FL.skip || []).map(s => [`${normName(s.name)}|${s.weekend}`, s.why]));
   const dead = new RegExp(FL.deadPattern || '(?!)', 'i');
+  const fed = fedToday();                                    // the other books' shows, by board id
 
   const plan = { later: [], unlinked: [], skipped: [], linked: [], created: [] };
   const baseline = [], stale = [], writes = [];
@@ -657,22 +741,27 @@ async function firstLoad(api, startedAt) {
     if (!owned(range, sheet.weekend)) {
       // a weekend another book feeds until the handover: remember the show as this book has it today, write nothing
       const id = linkIds.get(k);
-      if (id) { baseline.push({ ...clone(sheet), id }); plan.later.push({ name: sheet.name, weekend: sheet.weekend, id }); }
+      if (id) { baseline.push({ ...clone(sheet), id, frozen: true }); plan.later.push({ name: sheet.name, weekend: sheet.weekend, id }); }
       else plan.unlinked.push({ name: sheet.name, weekend: sheet.weekend });
       continue;
     }
     if (skip.has(k)) { baseline.push({ ...clone(sheet), id: null, skipped: skip.get(k) }); plan.skipped.push({ name: sheet.name, weekend: sheet.weekend, why: skip.get(k) }); continue; }
     const existing = boardByKey.get(k);
+    if (existing && fed.has(existing.id)) {
+      // one show, one book: another book feeds this show on the board today; this row is left off, and said so
+      const why = `the ${[...fed.get(existing.id)].join(', ')} book feeds this show on the board (${existing.id})`;
+      baseline.push({ ...clone(sheet), id: null, skipped: why }); plan.skipped.push({ name: sheet.name, weekend: sheet.weekend, why }); continue;
+    }
     if (existing) { baseline.push({ ...clone(sheet), id: existing.id }); plan.linked.push({ name: sheet.name, weekend: sheet.weekend, id: existing.id }); continue; }
-    // a new show from last year's row: none of its picks are this year's
+    // a new show from last year's row: none of its picks are this year's (the cells are kept, by the new show's id)
     const row = clone(sheet);
-    const cells = takeStale(row);
+    const id = newId(row, Number(String(row.weekend || '').slice(0, 4)) || FL.year);
+    const cells = takeStale(row, id);
     stale.push(...cells);
     const d = datesFor(row, FL.year);
     const out = dead.test(row.sheetStatus) || dead.test(row.levelCell || '');
     const doc = newShowDoc(row, { resolve, status: out ? 'Cancelled' : 'Prospective', dead: out, tier: ruleTier(row.name, CFG.tierRules) || row.tierTag || 'Traditional',
       startDate: d.startDate, endDate: d.endDate, datesEstimated: !d.cellUsed, createdBy: 'service:sheet-sync:first-load', keepReps: false });
-    const id = newId(row, doc.year);
     writes.push({ id, doc });
     // the baseline keeps the Sheet's own cells (blank or last year's): staying that way is no change, and the team's
     // real date coming in replaces the board's estimate (planEvent: estimated board dates are nobody's edit)
@@ -680,6 +769,15 @@ async function firstLoad(api, startedAt) {
     plan.created.push({ id, name: row.name, weekend: row.weekend, status: doc.status, tier: doc.tier, startDate: doc.startDate, endDate: doc.endDate, estimated: doc.datesEstimated, cost: doc.cost, notCarried: [...new Set(cells.map(c => c.rep).filter(r => r && r !== '__X__'))] });
   }
 
+  // What the handover will leave behind or trip on, said now: the other books' shows on the weekends this book takes over
+  // that it does not have (nothing syncs them after the handover), and remembered shows whose shift rows differ from
+  // the board's (a change to their shifts on this book is a conflict until the two match)
+  const laterIds = new Set(plan.later.map(x => x.id));
+  plan.onlyInOther = [];
+  if (book.handover) for (const ob of BOOKS) if (ob !== book) for (const e of (loadBaseline(ob) || { events: [] }).events)
+    if (e.id && boardById.has(e.id) && owned(rangeOn(ob, TODAY), e.weekend) && owned(book.handover.weekends, e.weekend) && !owned(range, e.weekend) && !laterIds.has(e.id))
+      plan.onlyInOther.push({ name: e.name, weekend: e.weekend, book: ob.label, id: e.id });
+  plan.shapeDiffers = plan.later.filter(x => { const s = sheetEvents.find(e => keyOf(e) === keyOf(x)); return s && sig(s) !== sig(boardById.get(x.id)); });
   const result = { date: TODAY, mode: APPLY ? 'apply' : 'dry', book: book.label, sheetFile: path.basename(file), weekends: range, parsed: sheetEvents.length,
     ...plan, staleCells: stale.length, warnings, wrote: false, readBack: null };
   let code = 0;
@@ -716,6 +814,8 @@ async function firstLoad(api, startedAt) {
   if (plan.linked.length) { md.push('', '## Already on the board (followed from now on, nothing written)'); for (const s of plan.linked) md.push(`- ${s.weekend} ${s.name} [${s.id}]`); }
   if (plan.later.length) { md.push('', `## Remembered for the handover (${plan.later.length} shows another book feeds until then)`); md.push(plan.later.map(s => `${s.weekend} ${s.name}`).join('; ')); }
   if (plan.unlinked.length) { md.push('', '## On this book for a weekend another book feeds, with no show on the board to match (created on handover morning if still there)'); for (const s of plan.unlinked) md.push(`- ${s.weekend} ${s.name}`); }
+  if (plan.onlyInOther.length) { md.push('', `## Only in the other book, on weekends this book takes over${book.handover ? ` on ${book.handover.on}` : ''} (nothing syncs them after that unless they are added here)`); for (const s of plan.onlyInOther) md.push(`- ${s.weekend} ${s.name} (${s.book} book) [${s.id}]`); }
+  if (plan.shapeDiffers.length) { md.push('', '## Remembered shows whose shift rows differ between this book and the board (after the handover, a change to their shifts here is a conflict until the two match)'); for (const s of plan.shapeDiffers) md.push(`- ${s.weekend} ${s.name} [${s.id}]`); }
   if (warnings.length) md.push('', `Parser warnings: ${warnings.join('; ')}`);
   fs.mkdirSync(OUT, { recursive: true });
   const stem = `sheet-first-load-${book.key}-${TODAY}`;

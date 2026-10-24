@@ -68,6 +68,7 @@ SAY = {
     "preflight": "run the board preflight",
     "booking-sweep": "run the board booking sweep",
     "event-check": "run the board event check",
+    "handover-preview": "preview the Jan-May handover for the board",
 }
 # routines whose notice is not "open Claude on this repo and say ..."
 LINE = {

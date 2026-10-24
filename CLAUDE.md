@@ -75,14 +75,26 @@ routines in `.claude/skills/` keep it true.
   settled the six shows the books disagreed on that day (Gold Canyon keeps J. Parker; Foss stays on the Arabian
   Horse Shows; Foss off Downtown Chandler Saturday; the Boat, RV & Outdoor Expo has no Thursday shift, J. Parker
   Friday-Sunday), and those stay as he set them. `state/sheet-baseline.json` is now every book's current part in one
-  file (each entry tagged `book`), kept for rsd-shift-picking's coverage agent. A run reads every book and writes
-  all of them or none; a book with no baseline stops it (exit 5). `--book <key>` runs one book alone. The first load
+  file (each entry tagged `book`, plus once each show no book feeds any more), kept for rsd-shift-picking's coverage
+  agent. A run reads every book and writes all of them or none; a book with no baseline stops it (exit 5). **One show,
+  one book**: a row matching a show another book feeds today is not linked (flagged; it links once that book lets go),
+  and two books writing the same show in one run stops it (exit 6). A show a book stops feeding at the handover that no
+  other book carries (Casa Grande Home & Backyard and Tri-State Home & Garden were Sept-Feb-only on 2026-10-23) is
+  flagged once: nothing syncs it after that. The tick says "preview the Jan-May handover for the board" the day before
+  `handover.on` (run `sheet-sync.mjs --date <handover>` dry and fix what it would stop on). On handover morning the
+  shows coming in from the set-aside part are not counted by the drift guard. `--book <key>` runs one book alone. The first load
   (`--first-load <key>`, dry, then `--apply`; once) brought the Jan-May book's March-May rows on as 2027 Prospective
   shows **with no reps** (every name there was 2026's), days from the header marked estimated, column B/C "no
   dates / cancelled / declined / not allowed / territory" as Cancelled, column B Elite as Elite, and the
   `firstLoad.skip` rows (last year's copies of shows already on the board) left off; the cells it cleared are in
-  `state/sheet-stale-<key>.json` and read as empty while they still say the same thing, so a name the team writes
-  over one comes over and an untouched one never does. Expect a stop when Matt and JP rebuild March-May for 2027:
+  `state/sheet-stale-<key>.json`, kept **by board show** (a rename on the Sheet does not set them loose), and read as
+  empty while they still say the same thing. Once the Sheet says anything else in that cell (a blank included) the
+  entry is used up, so a name the team writes over one, or types back after clearing it, comes over; an untouched one
+  never does (a rep who re-picks the exact slot they had in 2026 only shows once the cell is cleared and typed again;
+  each report lists the names still held back). A skipped row stays skipped if renamed or moved, and a new row that
+  carries the names of a show gone from that weekend is held, not created (likely that show renamed past recognition).
+  When a show was added on both the Sheet and the board, what they disagree on stays a conflict every run (before
+  2026-10-23 the Sheet's value quietly won on the second run). Expect a stop when Matt and JP rebuild March-May for 2027:
   more than 40 shows changed at once is exit 3 (read the report, then `--force` by hand on the mini); their date and
   cost fixes on rows still carrying last year's dates are not counted as parser drift. Three-way:
   the Sheet now vs the Sheet at the last sync (the book's baseline, gitignored, 600) vs the board
