@@ -911,6 +911,10 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(rec.length === 1 && rec[0].id === 'a' && rec[0].source === 'sheet-days', 'fill-dates: the weekly list is the fills of the last 7 days, read from the board; a date typed in the Sheet is not a fill');
     ok(Array.isArray(JSON.parse(fs.readFileSync(path.join(outd, 'fill-dates', 'latest.json'), 'utf8')).recent), 'fill-dates: every run records the recent fills');
     ok(FDm.webRun({ ok: true, result: { dates: { found: true, start: '2026-10-24', end: '2026-10-25', confidence: 'official', sourceUrl: '', evidence: 'x' } } }, '2026-10-23') === null, 'fill-dates: a found date without a source page is not used');
+    { const rolled = { id: '2027-rolled', name: 'Rolled Test Fair', weekend: '2027-09-10', startDate: null, rolledFrom: '2026', datesEstimated: true, status: 'Prospective',
+        booths: [{ days: ['Saturday'], dates: [null], shifts: [{ label: 'Shift 1', slots: [{ rep: '', ft: [] }] }] }] };
+      ok(FDm.decide(rolled, { today: '2026-10-24' }).kind === 'skip' && FDm.decide(rolled, { today: '2027-04-01' }).kind === 'search' && FDm.decide({ ...rolled, status: 'Booked' }, { today: '2026-10-24' }).kind === 'search',
+        'fill-dates: an untouched show rolled for next year is not searched while it is more than 183 days out; inside the window, or once touched, it is (Alan, 2026-10-24)'); }
   }
 
   // ---- booking-sweep end to end: the buckets, the only write (whole-week date moves), and its refusals
@@ -1060,7 +1064,20 @@ def post(route, text, mention=None, fallback=True, **k):
     const el = JSON.parse(fs.readFileSync(efile, 'utf8'));
     ok(r.code === 0 && el.count === 5 && !el.targets.some(x => x.id === '2026-x1') && el.skippedTiers.map(x => x.id).join() === '2026-x1', 'board-research targets: an Elite show is never researched (Alan, 2026-09-24), and is counted');
     { const x1 = T('events').get('2026-x1'); delete x1.tier; T('events').set('2026-x1', x1); }
-    const found = (s, e2, url, extra = {}) => ({ ok: true, result: { dates: { found: true, start: s, end: e2, confidence: 'official', sourceUrl: url, evidence: `the show runs ${s} to ${e2}`, cancelled: false, notYetAnnounced: false, note: '' }, summary: '', ...extra } });
+    { // a roll into next year: untouched shows more than 183 days out wait; a near one, or one somebody touched, is researched
+      const rolled = { rolledFrom: '2026', datesEstimated: true, status: 'Prospective' };
+      ev('2027-r-far', 'Rolled Far Test Fair', '2027-06-05', 2, [], { year: 2027, ...rolled });
+      ev('2027-r-near', 'Rolled Near Test Fair', '2027-03-06', 2, [], { year: 2027, ...rolled });
+      ev('2027-r-staffed', 'Rolled Staffed Test Fair', '2027-06-12', 2, ['Eli'], { year: 2027, ...rolled });
+      ev('2027-r-booked', 'Rolled Booked Test Fair', '2027-06-19', 2, [], { year: 2027, ...rolled, status: 'Booked', vcNumber: '00500009' });
+      const rfile2 = path.join(home, 'br-rolled.json');
+      r = await node('scripts/board-research.mjs', 'targets', '--mode', 'dates', '--check', check, '--out', rfile2, '--date', '2026-10-01');
+      const rt = JSON.parse(fs.readFileSync(rfile2, 'utf8')), ids = rt.targets.map(x => x.id);
+      ok(r.code === 0 && rt.rolledLater.map(x => x.id).join() === '2027-r-far' && !ids.includes('2027-r-far') && ['2027-r-near', '2027-r-staffed', '2027-r-booked'].every(id => ids.includes(id)) && /1 rolled for next year/.test(r.stderr),
+        'board-research targets: an untouched rolled show more than 183 days out is left for later, and counted; a near or touched one is researched (Alan, 2026-10-24): ' + ids.join());
+      for (const id of ['2027-r-far', '2027-r-near', '2027-r-staffed', '2027-r-booked']) T('events').delete(id);
+    }
+    const found =(s, e2, url, extra = {}) => ({ ok: true, result: { dates: { found: true, start: s, end: e2, confidence: 'official', sourceUrl: url, evidence: `the show runs ${s} to ${e2}`, cancelled: false, notYetAnnounced: false, note: '' }, summary: '', ...extra } });
     const none = { ok: true, result: { dates: { found: false, start: '', end: '', confidence: 'none', sourceUrl: '', evidence: '', cancelled: false, notYetAnnounced: false, note: '' }, summary: '' } };
     const research = { results: {
       '2026-m1': found('2026-10-09', '2026-10-10', 'https://www.hebertest.org/oktoberfest'),

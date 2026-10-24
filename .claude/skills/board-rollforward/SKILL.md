@@ -19,5 +19,6 @@ Run `node scripts/board.mjs export` first (the backup). Report: `rolled <n> into
 the held names, to Alan in the conversation and as `out/reports/board-rollforward-<year>.md`. Never
 send a message from this routine; promoter contacts roll with the event automatically. The next preflight will replace the estimated dates.
 
-Alan can also do this from the board itself (plan mode → Roll forward); the CLI exists so a routine
-can. Use `BOARD_ACTOR=service:board-rollforward`.
+Alan can also do this from the board itself (plan mode, on the year's own tab → "Roll 2026 into 2027"); the CLI
+exists so a routine can. Rolled shows nobody touches are not researched on the web until they are within 183 days
+(config `research.rolledLaterDays`), so rolling early costs nothing. Use `BOARD_ACTOR=service:board-rollforward`.
