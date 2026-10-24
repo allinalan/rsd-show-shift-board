@@ -83,6 +83,7 @@ import { parseAll, makeRepResolver, repKey, boardStatus, staffedCount, matchToSe
 import { boardApi } from './lib/board-api.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { nameScore, statusCategory, effectiveDate, lastDay, inRun, dayDiff, ruleTier } from './lib/match.mjs';
+import { spotShow, rollSpot, keepSpotTags } from './lib/booth-spots.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -348,7 +349,8 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull 
     else if (deadByVc && addsReps) { held.push(`the Sheet rebuilt the shift rows with reps on them, but VectorConnect says ${vcStatus}`); keepBase.whole = true; }
     else if (datesHeld) { held.push('the Sheet rebuilt the shift rows along with a date change that is held'); keepBase.whole = true; }
     else {
-      patch.booths = (sheet.booths || []).map(b => ({ ...clone(b), shifts: b.shifts.map(s => ({ ...clone(s), slots: s.slots.map(outSlot) })) }));
+      // a booth still named as it was rolled keeps its "last year's spot" tag (lib/booth-spots.mjs)
+      patch.booths = keepSpotTags((sheet.booths || []).map(b => ({ ...clone(b), shifts: b.shifts.map(s => ({ ...clone(s), slots: s.slots.map(outSlot) })) })), board.booths);
       patch.days = sheet.days || []; patch.dates = sheet.dates || [];
       const count = e => (e.booths || []).reduce((n, b) => n + b.shifts.reduce((m, s) => m + s.slots.filter(sl => isRep(sl.rep)).length, 0), 0);
       slotChanges += Math.max(1, Math.abs(count(sheet) - count(base)));
@@ -731,6 +733,8 @@ function rolledShow(sheet, { resolve, year, dead, createdBy }) {
   const out = dead.test(row.sheetStatus) || dead.test(row.levelCell || '');
   const doc = newShowDoc(row, { resolve, status: out ? 'Cancelled' : 'Prospective', dead: out, tier: ruleTier(row.name, CFG.tierRules) || row.tierTag || 'Traditional',
     startDate: d.startDate, endDate: d.endDate, datesEstimated: !d.cellUsed, createdBy, keepReps: false });
+  // the row is the year before's, so a Maricopa booth name on it is that year's spot (lib/booth-spots.mjs)
+  if (spotShow(row.name, CFG.boothSpots)) doc.booths = doc.booths.map(b => ({ ...b, ...rollSpot(b, year - 1) }));
   return { id, row, doc, cells, notCarried: [...new Set(cells.map(c => c.rep).filter(isRep))] };
 }
 /** Read every new show back: there, as written, and with no names on it. Returns the ids that are not. */

@@ -67,7 +67,10 @@ routines in `.claude/skills/` keep it true.
   day cells hold earlier years' dates). Read the Sept-Feb book exactly as before (checked cell for cell). Since
   2026-10-24 (the May-Sept book): `--season-start-month` (5 for a May-Sept book: every header from May on is
   `--season-year`), a header row below row 1 ("Event Description") and a status word typed into a shift row's label
-  ("Booked") are not shows.
+  ("Booked") are not shows. Also since 2026-10-24: a "Booth ..." typed in column B of a shift row, with no booth row
+  above it, starts a named booth (Maricopa Summer Home & Landscape writes "Booth #301-303" beside Shift 1; its six rows
+  had fallen into one unnamed booth). Under a booth row of its own, column B only repeats it. No other show in the
+  three books changed (checked by parsing each before and after).
 - **The May-Sept 2026 roll-in** (Alan, 2026-10-24: "upload also events from this link without names to 2027"; config
   `rollIns`). The May-Sept book's newest tab is last summer's (May 1 - Sept 25, 2026), so it was rolled into 2027
   **once** and is **not synced** (the 2027 summer schedule goes on the board at the May 2027 meeting, stage 3):
@@ -80,6 +83,17 @@ routines in `.claude/skills/` keep it true.
   lists what it made; a second run refuses. Rehearsed 2026-10-24 on a copy of the board: 69 new (1 Cancelled), 16
   already there, 41 left to the roll-forward, 1 skipped. Its untouched shows count as rolled for the research cut-off
   (below): the 31 that start after early July 2027 are not looked up for the January meeting.
+- **Maricopa booth spots** (Alan, 2026-10-24: "copy over the actual BOOTH names when rolling over ... until it gets
+  fixed"). A Maricopa County Home Shows booth name is a spot on that show's floor plan ("Booth #2 (Ag Building)
+  (820/822) (8x20 Corner)"). Every roll (the board's Roll forward, `board rollforward`, the Sheet sync's first load and
+  roll-in) carries the name and tags the booth `rolledLabel` (the name as rolled) + `rolledLabelYear` (the year that spot
+  was for). The page shows "2026's spot" beside the name while the name still says exactly what was rolled, so a rename
+  anywhere (the board, the Sheet sync, a lookup) clears it with nothing else to know; in Plan mode "same spot in <year>"
+  drops the tag and keeps the name. A name nobody fixed keeps its original year through the next roll. Which shows:
+  config `boothSpots` (Maricopa, not the Maricopa County Fair), mirrored in index.html `SPOT_RULE` (the tests hold the
+  two together). `scripts/lib/booth-spots.mjs`. Applied by hand the same day (actor `service:maricopa-booths-fix`): the
+  July 2027 Summer show rebuilt as its three booths, and the April 2027 Home & Flower show's three names tagged as 2026's.
+  Finding this year's spots from the promoter's vendor page: `docs/maricopa-booths.md`.
 - `scripts/sheet-sync.mjs` — the Sheet -> board sync (stage 2 of the roadmap, live 2026-09-23). **Two books since
   2026-10-23** (Alan: "upload the Jan-May 2027 sheet"): the Sept-Feb and Jan-May schedules are separate Google Sheets
   that both carry January and February (config `sheets`). Each weekend is fed by one book only: until the January
@@ -228,7 +242,9 @@ routines in `.claude/skills/` keep it true.
 follows the show. Fields the routines care about: `name, year, weekend (Friday ISO), startDate,
 endDate, datesEstimated, datesNote, datesSource, datesMoved, status, vcNumber, vcStatus, tier, access, cityState, location, address,
 setting, promoter, contact, phone, email, website, cost, costBasis, applyUrl, applyBy, notes,
-booths[{label,days,dates,shifts[{label,slots[{rep,ft[]}]}]}], dead, skipNext, neverWork`.
+booths[{label,days,dates,shifts[{label,slots[{rep,ft[]}]}],rolledLabel?,rolledLabelYear?}], dead, skipNext, neverWork`.
+`source` says what made the row (`board`, `sheet-sync`); the page treats every database row as a board show whatever it
+says (until 2026-10-24 a `sheet-sync` row was read-only there: 166 shows, both 2027 Maricopa home shows among them).
 `event_contacts` — promoter `contact, phone, email` per event id. **Public on purpose, not just to
 people with the link**: the select policy is open, so anyone with the anon key in `config.js` can read
 every row straight from the API, signed in or not, and follow changes over realtime (Alan's call,

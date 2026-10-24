@@ -106,7 +106,18 @@ try {
     // ---- rollforward: contacts follow the show, held-back rules hold, idempotent
     T('events').set('2026-skip', { year: 2026, name: 'Skip Show', startDate: '2026-04-03', booths: [], skipNext: true });
     T('events').set('2026-staffed', { year: 2026, name: 'Staffed Show', startDate: '2026-05-01', days: ['Friday'], booths: [{ label: '', days: ['Friday', 'Saturday SE'], shifts: [{ label: 'Shift 1', slots: [{ rep: 'Alan', ft: [] }, { rep: 'Matt A.', ft: [] }] }] }] });
+    // booth spots: a Maricopa show's booth names roll as last year's spot; an unfixed one keeps the year it was for
+    const bo = (label, extra = {}) => ({ label, days: ['Friday'], ...extra, shifts: [{ label: 'Shift 1', slots: [{ rep: 'Eli', ft: [] }] }] });
+    T('events').set('2026-mchgs', { year: 2026, name: 'Maricopa County Home & Garden Show', startDate: '2026-10-02', days: ['Friday'],
+      booths: [bo('Booth #1 (606-608)'), bo('Booth #2 (Ag Building) (820/822)', { rolledLabel: 'Booth #2 (Ag Building) (820/822)', rolledLabelYear: 2025 }), bo('')] });
+    T('events').set('2026-mcfair', { year: 2026, name: 'Maricopa County Fair - WK 1', startDate: '2026-04-03', days: ['Friday'], booths: [bo('Booth #1 (Ag Building)')] });
     r = await board(['rollforward', '2027']); ok(r.code === 0, 'rollforward exits 0: ' + r.stderr);
+    const mb = (T('events').get('2027-mchgs') || {}).booths || [];
+    ok(mb[0]?.label === 'Booth #1 (606-608)' && mb[0]?.rolledLabel === 'Booth #1 (606-608)' && mb[0]?.rolledLabelYear === 2026, 'rollforward: a Maricopa booth name comes along, tagged as 2026\'s spot: ' + JSON.stringify(mb[0]));
+    ok(mb[1]?.rolledLabelYear === 2025, 'rollforward: a name nobody fixed in 2026 is still 2025\'s spot');
+    ok(mb[2] && !('rolledLabel' in mb[2]), 'rollforward: a booth with no name gets no tag');
+    ok(T('events').get('2027-mcfair')?.booths[0].label === 'Booth #1 (Ag Building)' && !('rolledLabel' in T('events').get('2027-mcfair').booths[0])
+      && !('rolledLabel' in T('events').get('2027-staffed').booths[0]), 'rollforward: the Maricopa County Fair and other shows keep their names, untagged');
     const rolled = '2027-' + id.replace(/^\d{4}-/, '');
     ok(T('events').has(rolled) && T('events').get(rolled).status === 'Prospective' && T('events').get(rolled).datesEstimated === true, 'rollforward: event rolled as Prospective, dates estimated');
     ok(T('event_contacts').get(rolled)?.phone === '(928) 555-0100', 'rollforward: contacts copied to the new id');
@@ -424,6 +435,58 @@ def post(route, text, mention=None, fallback=True, **k):
     fs.writeFileSync(seedAlias, JSON.stringify(asSeed(ev)));
     r = await ps('--verify', '--seed', seedAlias);
     ok(!/reps the roster cannot place/.test(r.stdout), 'parse-sheet --verify: Cam, JP and Matt A all resolve to the roster');
+  });
+
+  await section('parse-sheet: booth names typed in column B (Maricopa Summer, the May-Sept book)', async () => {
+    const { parseAll } = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
+    const G = [], row = o => { const r = new Array(27).fill(null); for (const [i, v] of Object.entries(o)) r[+i] = v; G.push(r); };
+    row({ 4: 'HEADER' });
+    row({ 1: 'Weekend 07-17' });
+    row({ 1: 'Invite Only', 2: 'Booked', 4: 'Maricopa County Summer Home & Landscape Show', 5: 'Friday', 6: 'Saturday', 7: 'Sunday', 12: '7100' });
+    row({ 1: 'Booth #301-303', 4: 'Shift 1', 5: 'Alan', 6: 'Alan', 7: 'Adam C.' });
+    row({ 4: 'Shift 2', 5: 'Jason', 6: 'Jason', 7: 'Jason' });
+    row({});
+    row({ 1: 'Booth #421-423', 4: 'Shift 1', 5: 'Matt', 6: 'Matt', 7: 'Matt' });
+    row({ 4: 'Shift 2', 5: 'JP', 6: 'Luke', 7: 'Luke' });
+    row({ 1: 'Elite', 4: 'Maricopa County Home & Flower Show', 5: 'Friday', 6: 'Saturday', 12: '7000' });
+    row({ 4: 'Booth #1 (10x10 Corner) #1038' });
+    row({ 1: 'Booth #1 (10x10 Corner) #1038', 4: 'Shift 1', 5: 'Foss', 6: 'Foss' });    // column B repeats the booth row above
+    row({ 4: 'Shift 2', 5: 'Adam C', 6: 'Adam C' });
+    row({ 4: 'Booth #2 (10x10 Corner) #520' });
+    row({ 1: 'Booth #2 (10x10 Corner)', 4: 'Shift 1', 5: 'Luke', 6: 'Luke' });
+    row({ 2: 'Booked', 4: 'Plain Fair', 5: 'Saturday', 12: '100' });
+    row({ 4: 'Shift 1', 5: 'Eli' });
+    const ev = parseAll(G, { seasonYear: 2027, seasonStartMonth: 5 }).events;
+    const [sum, flower, plain] = ev, lab = e => e.booths.map(b => `${b.label}=${b.shifts.map(s => s.slots[0].rep).join('+')}`).join(' | ');
+    ok(ev.length === 3 && lab(sum) === 'Booth #301-303=Alan+Jason | Booth #421-423=Matt+JP', 'column B "Booth ..." on a shift row starts a named booth: ' + lab(sum));
+    ok(lab(flower) === 'Booth #1 (10x10 Corner) #1038=Foss+Adam C | Booth #2 (10x10 Corner) #520=Luke', 'under a booth row, column B only repeats it (no extra booth, the fuller name kept): ' + lab(flower));
+    ok(lab(plain) === '=Eli', 'a show with no booth names still has its one unnamed booth');
+  });
+
+  await section('lib/booth-spots.mjs, and the page\'s copy of it', async () => {
+    const S = await import(path.join(REPO, 'scripts/lib/booth-spots.mjs'));
+    const cfg = JSON.parse(fs.readFileSync(path.join(REPO, 'config/event-check.json'), 'utf8')).boothSpots;
+    const names = ['Maricopa County Home & Garden Show', 'Maricopa County Summer Home & Landscape Show', 'Maricopa County Fair - WK 1', 'maricopa county fair', 'Maricopan Days', 'Phoenix Home Show', ''];
+    ok(names.map(n => S.spotShow(n, cfg)).join() === 'true,true,false,false,false,false,false', 'spotShow: the Maricopa home shows, not the Maricopa County Fair, whole words only');
+    const b = { label: 'Booth #2 (Ag Building) (820/822)' };
+    ok(JSON.stringify(S.rollSpot(b, 2026)) === JSON.stringify({ rolledLabel: b.label, rolledLabelYear: 2026 }) && JSON.stringify(S.rollSpot({ label: ' ' }, 2026)) === '{}', 'rollSpot: tags a named booth with the year it is rolled from, never an unnamed one');
+    ok(S.rollSpot({ ...b, rolledLabel: b.label, rolledLabelYear: 2025 }, 2026).rolledLabelYear === 2025 && S.rollSpot({ ...b, rolledLabel: 'Booth #2 (old)', rolledLabelYear: 2025 }, 2026).rolledLabelYear === 2026, 'rollSpot: an unfixed name keeps its year; a fixed one is this year\'s');
+    ok(S.lastYearsSpot({ label: 'X ', rolledLabel: 'X' }) && !S.lastYearsSpot({ label: 'Y', rolledLabel: 'X' }) && !S.lastYearsSpot({ label: 'X' }) && !S.lastYearsSpot(null), 'lastYearsSpot: only while the name still says what was rolled');
+    const kept = S.keepSpotTags([{ label: 'X' }, { label: 'Z' }, { label: 'Y', rolledLabel: 'Y', rolledLabelYear: 2024 }], [{ label: 'X', rolledLabel: 'X', rolledLabelYear: 2026 }, { label: 'Q', rolledLabel: 'Z', rolledLabelYear: 2026 }]);
+    ok(kept[0].rolledLabelYear === 2026 && !('rolledLabel' in kept[1]) && kept[2].rolledLabelYear === 2024, 'keepSpotTags: a rebuilt booth still named as rolled keeps its tag; a fixed one does not get it back');
+    // the page keeps its own copy (it cannot read config): run that block by itself and hold it to the same answers
+    const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    const m = html.match(/\/\* booth-spots:start[\s\S]*?\*\/([\s\S]*?)\/\* booth-spots:end \*\//);
+    ok(!!m, 'index.html: the booth-spots block is marked');
+    const P = new Function(m[1] + '\nreturn { spotShow, lastYearsSpot, rollSpot, spotTag, unspot };')();
+    ok(names.every(n => P.spotShow(n) === S.spotShow(n, cfg)), 'index.html spotShow agrees with config boothSpots on every name');
+    ok(JSON.stringify(P.rollSpot({ ...b, rolledLabel: b.label, rolledLabelYear: 2025 }, 2026)) === JSON.stringify(S.rollSpot({ ...b, rolledLabel: b.label, rolledLabelYear: 2025 }, 2026)), 'index.html rollSpot agrees with the lib');
+    ok(/2026's spot/.test(P.spotTag({ label: 'X', rolledLabel: 'X', rolledLabelYear: 2026 })) && P.spotTag({ label: 'Y', rolledLabel: 'X', rolledLabelYear: 2026 }) === ''
+      && /Last year's spot/.test(P.spotTag({ label: 'X', rolledLabel: 'X', rolledLabelYear: '<b>' })), 'index.html: the tag shows while unfixed, says the year, and never prints a stored value that is not a year');
+    const u = { label: 'X', rolledLabel: 'X', rolledLabelYear: 2026 }; P.unspot(u);
+    ok(JSON.stringify(u) === '{"label":"X"}', 'index.html unspot: "same spot this year" drops the tag, keeps the name');
+    ok(/const spot=spotShow\(e\.name\)\?b=>rollSpot\(b,yearOf\(e\)\)/.test(html), 'index.html: Roll forward tags the Maricopa shows\' booth names');
+    ok(/source:'board',madeBy:/.test(html), 'index.html: every database row is editable as a board show, whatever made it (the 166 Sheet-sync shows were read-only)');
   });
 
   await section('tick.py: the freshmen reminder', async () => {
@@ -778,7 +841,8 @@ def post(route, text, mention=None, fallback=True, **k):
     row({ 4: 'Shift 1', 5: 'Sarah', 6: 'Sarah' });
     row({ 1: 'Weekend 06-05' });
     row({ 1: 'Invite Only', 2: 'Booked', 4: 'Maricopa County Summer Home Show', 5: 'Friday', 6: 'Saturday', 7: 'Sunday', 12: '7099.52', 13: SER('2026-06-05'), 14: SER('2026-06-07') });
-    row({ 4: 'Shift 1', 5: 'Foss', 6: 'Foss', 7: 'Foss' });
+    row({ 1: 'Booth #301-303', 4: 'Shift 1', 5: 'Foss', 6: 'Foss', 7: 'Foss' });
+    row({ 1: 'Booth #421-423', 4: 'Shift 1', 5: 'Eli', 6: 'Eli', 7: 'Eli' });
     row({ 2: 'Prospective', 4: 'Gary Rodeo', 5: 'Friday', 12: '350' });
     row({ 4: 'Booked' });                                                                         // a status typed into a shift label
     row({ 1: 'Weekend 07-03' });
@@ -816,6 +880,9 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(msh && msh.year === 2027 && msh.weekend === '2027-06-04' && msh.startDate === '2027-06-04' && msh.datesEstimated === true && msh.tier === 'Elite' && msh.status === 'Prospective'
       && msh.booths.every(b => b.shifts.every(s => s.slots.every(sl => !sl.rep))), 'roll-in: last summer\'s row is a 2027 show on its Friday, estimated, Elite by the Maricopa rule, Prospective, no names: ' + JSON.stringify(msh && [msh.weekend, msh.startDate, msh.tier, msh.status]));
     ok(vf && vf.status === 'Cancelled' && vf.dead === true && made('Business Expo').weekend === '2027-08-27', 'roll-in: "promoter declined" is Cancelled; a show the fall book does not have is made on its own weekend');
+    ok(msh && msh.booths.map(b => `${b.label}/${b.rolledLabel}/${b.rolledLabelYear}`).join() === 'Booth #301-303/Booth #301-303/2026,Booth #421-423/Booth #421-423/2026',
+      'roll-in: the Maricopa show\'s booth names (column B) come over as 2026\'s spots: ' + JSON.stringify(msh && msh.booths.map(b => [b.label, b.rolledLabel, b.rolledLabelYear])));
+    ok(vf && vf.booths.every(b => !('rolledLabel' in b)), 'roll-in: a show that is not Maricopa gets no spot tag');
     ok(fs.existsSync(path.join(state, 'roll-in-may-sept-2026.json')) && JSON.parse(fs.readFileSync(path.join(state, 'roll-in-may-sept-2026.json'), 'utf8')).created.length === 4, 'roll-in: what it made is recorded in state/');
     r = await roll('--apply');
     ok(r.code === 1 && /already ran/.test(r.stderr) && T('events').size === 7, 'roll-in runs once: a second refuses');

@@ -17,6 +17,8 @@
     board add --name "…" --start 2027-03-06 [--end 2027-03-07] [--city "Prescott, AZ"] [field=value ...]
     board delete <id>
     board rollforward <year> [--include-dead] [--dry-run]
+                                                        (a Maricopa show's booth names come along as last year's spot,
+                                                         tagged until someone fixes them: config boothSpots)
     board never <event-id> [--why "…"]
     board restore <never-id>
     board editors list | add <email> [--role owner|coordinator] [--name "…"] | remove <email>
@@ -140,11 +142,12 @@ const yearOf = e => +(e.year || e.season || 0);
 const isSE = d => /\bSE\b/i.test(d || '');
 const today = () => { const d = flags.date ? fromISO(flags.date) : new Date(); d.setHours(0, 0, 0, 0); return d; };
 
-function rollDoc(e, Y) {
+// spot(b) = the booth's "last year's spot" tag on a Maricopa show (scripts/lib/booth-spots.mjs), {} on any other
+function rollDoc(e, Y, spot = () => ({})) {
   const sd = parseUS(e.startDate);
   const n = sd ? Math.max(0, Y - sd.getFullYear()) : 1;
   const nsd = sd ? addDays(sd, 364 * n) : null, startISO = nsd ? iso(nsd) : null;
-  const booths = (e.booths || []).map(b => ({ label: b.label || '', status: '', days: b.days, dates: startISO ? dayDates(b.days, startISO) : b.days.map(() => null),
+  const booths = (e.booths || []).map(b => ({ label: b.label || '', ...spot(b), status: '', days: b.days, dates: startISO ? dayDates(b.days, startISO) : b.days.map(() => null),
     shifts: (b.shifts || []).map(s => ({ label: s.label, slots: b.days.map(() => ({ rep: '', ft: [] })) })) }));
   let weekend = startISO ? fridayKey(startISO) : '';
   if (!weekend && e.weekend) { const wd = fromISO(e.weekend); if (wd) { const k = Math.max(1, Y - wd.getFullYear()); weekend = iso(addDays(wd, 364 * k)); } }
@@ -221,7 +224,10 @@ const commands = {
     console.error(`${src.length} in ${Y - 1} → ${todo.length} to roll, ${held.length} held (skip-next / never-work), ${src.length - held.length - todo.length} already in ${Y} or dead`);
     if (flags['dry-run']) return out(todo.map(e => ({ from: e.id, to: rollId(e, Y), name: e.name })));
     const cm = await contactMap();
-    let n = 0; for (const e of todo) { const to = rollId(e, Y); await setDoc('events', to, splitPriv(rollDoc(e, Y)).pub); const c = pickPriv(cm[e.id]); if (hasValue(c)) await setDoc(CONTACTS, to, c); n++; }
+    const { spotShow, rollSpot } = await import('./lib/booth-spots.mjs');
+    const spots = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8')).boothSpots;
+    const spotOf = e => spotShow(e.name, spots) ? b => rollSpot(b, yearOf(e)) : undefined;
+    let n = 0; for (const e of todo) { const to = rollId(e, Y); await setDoc('events', to, splitPriv(rollDoc(e, Y, spotOf(e))).pub); const c = pickPriv(cm[e.id]); if (hasValue(c)) await setDoc(CONTACTS, to, c); n++; }
     await setDoc('seasons', String(Y), { id: String(Y), label: String(Y), source: 'board', rolledFrom: String(Y - 1), rolledAt: new Date().toISOString(), count: n, by: ACTOR });
     out(`rolled ${n} events into ${Y}`);
   },
