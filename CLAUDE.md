@@ -78,7 +78,8 @@ routines in `.claude/skills/` keep it true.
   the board has in fall 2026 on any weekend: those come into 2027 with their history and the fall book's newer dates
   when 2026 is rolled forward (board Roll forward / `board.mjs rollforward 2027`). `state/roll-in-may-sept-2026.json`
   lists what it made; a second run refuses. Rehearsed 2026-10-24 on a copy of the board: 69 new (1 Cancelled), 16
-  already there, 41 left to the roll-forward, 1 skipped.
+  already there, 41 left to the roll-forward, 1 skipped. Its untouched shows count as rolled for the research cut-off
+  (below): the 31 that start after early July 2027 are not looked up for the January meeting.
 - `scripts/sheet-sync.mjs` — the Sheet -> board sync (stage 2 of the roadmap, live 2026-09-23). **Two books since
   2026-10-23** (Alan: "upload the Jan-May 2027 sheet"): the Sept-Feb and Jan-May schedules are separate Google Sheets
   that both carry January and February (config `sheets`). Each weekend is fed by one book only: until the January
@@ -179,7 +180,8 @@ routines in `.claude/skills/` keep it true.
   board's half; rsd-shift-picking owns the Claude API calls (web search), the texts and the email. `targets`
   lists what to research (`--mode dates|full|mismatches`: every upcoming live non-Mesa show, or only the ones whose
   board days are not inside VC's run; `--skip-tiers Elite` leaves out, and counts, the tiers the team handles itself; `--skip-names golf,builder` the shows Alan
-  spends no search money on, 2026-10-06; a show rolled forward that nobody has touched since (dates still estimated,
+  spends no search money on, 2026-10-06; a show rolled forward (the board's roll, `rolledFrom`, or the sheet-sync
+  roll-in, `createdBy service:sheet-sync:roll-in`) that nobody has touched since (dates still estimated,
   Prospective, no VC number, no reps) and that starts more than `research.rolledLaterDays` (183) out is left out and listed
   as `rolledLater`, Alan 2026-10-24: a roll must not spend the next meeting's research money or trip the 25-move limit;
   `rolledForLater()` in lib/dates.mjs, shared with fill-dates);
