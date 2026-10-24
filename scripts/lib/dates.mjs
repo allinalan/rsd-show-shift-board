@@ -38,15 +38,20 @@ export const sameRun = (a, b) => !!a && !!b && a.start === b.start && a.end === 
 export const within = (board, other) => !!board && !!other && other.start <= board.start && board.end <= other.end;
 export const runDays = r => { const out = []; for (let d = r.start; d <= r.end && out.length < 60; d = addDaysIso(d, 1)) out.push(d); return out; };
 
+/** Shows a sheet-sync roll-in made from last year's tab of a book (sheet-sync.mjs --roll-in): rolled, like rolledFrom. */
+const ROLLED_IN_BY = new Set(['service:sheet-sync:roll-in']);
+const rolled = e => !!e.rolledFrom || ROLLED_IN_BY.has(e.createdBy);
+
 /**
- * A show rolled forward from last year that nobody has touched since (dates still the +364 guess, still Prospective,
- * no VC number, nobody on a shift) and whose first day is more than `days` after `today`. The web research leaves
- * these until they come inside the window (Alan, 2026-10-24: rolling 2026 into 2027 must not spend January's
- * research money on next fall's shows, nor trip the 25-move limit on them). Touch it in any of those ways and it is
+ * A show rolled forward from last year (the board's roll: rolledFrom; a sheet-sync roll-in: createdBy) that nobody
+ * has touched since (dates still estimated, still Prospective, no VC number, nobody on a shift) and whose first day is
+ * more than `days` after `today`. The web research leaves these until they come inside the window (Alan, 2026-10-24:
+ * rolling 2026 into 2027 must not spend January's research money on next fall's shows, nor trip the 25-move limit on
+ * them; the same day, the May-Sept 2026 roll-in's July-September shows too). Touch it in any of those ways and it is
  * researched like any other show.
  */
 export function rolledForLater(e, today, days) {
-  if (!e || !e.rolledFrom || !e.datesEstimated || (e.status || 'Prospective') !== 'Prospective' || e.vcNumber) return false;
+  if (!e || !rolled(e) || !e.datesEstimated || (e.status || 'Prospective') !== 'Prospective' || e.vcNumber) return false;
   if ((e.booths || []).some(b => (b.shifts || []).some(s => (s.slots || []).some(x => x && x.rep && x.rep !== '__X__')))) return false;
   const first = (sellingRun(e) || {}).start || e.startDate || e.weekend;
   return !!first && ISO.test(first) && dayDiff(first, today) > days;

@@ -1150,7 +1150,10 @@ def post(route, text, mention=None, fallback=True, **k):
     { const rolled = { id: '2027-rolled', name: 'Rolled Test Fair', weekend: '2027-09-10', startDate: null, rolledFrom: '2026', datesEstimated: true, status: 'Prospective',
         booths: [{ days: ['Saturday'], dates: [null], shifts: [{ label: 'Shift 1', slots: [{ rep: '', ft: [] }] }] }] };
       ok(FDm.decide(rolled, { today: '2026-10-24' }).kind === 'skip' && FDm.decide(rolled, { today: '2027-04-01' }).kind === 'search' && FDm.decide({ ...rolled, status: 'Booked' }, { today: '2026-10-24' }).kind === 'search',
-        'fill-dates: an untouched show rolled for next year is not searched while it is more than 183 days out; inside the window, or once touched, it is (Alan, 2026-10-24)'); }
+        'fill-dates: an untouched show rolled for next year is not searched while it is more than 183 days out; inside the window, or once touched, it is (Alan, 2026-10-24)');
+      const rolledIn = { ...rolled, rolledFrom: undefined, createdBy: 'service:sheet-sync:roll-in' };
+      ok(FDm.decide(rolledIn, { today: '2026-10-24' }).kind === 'skip' && FDm.decide({ ...rolledIn, createdBy: 'service:sheet-sync' }, { today: '2026-10-24' }).kind === 'search',
+        'fill-dates: a sheet-sync roll-in show counts as rolled; a show the Sheet itself added does not'); }
   }
 
   // ---- booking-sweep end to end: the buckets, the only write (whole-week date moves), and its refusals
@@ -1306,12 +1309,18 @@ def post(route, text, mention=None, fallback=True, **k):
       ev('2027-r-near', 'Rolled Near Test Fair', '2027-03-06', 2, [], { year: 2027, ...rolled });
       ev('2027-r-staffed', 'Rolled Staffed Test Fair', '2027-06-12', 2, ['Eli'], { year: 2027, ...rolled });
       ev('2027-r-booked', 'Rolled Booked Test Fair', '2027-06-19', 2, [], { year: 2027, ...rolled, status: 'Booked', vcNumber: '00500009' });
+      // a sheet-sync roll-in (no rolledFrom, createdBy says so) is rolled too; a show the Sheet itself added is not
+      const rolledIn = { datesEstimated: true, status: 'Prospective', createdBy: 'service:sheet-sync:roll-in' };
+      ev('2027-ri-far', 'Rolled In Far Test Fair', '2027-07-10', 2, [], { year: 2027, ...rolledIn });
+      ev('2027-ri-dated', 'Rolled In Dated Test Fair', '2027-07-17', 2, [], { year: 2027, ...rolledIn, datesEstimated: false });
+      ev('2027-sync-far', 'Sheet Added Far Test Fair', '2027-07-24', 2, [], { year: 2027, ...rolledIn, createdBy: 'service:sheet-sync' });
       const rfile2 = path.join(home, 'br-rolled.json');
       r = await node('scripts/board-research.mjs', 'targets', '--mode', 'dates', '--check', check, '--out', rfile2, '--date', '2026-10-01');
       const rt = JSON.parse(fs.readFileSync(rfile2, 'utf8')), ids = rt.targets.map(x => x.id);
-      ok(r.code === 0 && rt.rolledLater.map(x => x.id).join() === '2027-r-far' && !ids.includes('2027-r-far') && ['2027-r-near', '2027-r-staffed', '2027-r-booked'].every(id => ids.includes(id)) && /1 rolled for next year/.test(r.stderr),
-        'board-research targets: an untouched rolled show more than 183 days out is left for later, and counted; a near or touched one is researched (Alan, 2026-10-24): ' + ids.join());
-      for (const id of ['2027-r-far', '2027-r-near', '2027-r-staffed', '2027-r-booked']) T('events').delete(id);
+      ok(r.code === 0 && rt.rolledLater.map(x => x.id).sort().join() === '2027-r-far,2027-ri-far' && !ids.includes('2027-r-far') && !ids.includes('2027-ri-far')
+        && ['2027-r-near', '2027-r-staffed', '2027-r-booked', '2027-ri-dated', '2027-sync-far'].every(id => ids.includes(id)) && /2 rolled for next year/.test(r.stderr),
+        'board-research targets: an untouched rolled show (the board\'s roll or a sheet-sync roll-in) more than 183 days out is left for later, and counted; a near, dated or touched one, or one the Sheet added, is researched (Alan, 2026-10-24): ' + ids.join());
+      for (const id of ['2027-r-far', '2027-r-near', '2027-r-staffed', '2027-r-booked', '2027-ri-far', '2027-ri-dated', '2027-sync-far']) T('events').delete(id);
     }
     const found =(s, e2, url, extra = {}) => ({ ok: true, result: { dates: { found: true, start: s, end: e2, confidence: 'official', sourceUrl: url, evidence: `the show runs ${s} to ${e2}`, cancelled: false, notYetAnnounced: false, note: '' }, summary: '', ...extra } });
     const none = { ok: true, result: { dates: { found: false, start: '', end: '', confidence: 'none', sourceUrl: '', evidence: '', cancelled: false, notYetAnnounced: false, note: '' }, summary: '' } };
