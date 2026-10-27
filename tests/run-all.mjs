@@ -780,7 +780,11 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(pe[0].booths[0].shifts.length === 1 && pe[0].booths[0].shifts[0].slots.map(s => s.rep).join('|') === '__X__|Eli|__X__', 'parse: set-up text in a rep cell is no shift, and the service-call row\'s names went nowhere: ' + JSON.stringify(pe[0].booths[0].shifts));
     ok(pe[0].tierTag === 'Elite' && pe[0].level === '', 'parse: column B "Elite" is kept as the tier tag');
     pe = PS.parseAll(P, { seasonYear: 2026 }).events;
-    ok(pe[0].days[0] === '3/15/2024', 'parse: without dateLabels the Sept-Feb book\'s date cells stay as the migration wrote them');
+    ok(pe[0].days[0] === '3/15/2024', 'parse: without dateLabels a date cell stays as the migration wrote it (what --verify lines up with the seed)');
+    const books = JSON.parse(fs.readFileSync(path.join(REPO, 'config/event-check.json'), 'utf8'));
+    ok([...books.sheets, ...(books.rollIns || [])].every(b => b.dateLabels === 'weekday'),
+      'config: every schedule book reads a date cell as the weekday it shows (2026-10-27: Sept-Feb rows held 2024 dates formatted as "Friday", and the page could not place "1/26/2024"): ' +
+      JSON.stringify([...books.sheets, ...(books.rollIns || [])].map(b => [b.key, b.dateLabels])));
 
     // planEvent: a blank Start Date never blanks the board; estimated board dates give way to the Sheet's; column C carries
     const resolve = PS.makeRepResolver(['Cameron', 'Eli', 'Sarah', 'Kendall', 'Zach']);
@@ -788,6 +792,15 @@ def post(route, text, mention=None, fallback=True, **k):
       booths: [{ label: '', days: ['Saturday', 'Sunday'], dates: ['2027-03-13', '2027-03-14'], shifts: [{ label: 'Shift 1', slots: [{ rep: '', ft: [] }, { rep: '', ft: [] }] }] }], ...extra });
     let p = S.planEvent({ base: ev(), sheet: ev({ startDate: '', endDate: '' }), board: ev(), resolve, vcRow: null, today: '2026-10-24' });
     ok(!('startDate' in p.patch) && !p.conflicts.length && p.keepBase.fields.has('startDate'), 'sync: a Start Date cell emptied on the Sheet does not empty the board\'s, and the baseline keeps the date (the next one typed is a move, not a conflict)');
+    // the first sync after the Sept-Feb book reads its date cells as weekdays (2026-10-27): the baseline still has the
+    // date text, so a show the board still has that way gets the weekdays, and one already fixed on the board is left alone
+    const dl = (days, dates) => ev({ days, dates, booths: [{ label: '', days, dates, shifts: [{ label: 'Shift 1', slots: [{ rep: '', ft: [] }, { rep: 'Zach', ft: [] }] }] }] });
+    const asDates = dl(['3/16/2024', '3/17/2024'], [null, null]), asDays = dl(['Saturday', 'Sunday'], ['2027-03-13', '2027-03-14']);
+    p = S.planEvent({ base: asDates, sheet: asDays, board: asDates, resolve, vcRow: null, today: '2026-10-27' });
+    ok(!p.conflicts.length && p.patch.booths && p.patch.booths[0].days.join() === 'Saturday,Sunday' && p.patch.booths[0].dates.join() === '2027-03-13,2027-03-14' && p.patch.booths[0].shifts[0].slots[1].rep === 'Zach',
+      'sync: a show still carrying "3/16/2024" gets the weekday the Sheet shows and its date, reps untouched: ' + JSON.stringify([p.patch.booths, p.conflicts]));
+    p = S.planEvent({ base: asDates, sheet: asDays, board: asDays, resolve, vcRow: null, today: '2026-10-27' });
+    ok(!p.conflicts.length && !p.held.length && !('booths' in p.patch), 'sync: a show already fixed on the board is left alone, no conflict: ' + JSON.stringify([p.patch, p.conflicts]));
     p = S.planEvent({ base: ev({ startDate: '2026-03-14', endDate: '2026-03-15' }), sheet: ev({ startDate: '2027-03-20', endDate: '2027-03-21' }), board: ev({ datesEstimated: true }), resolve, vcRow: null, today: '2026-10-24' });
     ok(p.patch.startDate === '2027-03-20' && p.patch.datesEstimated === false && !p.conflicts.length, 'sync: the Sheet\'s real date replaces an estimated one on the board (not a conflict): ' + JSON.stringify([p.patch, p.conflicts]));
     p = S.planEvent({ base: ev({ startDate: '2026-03-14', endDate: '2026-03-15' }), sheet: ev(), board: ev({ datesEstimated: true }), resolve, vcRow: null, today: '2026-10-24' });

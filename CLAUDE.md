@@ -64,7 +64,13 @@ routines in `.claude/skills/` keep it true.
   set-up text in a rep cell ("set-up 11-7", "SET UP DAY") is no shift (`__X__`; Alan: set-up is never a shift);
   the "Service Events" row is not a show; column B "Elite" is kept as `tierTag`; `--season-year` (the Jan-May
   2027 book, tab 2027, is 2026: January-July headers are the year after) and `--date-labels weekday` (that book's
-  day cells hold earlier years' dates). Read the Sept-Feb book exactly as before (checked cell for cell). Since
+  day cells hold earlier years' dates). Read the Sept-Feb book exactly as before (checked cell for cell). **Every book
+  reads date cells as weekdays since 2026-10-27** (config `dateLabels`, Alan's go): seven Sept-Feb rows held a 2024 date
+  formatted to show as the weekday, so the team saw "Friday" and the board got "1/26/2024", a day the page cannot place
+  (Grid hid it and still counted it open; Casa Grande Gun Show sat on the 10/30 weekend as "Open 3" after it ran Oct
+  10-11). Those seven were corrected on the board the same day (actor `service:date-labels-fix`; Bluegrass on the Beach
+  also got Zach's Friday and Mon SE back, lost in the 2026-09-24 date move). Parsing that day's book both ways changed
+  those seven and nothing else. The parser's default is still `keep`, so `--verify` lines up with the seed. Since
   2026-10-24 (the May-Sept book): `--season-start-month` (5 for a May-Sept book: every header from May on is
   `--season-year`), a header row below row 1 ("Event Description") and a status word typed into a shift row's label
   ("Booked") are not shows. Also since 2026-10-24: a "Booth ..." typed in column B of a shift row, with no booth row

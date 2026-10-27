@@ -19,8 +19,10 @@
     ... --season-year 2026                                    the year a weekend header from August on falls in (Jan-Jul
                                                               headers are the year after). Default: --tab when it is a
                                                               year, else 2026. The Jan-May 2027 book (tab 2027) is 2026.
-    ... --date-labels weekday                                 a day cell holding a date reads as its weekday (the Jan-May
-                                                              book: its rows still carry earlier years' dates there)
+    ... --date-labels weekday                                 a day cell holding a date reads as its weekday (every book:
+                                                              rows still carry earlier years' dates there, formatted
+                                                              to show the weekday). Without it the date text is kept,
+                                                              as the 2026-09-13 migration (and seed/events.json) has it
     ... --season-start-month 5                                the month a book's season starts (default 8, August: a
                                                               Sept-Feb book); headers from it on are --season-year
 
