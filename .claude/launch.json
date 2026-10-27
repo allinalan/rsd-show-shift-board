@@ -1,6 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "board-static", "runtimeExecutable": "python3", "runtimeArgs": ["-m", "http.server", "8791", "--bind", "127.0.0.1"], "port": 8791 }
+    { "name": "board-static", "runtimeExecutable": "python3", "runtimeArgs": ["-m", "http.server", "8791", "--bind", "127.0.0.1"], "port": 8791 },
+    { "name": "board-static-2", "runtimeExecutable": "python3", "runtimeArgs": ["-m", "http.server", "8792", "--bind", "127.0.0.1"], "port": 8792 }
   ]
 }
