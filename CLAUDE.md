@@ -374,6 +374,12 @@ the service key moves them on.
 - Roll-forward holds back `skipNext`, `neverWork`, and Never-list series keys. Idempotent. On the board a year's own tab
   rolls it into the next ("Roll 2026 into 2027"); an empty tab offers rolling the year before into itself (Alan,
   2026-10-24: the button used to live only on the target tab, so 2026 looked impossible to roll).
+- **Never work again is about the years after** (Alan, 2026-10-27). The card's button and `board never` add the show to
+  `never_work` and leave the year it was marked in alone: status, `dead` and reps stay as they are, and the card then says
+  it is on the Never list. Until that day both also marked every date of it that year Cancelled and dead, so Salt River
+  Fields Spooktacular 2026, which Kendall worked, showed crossed off (put back to Booked the same day, actor
+  `service:never-work-fix`). The list is what holds a show back from the roll; a row's `neverWork` is the older mark, and
+  the scripts still skip a row that carries it. Not working this year's date either is a status change, made by hand.
 - The routines never text the whole roster. Only staffed reps on events whose status changed.
 - Set `BOARD_ACTOR=service:<routine>` so the changelog says who did what.
 - **A script's "am I the one that was started?" check is `isMain(import.meta.url)`** (`scripts/lib/is-main.mjs`), never

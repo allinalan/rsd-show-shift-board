@@ -1791,6 +1791,33 @@ def post(route, text, mention=None, fallback=True, **k):
     for (const f of ['sellableSlots', 'filledSlots', 'pickState']) ok(new RegExp(`function ${f}\\([^\\n]*\\n?[\\s\\S]{0,400}?notShift\\(`).test(html), `index.html ${f} skips set-up days and columns that name no day`);
   });
 
+  await section('never again leaves the year it was marked in as it was (Salt River Spooktacular 2026, Alan 2026-10-27)', async () => {
+    // Kendall worked it; "never again" meant 2027 on. The button and `board never` both marked every 2026 date
+    // Cancelled and dead, so the 2026 board showed a show that ran as crossed off.
+    const show = { year: 2025, name: 'Spooktacular Balloon Festival', status: 'Booked', vcStatus: 'Booked', dead: false, neverWork: false, days: ['Friday'],
+      booths: [{ label: '', days: ['Friday'], shifts: [{ label: 'Shift 1', slots: [{ rep: 'Kendall', ft: [] }] }] }] };
+    T('events').set('2025-spook', { ...show, startDate: '2025-10-24', weekend: '2025-10-24' });
+    T('events').set('2025-spook-2', { ...show, startDate: '2025-10-31', weekend: '2025-10-31' });
+    r = await board(['never', '2025-spook', '--why', 'price for the crowd']);
+    ok(r.code === 0, 'never exits 0: ' + r.stderr);
+    const nw = [...T('never_work').values()].find(n => n.fromEventId === '2025-spook');
+    ok(nw && nw.seriesKey && nw.lastYear === 2025 && nw.reason === 'price for the crowd', 'never: the show is on the Never list: ' + JSON.stringify(nw));
+    for (const id of ['2025-spook', '2025-spook-2']) {
+      const e = T('events').get(id);
+      ok(e.status === 'Booked' && e.dead === false && e.neverWork === false, `never: ${id} keeps its status and stays live in 2025: ` + JSON.stringify({ status: e.status, dead: e.dead, neverWork: e.neverWork }));
+    }
+    // a name of only month and year words has no series key: the list entry is kept under the show's id, and matched by it
+    T('events').set('2025-oct', { ...show, name: 'October 2025', startDate: '2025-10-10', weekend: '2025-10-10' });
+    r = await board(['never', '2025-oct']); ok(r.code === 0 && T('events').get('2025-oct').status === 'Booked', 'never: a show with no series key is listed too: ' + r.stderr);
+    r = await board(['rollforward', '2026', '--dry-run', '--json']);
+    ok(r.code === 0 && !JSON.parse(r.stdout).some(x => /spook|oct/.test(x.from)), 'rollforward: the Never list alone still holds them all back: ' + r.stdout + r.stderr);
+    // the page's button: writes the Never list, never the show's rows
+    const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    const go = html.match(/closest\('\[data-never-go\]'\)\)\{([\s\S]*?)\n    return; \}/);
+    ok(!!go && /db\.doc\('never_work\/'/.test(go[1]) && !/events\//.test(go[1]) && !/Cancelled|dead/.test(go[1]), 'index.html: Never work again writes the Never list and leaves the show\'s dates alone');
+    ok(/neverKeys\(\)\.has\(seriesKey\(e\)\|\|e\.id\)/.test(html), 'index.html: a show already on the Never list says so on its card instead of offering the button again');
+  });
+
   await section('no env', async () => {
     // ---- missing env is a loud failure
     r = await board(['tick'], { BOARD_SUPABASE_URL: '', BOARD_SERVICE_KEY: '' }); ok(r.code !== 0 && /board\.env/.test(r.stderr), 'no env: exits non-zero and says where to put it');
