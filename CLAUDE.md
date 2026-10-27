@@ -330,6 +330,15 @@ the service key moves them on.
   `markWeekend`, `jumpToWeekend`, `stepWeekend`): ‹ › step one weekend, and the button between says the weekend in view and
   opens a native select (16px) of the season's weekends as filtered, under month headers, each with what its header says
   (open shifts, Full, past). A past weekend opens the "Earlier" fold first; jumps are instant. Hidden on Kiosk and Never.
+- **Pinch zoom on a phone** (Alan, 2026-10-27: "pinching kinda like the sheets"). On a touch screen a pinch on the board zooms
+  the board only: CSS `zoom` on `#board`, 55% to 150%, back to 100% when it ends near it, remembered per device (`store.zoom`;
+  `applyZoom`, the pinch block after `stepWeekend`). The pinned row stays full size; not on Kiosk or Never; a computer keeps
+  its browser zoom. Text can go under the 11px floor by the reader's choice. Two rules follow from it: every on-screen
+  position read goes through `screenRect()` (WebKit, so every iPhone browser, has reported a zoomed box in the board's own
+  px where Chrome reports it on screen; a hidden 100px probe says which, and the tests allow no other
+  `getBoundingClientRect`), and a length inside the board that must match the screen (a sticky top under the pinned row,
+  a margin that bleeds to the screen edge, a `vw` width) divides by `--bz`. Checked in Chrome both ways (its own rects and
+  WebKit-style rects patched in); not yet on an iPhone (no Xcode on the MacBook).
 - **A two-tap remove is armed in the page, never in the button** (`armed`, `arm()`, `isArmed()` in index.html; 10 s,
   "keep it" backs out). Any save redraws the board half a second later, and a button that kept its own "tap again" was
   reset by it, so the second tap only armed it again and nothing was removed (Park Place 2025, 2026-10-14; the show

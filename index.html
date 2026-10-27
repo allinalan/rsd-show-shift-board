@@ -222,7 +222,7 @@ table.wgrid th.gname{position:sticky;left:0;z-index:3;background:var(--surface);
 table.wgrid tr.gevent td.gev{padding:0;border-bottom:1px solid var(--line-soft);background:var(--surface);
   border-top:1px solid var(--line)}
 table.wgrid tr:first-child td.gev{border-top:0}
-.gevin{position:sticky;left:0;width:max-content;max-width:min(96vw,780px);padding:9px 12px 8px 13px;
+.gevin{position:sticky;left:0;width:max-content;max-width:min(calc(96vw / var(--bz,1)),780px);padding:9px 12px 8px 13px;
   display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
 table.wgrid tr.gevent td.gev::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--tier,transparent)}
 table.wgrid tr.gevent{position:relative}
@@ -236,7 +236,7 @@ table.wgrid tr.grow th.gname::before{content:"";position:absolute;left:0;top:0;b
 table.wgrid tr.grow th.gname{position:sticky;left:0}
 .gevin .gsub{margin-top:0}
 table.wgrid tr.gbooth td.gbo{padding:0;border-bottom:1px solid var(--line-soft);background:var(--surface-2)}
-.gboin{position:sticky;left:0;width:max-content;max-width:min(94vw,720px);padding:5px 12px 5px 22px;
+.gboin{position:sticky;left:0;width:max-content;max-width:min(calc(94vw / var(--bz,1)),720px);padding:5px 12px 5px 22px;
   display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;font-size:var(--t-cap);color:var(--ink-2)}
 .gboin b{font-family:var(--f-disp);font-weight:600;color:var(--ink);font-size:var(--t-cap)}
 .gboin .bdesc{color:var(--ink-3)}
@@ -375,7 +375,7 @@ details.more .detail{margin-top:10px;padding-top:0;border-top:0}
 .ev.open .ev-b{display:block}
 .sec-l{font-size:var(--t-cap2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;
   color:var(--ink-3);margin-bottom:7px;font-family:var(--f-disp)}
-.gridwrap{overflow-x:auto;overflow-y:clip;margin:0 -12px 0 -15px;padding:0 12px 4px 15px}
+.gridwrap{overflow-x:auto;overflow-y:clip;margin:0 calc(-12px / var(--bz,1)) 0 calc(-15px / var(--bz,1));padding:0 calc(12px / var(--bz,1)) 4px calc(15px / var(--bz,1))}   /* to the edge at any board zoom */
 table.shift{border-collapse:separate;border-spacing:0;width:100%;min-width:min-content}
 table.shift th,table.shift td{padding:0;text-align:left}
 table.shift thead th{font-family:var(--f-disp);font-size:var(--t-cap2);font-weight:600;text-transform:uppercase;
@@ -955,6 +955,8 @@ h1{font-size:var(--t-title2);line-height:28px;letter-spacing:-.018em}
 .wkpick:focus-within{outline:2px solid var(--navy);outline-offset:1px}
 @media (max-width:640px){ .wkjump{margin-left:auto} .wkjump>button{width:40px} .wkpick{min-height:44px} }
 @media (max-width:420px){ .wkpick .wkcal{display:none} }
+/* ---- pinch to zoom (Alan, 2026-10-27): on a touch screen a pinch on the shows is the board's, not Safari's page zoom ---- */
+@media (pointer:coarse){ #board,#board .gridwrap{touch-action:pan-x pan-y} }
 .seg button.tab-never{color:var(--pend)} .seg button.tab-never[aria-selected="true"]{background:var(--seg-thumb);color:var(--pend)}
 .kiosk .band-h .seg button{color:var(--ink-2)} .kiosk .band-h .seg button[aria-selected="true"]{background:var(--seg-thumb);color:var(--ink)}
 /* the switch at iOS proportions; the thumb is always the light one */
@@ -994,8 +996,8 @@ details.more summary{font-size:var(--t-foot)}
 .band-h h2{font-size:var(--t-title2);line-height:28px;font-weight:700;letter-spacing:-.018em;text-transform:none;color:var(--ink)}
 .band-h .sub,.band-h .cov{font-family:var(--f-body);font-size:var(--t-foot)}
 .kiosk .band-h h2{color:var(--ink)}
-body:not(.gridv):not(.kioskv) .band:not(.past)>.band-h{position:sticky;top:var(--topH,0px);z-index:20;
-  margin:0 -16px 8px;padding:10px 16px 8px;
+body:not(.gridv):not(.kioskv) .band:not(.past)>.band-h{position:sticky;top:calc(var(--topH,0px) / var(--bz,1));z-index:20;
+  margin:0 calc(-16px / var(--bz,1)) 8px;padding:10px calc(16px / var(--bz,1)) 8px;
   background:color-mix(in srgb,var(--ground) 84%,transparent);
   -webkit-backdrop-filter:saturate(180%) blur(16px);backdrop-filter:saturate(180%) blur(16px)}
 /* who's on this weekend: one row you swipe on a phone, every chip a 44px target */
@@ -1003,7 +1005,7 @@ body:not(.gridv):not(.kioskv) .band:not(.past)>.band-h{position:sticky;top:var(-
 .rchip b{font-family:var(--f-body);font-size:var(--t-cap);font-weight:500}
 .rchip::after{content:"";position:absolute;inset:-4px -3px}
 @media (max-width:640px){
-  .band:not(.kiosk)>.rollup{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px 8px;padding:4px 16px;scroll-padding-inline:16px;gap:6px}
+  .band:not(.kiosk)>.rollup{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 calc(-16px / var(--bz,1)) 8px;padding:4px calc(16px / var(--bz,1));scroll-padding-inline:16px;gap:6px}
   .band:not(.kiosk)>.rollup::-webkit-scrollbar{display:none}
   .band:not(.kiosk)>.rollup .rchip{flex:none;min-height:36px}
 }
@@ -1582,13 +1584,13 @@ if(window.ResizeObserver) new ResizeObserver(syncTopH).observe(document.querySel
 let headRAF=0;
 function pinHeads(){
   headRAF=0;
-  const topH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topH'))||0;
+  const topH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topH'))||0, z=boardZoom();
   document.querySelectorAll('.gridwrap-w').forEach(w=>{
     const head=w.querySelector('thead'); if(!head) return;
-    const r=w.getBoundingClientRect();
+    const r=screenRect(w);   // on screen; offsetHeight and the shift are in the zoomed board's own px
     if(r.bottom<topH||r.top>innerHeight){ if(head.style.transform){head.style.transform='';head.classList.remove('pinned');} return; }
-    const hh=head.offsetHeight, off=Math.max(0,Math.min(topH-r.top, r.height-hh-2));
-    head.style.transform=off?'translateY('+off+'px)':'';
+    const hh=head.offsetHeight*z, off=Math.max(0,Math.min(topH-r.top, r.height-hh-2));
+    head.style.transform=off?'translateY('+off/z+'px)':'';
     head.classList.toggle('pinned',off>0);
   });
   markWeekend(topH);
@@ -1624,7 +1626,7 @@ function markWeekend(topH){
   if(wkAt&&Math.abs(scrollY-wkAt.y)<2) on=bands.find(b=>b.dataset.w===wkAt.w);
   else { wkAt=null;
     if(scrollY>0&&scrollY+innerHeight>=document.documentElement.scrollHeight-2) on=bands[bands.length-1];   // at the bottom: the last one
-    else for(const b of bands){ if(b.getBoundingClientRect().top<=topH+48) on=b; else break; } }
+    else for(const b of bands){ if(screenRect(b).top<=topH+48) on=b; else break; } }
   on=on||bands[0]; if(!on) return;
   const w=on.dataset.w, i=wkOrder.indexOf(w), sel=document.getElementById('wkJumpSel');
   document.getElementById('wkJumpL').textContent=wkBtn(w);
@@ -1637,10 +1639,55 @@ function jumpToWeekend(w){
   if(wkPast(w)&&!pastAllOpen){ pastAllOpen=true; build(); }
   const el=[...document.querySelectorAll('#board .band')].find(b=>b.dataset.w===w); if(!el) return;
   const topH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topH'))||0;
-  scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-topH));
+  scrollTo(0,Math.max(0,screenRect(el).top+scrollY-topH));
   wkAt={w,y:scrollY}; markWeekend(topH);
 }
 const stepWeekend=d=>{ const w=wkOrder[wkOrder.indexOf(document.getElementById('wkJumpSel').value)+d]; if(w) jumpToWeekend(w); };
+/* ---- pinch to zoom the board on a phone (Alan, 2026-10-27: "pinching kinda like the sheets"). Only the shows scale; the
+   pinned row stays full size. 55% to 150%, back to 100% when it ends near it, remembered on this device (store.zoom). While
+   the fingers move the board is scaled as a picture, which is cheap; on release it is laid out again at that size (CSS zoom),
+   so zoomed out every day of a weekend fits across, and the spot under the fingers is put back where it was. Text can go
+   under the 11px floor that way: the reader's choice. Inside, lengths are the board's own px, so pinHeads and the sticky
+   weekend titles divide by --bz. Touch screens only (a computer keeps its browser zoom); not on Kiosk or Never. */
+const ZMIN=.55, ZMAX=1.5, TOUCH=matchMedia('(pointer:coarse)');
+const boardZoom=()=>TOUCH.matches&&!viewKiosk()&&!viewNever()?Math.min(ZMAX,Math.max(ZMIN,+store.zoom||1)):1;
+function applyZoom(){ const z=boardZoom(); document.getElementById('board').style.zoom=z===1?'':String(z); document.documentElement.style.setProperty('--bz',String(z)); }
+/* Where something is on screen, at any board zoom: use it for every position read. Chrome reports a zoomed box as it is on
+   screen; WebKit (Safari, every iPhone browser) has reported one in the board's own px. A hidden 100px box in the board says
+   which, once per zoom level. Outside the board nothing is zoomed. */
+let rectK={z:1,k:1};
+function screenRect(el){
+  const z=boardZoom(), r=el.getBoundingClientRect(); if(z===1||!document.getElementById('board').contains(el)) return r;
+  if(rectK.z!==z){ const b=document.getElementById('board'), probe=document.createElement('div');
+    probe.style.cssText='position:absolute;top:0;left:0;width:100px;height:100px;visibility:hidden;pointer-events:none';
+    b.appendChild(probe); const h=probe.getBoundingClientRect().height; probe.remove(); rectK={z,k:h>0?z/(h/100):1}; }
+  const k=rectK.k; if(Math.abs(k-1)<.01) return r;
+  return {top:r.top*k,bottom:r.bottom*k,left:r.left*k,right:r.right*k,width:r.width*k,height:r.height*k};
+}
+{ const board=document.getElementById('board'); let pinch=null;
+  const mid=t=>[(t[0].clientX+t[1].clientX)/2,(t[0].clientY+t[1].clientY)/2], gap=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY)||1;
+  board.addEventListener('touchstart',e=>{
+    if(e.touches.length!==2||!TOUCH.matches||viewKiosk()||viewNever()) return;
+    const z=boardZoom(), r=screenRect(board), [mx,my]=mid(e.touches);
+    const at=document.elementFromPoint(mx,my), a=at&&board.contains(at)?at.closest('tr,.ev,.band-h,.band')||at:null, ar=a&&screenRect(a);
+    pinch={z0:z,z,d0:gap(e.touches),my,a,fy:ar&&ar.height?(my-ar.top)/ar.height:0};
+    board.style.transformOrigin=`${(mx-r.left)/z}px ${(my-r.top)/z}px`;
+  },{passive:true});
+  board.addEventListener('touchmove',e=>{
+    if(!pinch||e.touches.length!==2) return;
+    e.preventDefault();   // two fingers on the board zoom it; they don't scroll the page
+    pinch.z=Math.min(ZMAX,Math.max(ZMIN,pinch.z0*gap(e.touches)/pinch.d0));
+    board.style.transform=`scale(${pinch.z/pinch.z0})`;
+  },{passive:false});
+  const end=()=>{ if(!pinch) return; const p=pinch; pinch=null;
+    board.style.transform=''; board.style.transformOrigin='';
+    store.zoom=Math.abs(p.z-1)<.07?1:Math.round(p.z*100)/100; save(); applyZoom();
+    if(p.a&&p.a.isConnected){ const r=screenRect(p.a); scrollBy(0,r.top+p.fy*r.height-p.my); }
+    pinHeads(); drawColRules(); };
+  board.addEventListener('touchend',e=>{ if(e.touches.length<2) end(); });
+  board.addEventListener('touchcancel',end);
+  board.addEventListener('gesturestart',e=>e.preventDefault());   // Safari's own page zoom, where touch-action alone doesn't stop it
+}
 function drawColRules(){
   document.querySelectorAll('table.wgrid').forEach(t=>{
     const ths=[...t.querySelectorAll('thead th')];
@@ -1740,6 +1787,7 @@ function build(){
   document.body.classList.toggle('plan',plan());
   document.body.classList.toggle('gridv',gridView());
   document.body.classList.toggle('kioskv',viewKiosk());
+  applyZoom();
   { const n=(F.rep?1:0)+(F.lvl?1:0)+(F.bk?1:0)+F.state.size+F.tier.size, b=document.getElementById('ctlN'); if(b){ b.hidden=!n; b.textContent=n; } }
   renderHeader();
   renderWeekJump(null);   // shown again below once there are weekends to jump between
@@ -2830,7 +2878,7 @@ function placePop(){
     return;
   }
   pop.style.bottom=''; pop.style.maxHeight='';
-  const r=pickCtx.btn.getBoundingClientRect();
+  const r=screenRect(pickCtx.btn);
   const kiosk=pickCtx.kind==='kiosk', w=Math.min(Math.max(r.width,kiosk?264:214), innerWidth-16);
   pop.style.width=w+'px'; pop.style.top='0px'; const h=pop.offsetHeight;
   /* a kiosk day opens beside its column where there is room, so the days below it (the run) stay in sight */
@@ -2851,7 +2899,7 @@ function openPick(btn){
   if(btn.dataset.kday){ const k=kiosks.find(x=>x.id===btn.dataset.kid); if(!k) return; const rep=(kDay(k,btn.dataset.kday)||{}).rep||'';
     pickCtx={kind:'kiosk',id:k.id,date:btn.dataset.kday,btn,v:rep,rep,se:false,split:'',n:1,ending:false};
     btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); pickFocus();
-    if(pop.classList.contains('sheet')) scrollBy(0,btn.getBoundingClientRect().top-12);   // the day tapped to the top: the days after it show above the sheet
+    if(pop.classList.contains('sheet')) scrollBy(0,screenRect(btn).top-12);   // the day tapped to the top: the days after it show above the sheet
     return; }
   const art=btn.closest('[data-id]'); const e=cur().find(x=>x.id===art.dataset.id); if(!e)return;
   const bi=+btn.dataset.b, si=+btn.dataset.s, di=+btn.dataset.d;
