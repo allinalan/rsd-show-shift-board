@@ -263,11 +263,17 @@ async function main() {
   // Landscape Show was Booked in VC (00096371) and on no Sheet, so no load brought it over, and everything above only
   // looks at shows the board has staffed. Here every board show of any year counts, by its VC number or by the usual
   // name-and-date match; Mesa (one record a month, handled above), the placeholder, a holiday mall kiosk (the kiosks
-  // table: VC keeps the malls as events) and a record in config vcOnlyOk (Alan said it stays off the board) are left out.
+  // table: VC keeps the malls as events), a record in config vcOnlyOk (Alan said it stays off the board) and anything
+  // outside the division (config division: Arizona, New Mexico, El Paso) are left out.
   const kiosks = await api.rows('kiosks').catch(() => []);
   const placeholders = new Set((CFG.placeholders || []).map(String));
   const okOff = (CFG.vcOnlyOk || []).map(x => ({ ...x, re: x.match ? new RegExp(x.match, 'i') : null }));
   const leftOff = r => okOff.some(x => String(x.vcNumber || '') === r.eventNumber || (x.re && x.re.test(r.name)));
+  // only the division's own ground (Alan, 2026-10-26: "anything not on our division (arizona, new mexico, el paso) please
+  // leave it off"), by VC's state field; a record with no state is kept
+  const DIV = CFG.division || {};
+  const inDivision = r => { const st = t(r.state).toUpperCase(); return !st || (DIV.states || []).includes(st)
+    || (DIV.cities || []).some(c => c.state === st && normName(c.city) === normName(r.city)); };
   const boardNums = new Set(allEvents.map(e => t(e.vcNumber)).filter(Boolean));
   const notMesa = allEvents.filter(e => !MESA.test(e.name));
   const anyClaims = matchAll(notMesa, rows, CFG).claims;
@@ -280,7 +286,7 @@ async function main() {
   const elsewhere = r => QC.test(r.name) ? null : notMesa.map(e => ({ e, d: Math.abs(dayDiff(effectiveDate(e, CFG.effectiveDateMaxDrift) || e.weekend || '1900-01-01', r.startDate)) }))
     .filter(x => x.d <= 60 && nameScore(bare(x.e.name), bare(r.name)) >= 0.85).sort((a, b) => a.d - b.d)[0]?.e || null;
   const bookedNotOnBoard = rows.filter(r => /^booked/i.test(t(r.status)) && (r.endDate || r.startDate || '') >= TODAY && !MESA.test(r.name)
-      && !placeholders.has(r.eventNumber) && !boardNums.has(r.eventNumber) && !anyClaims.has(r.eventNumber) && !leftOff(r) && !isKiosk(r))
+      && !placeholders.has(r.eventNumber) && !boardNums.has(r.eventNumber) && !anyClaims.has(r.eventNumber) && !leftOff(r) && !isKiosk(r) && inDivision(r))
     .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)))
     .map(r => { const b = elsewhere(r);
       return { vcNumber: r.eventNumber, name: t(r.name), startDate: r.startDate, endDate: r.endDate || r.startDate, city: t(r.city), location: t(r.location), status: t(r.status), cost: Math.round(Number(r.eventCost) || 0),
