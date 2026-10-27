@@ -28,6 +28,9 @@
     board roster sync [--from <roster.json>] [--apply] [--force] [--json]
                                                         (settings.roster follows the rep master list: who left moves to
                                                          settings.former, a new active rep is added; dry unless --apply)
+    board sheet-notes [--apply] [--force] [--json]      (stage 3: what the team wrote in column C that is more than a status
+                                                         word goes once into each mirrored show's team notes; dry unless
+                                                         --apply, which refuses before config stage3.cutover unless --force)
     board history set <baseId> <year> <cpo> [orders]
     board tick [--date 2027-01-08]                      (which routines are due today; "auto": true = runs itself)
     board changelog [--limit 50]
@@ -299,6 +302,28 @@ const commands = {
       if (plan.unknown.length) console.log(`  not on the master list, left alone: ${plan.unknown.join(', ')}`);
     }
     if (plan.problems.length) process.exit(3);
+  },
+  async 'sheet-notes'() {
+    // Alan 2026-10-27 (stage 3, default 4): from January 13 column C is the board's status; the team's words there go once
+    // into the show's team notes, appended, never over what is there. Only the weekends the mirror owns. Exit 3 = refused.
+    const { planSheetNotes } = await import('./lib/sheet-notes.mjs');
+    const cfg = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8')).stage3 || {};
+    if (!cfg.cutover || !cfg.mirrorFrom) die('config/event-check.json has no stage3.cutover / stage3.mirrorFrom');
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Phoenix' }).format(new Date());
+    const plan = planSheetNotes(await rows('events'), { from: cfg.mirrorFrom, on: flags.apply ? today : cfg.cutover });
+    const res = { from: cfg.mirrorFrom, applied: 0, ...plan, move: plan.move.map(({ notes, ...m }) => m) };
+    if (flags.apply) {
+      if (today < cfg.cutover && !flags.force) { console.error(`REFUSED: column C is still the team's until ${cfg.cutover} (the Sheet is still edited); --force to move it now`); process.exit(3); }
+      for (const m of plan.move) {
+        await mergeDoc('events', m.id, { notes: m.notes }, 'service:sheet-notes');
+        const back = await getDoc('events', m.id);
+        if (!back || back.notes !== m.notes) die(`${m.id}: the note was written but did not read back as written`);
+        res.applied++;
+      }
+    }
+    if (json) return out(res);
+    console.log(`${flags.apply ? `moved ${res.applied}` : `would move ${plan.move.length} (dry; --apply on or after ${cfg.cutover} writes)`} column C note(s) into team notes, weekends from ${cfg.mirrorFrom}; ${plan.words} were only a status word (the board's status replaces them); ${plan.already} already moved`);
+    for (const m of plan.move) console.log(`  ${m.weekend}  ${m.name}: ${m.text}`);
   },
   async history() {
     if (pos[0] !== 'set') die('history set <baseId> <year> <cpo> [orders]');

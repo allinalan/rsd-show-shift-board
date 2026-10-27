@@ -389,6 +389,10 @@ tbody th{font-family:var(--f-disp);font-size:var(--t-cap2);font-weight:600;color
   padding-right:10px !important;white-space:nowrap;vertical-align:top;padding-top:8px !important}
 .slotbox{border:1px solid var(--line);border-radius:7px;background:var(--surface);min-width:118px}
 .slotbox.filled{border-color:var(--steel)}
+/* "didn't work" (stage 3): the name struck through, a small label under it; --pend is the page's alert color */
+.slotbox.nw .slotpick,.namecell.nw s{text-decoration:line-through;text-decoration-color:var(--pend);color:var(--ink-3)}
+.nwtag{display:block;font-size:var(--t-cap);font-weight:600;color:var(--pend);padding:0 8px 6px}
+.namecell .nwtag{padding:2px 0 0}
 .slotbox.xd{background:repeating-linear-gradient(135deg,transparent,transparent 4px,var(--line-soft) 4px,var(--line-soft) 8px)}
 .slotbox{max-width:190px}
 .slotbox select,.slotbox .slotpick{width:100%;border:0;background:none;padding:7px 22px 7px 8px;font-size:var(--t-foot);
@@ -524,6 +528,7 @@ body.ksheet .top{position:static}   /* the board's header (220px on a phone) let
 .tagfield.v-Key{border-color:var(--key)} .tagfield.v-Key select{color:var(--key)}
 .tagfield.v-Traditional select{color:var(--trad)}
 .tagfield.v-none select{color:var(--ink-3);font-weight:500}
+.tagfield.mf input{margin:0 10px 0 9px;width:18px;height:18px;accent-color:var(--navy);align-self:center}
 .acc{font-size:var(--t-cap2);font-weight:700;letter-spacing:.04em;text-transform:uppercase;
   border-radius:3px;padding:2px 6px;white-space:nowrap}
 .acc-TradeIndustry{color:var(--info);background:var(--info-bg)}
@@ -2270,10 +2275,12 @@ function gtags(e){
   const t=tierOf(e), ac=accOf(e); let h='';
   if(t!=='Traditional') h+=`<span class="tierbadge mini t-${t}">${t==='Untagged'?'no tier':esc(t)}</span>`;
   if(!isDefaultAcc(e)) h+=`<span class="acc mini pillish acc-${ACCCLS(ac)}"><i>for</i> ${esc(ACCSHORT[ac]||ac)}</span>`;
+  if(e.flag==='MF') h+=`<span class="acc mini pillish acc-none" title="Column A on the Sheet">MF</span>`;
   return h;
 }
 function cellFor(e,b,bi,s,si,di,ps,P,wide){
   const sl=s.slots[di]||{rep:'',ft:[]}; const v=val(e,bi,si,di,sl.rep), se=isSE(b.days[di]), off=!v&&offDay(b.days[di]);
+  const nw=!!sl.notWorked&&!!v&&v!=='__X__', nwTag=nw?'<span class="nwtag">didn\'t work</span>':'';
   const cap=x=>String(x).replace(/\b\w/g,ch=>ch.toUpperCase());
   const ft=(sl.ft||[]).length?`<div class="ft">${sl.ft.map(f=>`<span>ft. ${esc(cap(f))}</span>`).join('')}</div>`:'';
   const cv=v&&v!=='__X__'?covHtml(covAt(covKey.show(e.id,bi,si,di),v)):'';
@@ -2281,11 +2288,11 @@ function cellFor(e,b,bi,s,si,di,ps,P,wide){
     if(v==='__X__'||off) return `<div class="namecell is-x">${wide?'no shift':'—'}</div>`;
     if(!v&&se) return `<div class="namecell is-se" title="${SETIP}">sharpening</div>`;
     if(!v) return `<div class="namecell is-open">${ps.key==='closed'?'—':'open'}</div>`;
-    return `<div class="namecell${se?' se-on':''}"${se?` title="${SETIP}"`:''}>${esc(v)}${se?'<span class="setag">SE</span>':''}${ft}${cv}</div>`;
+    return `<div class="namecell${se?' se-on':''}${nw?' nw':''}"${se?` title="${SETIP}"`:''}>${nw?`<s>${esc(v)}</s>`:esc(v)}${se?'<span class="setag">SE</span>':''}${nwTag}${ft}${cv}</div>`;
   }
-  const cls=(v==='__X__'||off?'xd':(v?'filled':'open-slot'))+(se?' se':'');
+  const cls=(v==='__X__'||off?'xd':(v?'filled':'open-slot'))+(se?' se':'')+(nw?' nw':'');
   const txt=v==='__X__'?'no shift':(v||(se||off?'nobody':'open'));
-  return `<div class="slotbox ${cls}"${se?` title="${SETIP}"`:''}><button class="slotpick" data-b="${bi}" data-s="${si}" data-d="${di}" aria-haspopup="listbox" aria-label="${esc(s.label)} ${esc(b.days[di])}${se?' (sharpening event)':''} — ${esc(txt)}">${esc(txt)}</button>${ft}${cv}</div>`;
+  return `<div class="slotbox ${cls}"${se?` title="${SETIP}"`:''}><button class="slotpick" data-b="${bi}" data-s="${si}" data-d="${di}" aria-haspopup="listbox" aria-label="${esc(s.label)} ${esc(b.days[di])}${se?' (sharpening event)':''} — ${esc(txt)}${nw?', didn\'t work':''}">${esc(txt)}</button>${nwTag}${ft}${cv}</div>`;
 }
 
 /* One cell per day, read-only and Plan mode alike, like the Sheet (Alan, 2026-10-27: "think of it like an Excel. I want
@@ -2468,7 +2475,8 @@ function bodyHtml(e){
   const sn=seriesOf(e).length;
   const fn=forwardTargets(e).length;
   if(P&&(sn>1||fn)) edit+=`<div class="note series-note"><span>&#8635;</span><span>${sn>1?`<b>This show repeats ${sn} times in ${yearOf(e)}.</b> Name, promoter, contact, cost, venue, tier and access apply to every date. `:''}${fn?`<b>Promoter info, city, cost, tier and access also flow forward</b> to ${fn} later-year cop${fn===1?'y':'ies'} of this show. `:''}Shifts, booking status, dates and VC # stay put.</span></div>`;
-  if(P) edit+=`<div class="tagrow">${sel('tier',t,TIERPICK,'Tier')}${sel('acc',ac,ACCPICK,'Access')}${sel('status',e.status,SORDER.map(s=>[s,s]),'Booking')}</div>`+
+  if(P) edit+=`<div class="tagrow">${sel('tier',t,TIERPICK,'Tier')}${sel('acc',ac,ACCPICK,'Access')}${sel('status',e.status,SORDER.map(s=>[s,s]),'Booking')}`+
+    `<label class="tagfield mf" title="Column A on the Sheet"><span>MF</span><input type="checkbox" data-mf aria-label="MF (column A on the Sheet)"${e.flag==='MF'?' checked':''}></label></div>`+
     (B?`<div class="editrow"><label class="tagfield"><span>Start</span><input type="date" data-start value="${esc(e.startDate||'')}"></label></div>`:'');
   return `${edit}
    <div class="sec-l">Shifts${B?(P?'':' — assigned at the picking meeting'):(P?' (scratchpad)':' — as they stand in the Sheet')}</div>
@@ -2545,7 +2553,8 @@ const slotOf=(e,bi,si,di)=>{ const sh=e&&e.booths&&e.booths[bi]&&e.booths[bi].sh
 const boothShape=bs=>JSON.stringify((bs||[]).map(b=>[b.label||'',(b.days||[]).join('|'),(b.shifts||[]).map(x=>x.label||'')]));
 async function saveSlotSafe(rpc,e,bi,si,di,val){
   const seen=slotOf(e,bi,si,di); if(!seen) return {ok:false,why:'gone'};
-  return (await rpc('set_slot',{p_event:e.id,p_booth:bi,p_shift:si,p_day:di,p_seen:seen,p_value:{rep:val.rep||'',ft:val.ft||[]}}))||{ok:false,why:'bad'};
+  const value={rep:val.rep||'',ft:val.ft||[]}; if(typeof val.notWorked==='boolean') value.notWorked=val.notWorked;   // "didn't work" (a red name on the Sheet)
+  return (await rpc('set_slot',{p_event:e.id,p_booth:bi,p_shift:si,p_day:di,p_seen:seen,p_value:value}))||{ok:false,why:'bad'};
 }
 /* make(fresh) builds the patch ({booths, ...dates}) from the row as it is now, read a moment before the write. Names someone
    else just put in are on that copy, so they are kept; a booth or row added or removed elsewhere stops it (the index may
@@ -2787,6 +2796,8 @@ board.addEventListener('change',async ev=>{
   const B=e.source==='board';
   const tg=ev.target.closest('select[data-tier-sel],select[data-acc-sel],select[data-status-sel]');
   if(tg){ const k=tg.hasAttribute('data-tier-sel')?'tier':tg.hasAttribute('data-acc-sel')?'access':'status'; await setField(e,k,tg.value); return; }
+  const mf=ev.target.closest('input[data-mf]');
+  if(mf){ const ok=await patchEvent(id,{flag:mf.checked?'MF':''}); if(ok) toast(mf.checked?'Marked MF':'MF taken off'); else mf.checked=!mf.checked; return; }
   const sk=ev.target.closest('input[data-skipnext]');
   if(sk){ const ok=await patchEvent(id,{skipNext:sk.checked}); if(ok) toast(sk.checked?'Won\'t roll into '+(yearOf(e)+1):'Will roll forward again'); return; }
   const fi=ev.target.closest('.fld[data-f]');
@@ -2872,6 +2883,9 @@ function renderPickList(){
   } else {
   if(rep==='__X__') u+=`<button class="pickrow util" data-v="" role="option">${se?'Nobody':'Open this day back up'}</button>`;
   else if(rep) u+=`<button class="pickrow util" data-v="" role="option">Remove ${esc(rep)}${se?'':' — leave it open'}</button>`;
+  /* "didn't work" (stage 3, 2026-10-27: what a red name meant on the Sheet; the mirror paints it red) */
+  if(pickCtx&&pickCtx.past&&rep&&rep!=='__X__'&&!se) u+=pickCtx.nw?`<button class="pickrow util" data-v="__WORKED__" role="option">${esc(rep)} worked it after all</button>`
+    :`<button class="pickrow util" data-v="__NOTWORKED__" role="option">${esc(rep)} didn't work this day</button>`;
   if(rep!=='__X__') u+=`<button class="pickrow util" data-v="__X__" role="option">No shift this day</button>`;
   }
   popUtil.innerHTML=u;
@@ -2958,7 +2972,8 @@ function openPick(btn){
   const art=btn.closest('[data-id]'); const e=cur().find(x=>x.id===art.dataset.id); if(!e)return;
   const bi=+btn.dataset.b, si=+btn.dataset.s, di=+btn.dataset.d;
   const b=boothsOf(e)[bi], sl=(b&&b.shifts[si]&&b.shifts[si].slots[di])||{rep:''};
-  pickCtx={id:e.id,bi,si,di,btn,v:btn.textContent.trim(),rep:val(e,bi,si,di,sl.rep)||'',se:isSE(b&&b.days[di])};
+  const day=(b&&b.dates||[])[di]||(e.dates||[])[di]||'';
+  pickCtx={id:e.id,bi,si,di,btn,v:btn.textContent.trim(),rep:val(e,bi,si,di,sl.rep)||'',se:isSE(b&&b.days[di]),past:!!day&&day<=iso(TODAY),nw:!!sl.notWorked};
   btn.classList.add('picking'); pop.hidden=false; popQ.value=''; renderPickList(); popQ.focus();
 }
 function closePick(){ pop.hidden=true; pop.classList.remove('ending','sheet'); document.body.classList.remove('ksheet'); const b=pickCtx&&pickCtx.btn; pickCtx=null; kRunMark(); if(b){ b.classList.remove('picking'); if(document.contains(b)) b.focus(); } }
@@ -2996,6 +3011,7 @@ async function applyPick(v){
   let val;
   if(v==='__USE__'){ const p=splitRep(typed); if(!p.rep) return; val=p; }
   else if(v==='__X__') val={rep:'__X__',ft:[]};
+  else if(v==='__NOTWORKED__'||v==='__WORKED__'){ const cs=(B&&e.booths[bi].shifts[si].slots[di])||{}; if(!cs.rep||cs.rep==='__X__') return; val={rep:cs.rep,ft:cs.ft||[],notWorked:v==='__NOTWORKED__'}; }
   else if(!v) val={rep:'',ft:[]};
   else val={rep:v,ft:B?((e.booths[bi].shifts[si].slots[di]||{}).ft||[]):[]};
   await savingSlot(btn,setSlot(e,B,bi,si,di,val));

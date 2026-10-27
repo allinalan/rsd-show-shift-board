@@ -56,7 +56,10 @@ Each item is a must for the first meeting on the board unless it says "later".
    but Alan edits today). Fix: a database function that sets one slot only if it still holds what the coordinator saw,
    and otherwise says who just took it; the other whole-`booths` writes (add or remove a booth or a shift row, a date
    move) re-read the row first, the way the kiosk days already do.
-2. **What the colors and columns say gets a home on the board** (the mirror writes it back the way the readers expect):
+2. **What the colors and columns say gets a home on the board** (the mirror writes it back the way the readers expect).
+   *Done 2026-10-27: the didn't-work mark (`notWorked` on a slot, through `set_slot`, offered in Plan mode on a past day),
+   MF as a tick, and `board sheet-notes` for column C (run at the cutover, below). Board readers that count shifts worked
+   skip a didn't-work shift.*
    - a "didn't work" mark on each shift, set in Plan mode; the mirror paints that name red;
    - Key / Traditional / Elite already live on the board as `tier`; the mirror paints the title black, teal or purple
      (purple reads Key to the picking order and Elite to the analyzer, which is what each wants);
@@ -161,6 +164,7 @@ and JP on the Sheet, Alan entering the same picks on the board) and the flip wai
   3. the mirror's first real write, read back; the Picking Feed pulled and rsd-shift-picking's parse compared with the
      board;
   4. a line above the owned rows: the board's link, and "written by the board; what is typed here is replaced";
+  4b. `node scripts/board.mjs sheet-notes --apply` (column C's words into team notes, once; read back);
   5. the owned rows protected so only Alan's account can type there.
 - **The meeting** runs on the board. The mirror writes as picks pause; nobody waits on it.
 - **After:** the mirror read back once the meeting ends; the 19:00 pull parsed and compared with the board; the booking

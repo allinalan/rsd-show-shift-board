@@ -351,6 +351,7 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull 
     else {
       // a booth still named as it was rolled keeps its "last year's spot" tag (lib/booth-spots.mjs)
       patch.booths = keepSpotTags((sheet.booths || []).map(b => ({ ...clone(b), shifts: b.shifts.map(s => ({ ...clone(s), slots: s.slots.map(outSlot) })) })), board.booths);
+      keepNotWorked(patch.booths, board.booths, resolve);
       patch.days = sheet.days || []; patch.dates = sheet.dates || [];
       const count = e => (e.booths || []).reduce((n, b) => n + b.shifts.reduce((m, s) => m + s.slots.filter(sl => isRep(sl.rep)).length, 0), 0);
       slotChanges += Math.max(1, Math.abs(count(sheet) - count(base)));
@@ -365,6 +366,17 @@ export function planEvent({ base, sheet, board, resolve, vcRow, today, noVcPull 
 }
 
 /** The next baseline for one event: the Sheet's version, except wherever something was held. */
+// "didn't work" is the board's own mark (set_slot, stage 3), never on the Sheet: a show the Sheet rebuilt keeps it on any
+// slot where the same person still sits in the same booth, row and day. A slot the Sheet re-staffs loses it (outSlot).
+export function keepNotWorked(booths, was, resolve) {
+  const key = r => String(r || '').trim().toLowerCase() && (resolve ? resolve(String(r).trim()) : String(r).trim()).toLowerCase();
+  (booths || []).forEach((b, bi) => (b.shifts || []).forEach((s, si) => (s.slots || []).forEach((sl, di) => {
+    const old = (((((was || [])[bi] || {}).shifts || [])[si] || {}).slots || [])[di];
+    if (old && old.notWorked && sl.rep && sl.rep !== '__X__' && key(sl.rep) === key(old.rep)) sl.notWorked = true;
+  })));
+  return booths;
+}
+
 function nextBase(base, sheet, keep) {
   if (keep.whole) return clone(base);
   const nb = clone(sheet);
