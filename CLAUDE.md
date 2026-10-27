@@ -241,7 +241,8 @@ routines in `.claude/skills/` keep it true.
 `events` — an event in a year. id `YYYY-<base>`; `base` is stable across years so `history/<base>`
 follows the show. Fields the routines care about: `name, year, weekend (Friday ISO), startDate,
 endDate, datesEstimated, datesNote, datesSource, datesMoved, status, vcNumber, vcStatus, tier, access, cityState, location, address,
-setting, promoter, contact, phone, email, website, cost, costBasis, applyUrl, applyBy, notes,
+setting, promoter, contact, phone, email, website, cost, costBasis, applyUrl, applyOpens, applyBy, applyOpensSource, applyBySource,
+submissionNotes, notes,
 booths[{label,days,dates,shifts[{label,slots[{rep,ft[]}]}],rolledLabel?,rolledLabelYear?}], dead, skipNext, neverWork`.
 `source` says what made the row (`board`, `sheet-sync`); the page treats every database row as a board show whatever it
 says (until 2026-10-24 a `sheet-sync` row was read-only there: 166 shows, both 2027 Maricopa home shows among them).
@@ -314,13 +315,25 @@ the service key moves them on.
   To correct only the cells, patch them (`patchEvent`, lib/board-api.mjs): `board set <id> startDate=…` moves the
   whole show (re-dates every booth from its day names, resets the weekend and End Date, clears `datesNote`). All 13
   rows with stale cells were corrected that way on 2026-10-14 (changelog actor `service:date-cells-fix`).
+- **Application dates and Submission Notes** (Alan, 2026-10-26; `scripts/lib/app-dates.mjs`, the page's `app-dates` block,
+  `docs/application-dates.md`). `applyOpens` and `applyBy` (the deadline) each carry a source shown as a small tag under the
+  date: Research (page, its words, the day checked), Manual (`by`, `at`: typed on the board or with `board set ... --by`), or
+  rolled ("Taken from last year": a roll carries last year's dates a year on as an estimate, Alan's one change to the
+  defaults). Research never changes a Manual date: a different finding is stored on its source as `found` and shown under it.
+  Research takes a date only from the show's or promoter's own page, with its words, inside this edition (a deadline at most
+  330 days, an opening at most 400 days before the show), so last year's date never passes as this year's. `submissionNotes`
+  (350 characters) is what Cutco reads first in the Booking Request's Comments; `notes` is now the team's own and never goes
+  to Cutco (label "Team notes (never sent to Cutco)"). The page and `board.mjs` load the lib's rules; the tests hold the page's
+  copy to it. The Show Research switches (rsd-shift-picking `config/divisions/<id>.json` `showResearch`, The Block's rules)
+  reach `board-research.mjs apply` as `--app-dates` and `--manual-wins`.
 - A shift is a slot with a `rep` that isn't empty or `__X__`. **SE days are never shifts.**
 - **Tier rules** (config/event-check.json `tierRules`, Alan 2026-09-24): every show named Maricopa is Elite, except the
   Maricopa County Fair. The Sheet sync creates new shows with the rule's tier, and the research runs and the booking
   sweep use `tierOf()` (lib/match.mjs), so the rule wins even over a wrong tag. Elite shows are never researched and
   never sent to Olean (rsd-shift-picking skipTiers / excludeTiers).
 - Same-year series (Queen Creek, Mesa) share name/promoter/cost/notes; shifts and status are per date.
-- `notes` roll forward and are read into VC booking-request Comments. Don't overwrite them; append.
+- `notes` (the team's notes) and `submissionNotes` roll forward; only `submissionNotes` is read into VC booking-request
+  Comments (since 2026-10-26). Don't overwrite either; append.
 - Roll-forward holds back `skipNext`, `neverWork`, and Never-list series keys. Idempotent. On the board a year's own tab
   rolls it into the next ("Roll 2026 into 2027"); an empty tab offers rolling the year before into itself (Alan,
   2026-10-24: the button used to live only on the target tab, so 2026 looked impossible to roll).

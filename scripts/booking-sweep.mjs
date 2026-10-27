@@ -46,6 +46,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
 import { isMain } from './lib/is-main.mjs';
+import { sourceOf } from './lib/app-dates.mjs';
 import { nameScore, dayDiff, normName, tierOf } from './lib/match.mjs';
 import { sellingRun, within, sameRun } from './lib/dates.mjs';
 export { sellingRun, within };                     // lib/booking-sweep-exec.js in rsd-shift-picking reads them from here
@@ -185,6 +186,10 @@ function requestFields(e) {
   return { name: t(e.name), cityState: pick('cityState'), location: pick('location'), address: pick('address'), promoter: pick('promoter'),
     contact: pick('contact'), phone: pick('phone'), email: pick('email'), website: pick('website'), applyUrl: pick('applyUrl'), applyBy: pick('applyBy'),
     cost: pick('cost'), costNum: e.costNum ?? null, costBasis: pick('costBasis') || 'date', setting: pick('setting'), notes: t(e.notes), tier: pick('tier'),
+    // what Cutco reads in the request's Comments (rsd-shift-picking lib/booking-sweep.js), and where each application
+    // date came from: research | manual | rolled (last year's estimate) (lib/app-dates.mjs)
+    submissionNotes: t(e.submissionNotes), applyOpens: pick('applyOpens'),
+    applyOpensKind: (sourceOf(e, 'applyOpens') || {}).kind || '', applyByKind: (sourceOf(e, 'applyBy') || {}).kind || '',
     lastYearVcNumber: t(e.lastYear && e.lastYear.vcNumber), datesEstimated: !!e.datesEstimated };
 }
 
