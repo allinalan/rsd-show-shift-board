@@ -540,6 +540,15 @@ body.ksheet .top{position:static}   /* the board's header (220px on a phone) let
 .spot{font-family:var(--f-body);font-size:var(--t-cap2);font-weight:600;color:var(--ink-2);border:1px dashed var(--warn);
   border-radius:3px;padding:0 5px;white-space:nowrap;flex:none}
 .gboin .spot{margin-left:2px}
+/* where an application date came from (scripts/lib/app-dates.mjs): a small line under the date, the page's own words
+   under that. Last year's estimate gets the same dashed "est." edge as a rolled booth spot; research disagreeing with a
+   date typed in by hand sits on the warn ground (ink on it, 4.5:1 or better in both themes). */
+.srctag{display:block;width:fit-content;font-family:var(--f-body);font-size:var(--t-cap2);font-weight:400;color:var(--ink-3);margin-top:3px}
+.srctag a{color:inherit}
+.srctag.est{color:var(--ink-2);font-weight:600;border:1px dashed var(--warn);border-radius:3px;padding:0 5px}
+.srctag.warn{color:var(--ink);background:var(--warn-bg);border-radius:3px;padding:1px 6px}
+.srcq{display:block;font-family:var(--f-body);font-size:var(--t-cap2);color:var(--ink-3);font-style:italic;margin-top:1px}
+.cnt{display:block;font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:var(--t-cap2);color:var(--ink-3);margin-top:3px}
 .boothh.edit{gap:10px;flex-wrap:wrap}   /* on a phone the tag and its buttons drop under the name, not squeeze it */
 .boothh.edit .linkbtn{white-space:nowrap}
 .boothh.edit input{font:inherit;font-family:var(--f-disp);font-weight:600;font-size:var(--t-foot);color:var(--ink);background:var(--surface);
@@ -1169,9 +1178,11 @@ body:not(.gridv):not(.kioskv) .band:not(.past)>.band-h{position:sticky;top:var(-
     <div class="form">
      <label>Booth cost<input id="qaCost" type="text" inputmode="decimal" placeholder="$850"></label>
      <label>Vendor application link<input id="qaApply" type="text" placeholder="https://…/vendors"></label>
+     <label>Application opens<input id="qaApplyOpens" type="date"></label>
      <label>Application deadline<input id="qaApplyBy" type="date"></label>
     </div>
-    <label class="full">Notes for the booking request<textarea id="qaNotes" rows="3" placeholder="Anything Olean should know: cost is an estimate, promoter already contacted, booth number to ask for, returning vendor since 2022…"></textarea></label>
+    <label class="full">Submission notes for Cutco<textarea id="qaSubNotes" rows="3" maxlength="350" placeholder="What Cutco's events team should know: booth number to ask for, returning vendor since 2022, promoter already contacted…"></textarea></label>
+    <label class="full">Team notes (never sent to Cutco)<textarea id="qaNotes" rows="2" placeholder="For the team only"></textarea></label>
     <p class="hint">The VC form requires a street address, a contact name and a 10-digit phone — and indoor/outdoor has to be known, not guessed. Whatever's here is what Claude won't have to research.</p>
    </details>
    <p class="hint">Everything can be filled in later on the event. Shifts start as one row of open slots.</p>
@@ -1265,7 +1276,7 @@ const save=()=>{try{localStorage.setItem(LS,JSON.stringify(store));}catch(e){}};
 let settings=Object.assign({},DEFAULT_SETTINGS);
 const RM=matchMedia('(prefers-reduced-motion: reduce)');   // reduced motion: nothing waits on an animation
 let db=null, dbState='loading', dbKind='none';   // dbState: loading | ready | static | none · dbKind: supabase | static | none
-let authUser=null, isEditor=false, isOwner=false;
+let authUser=null, isEditor=false, isOwner=false, editorName='';   // editorName: the editors list's name, for the "Manual · <name>" tag
 let neverList=[];                 // never_work docs
 const neverKeys=()=>new Set(neverList.map(n=>n.seriesKey).filter(Boolean));
 let boardEvents=[];               // every board-sourced event, all years
@@ -1404,8 +1415,8 @@ const normName=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const SERIES_STRIP=/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|week\s*\d+|wk\s*\d+|w\s*\d+|weekend\s*\d+|\d{4})\b/g;
 const seriesKey=e=>normName(e.name).replace(SERIES_STRIP,' ').replace(/\s+/g,' ').trim();
 function seriesOf(e){ const k=seriesKey(e); if(!k)return [e]; return eventsIn(yearOf(e)).filter(x=>seriesKey(x)===k); }
-const SHARED=['name','promoter','contact','phone','email','website','cost','costBasis','location','cityState','tier','access','address','setting','applyUrl','applyBy','notes'];   // same-year series
-const FORWARD=['promoter','contact','phone','email','website','cityState','cost','costBasis','tier','access','address','setting','applyUrl','notes'];                    // also flows into later years (the deadline moves, so applyBy stays put)
+const SHARED=['name','promoter','contact','phone','email','website','cost','costBasis','location','cityState','tier','access','address','setting','applyUrl','applyOpens','applyBy','submissionNotes','notes'];   // same-year series
+const FORWARD=['promoter','contact','phone','email','website','cityState','cost','costBasis','tier','access','address','setting','applyUrl','submissionNotes','notes'];                    // also flows into later years (the application dates move, so they stay put; a roll carries them as an estimate)
 function forwardTargets(e){
   const k=seriesKey(e), bid=baseId(e.id), y=yearOf(e), out=[];
   years().filter(Y=>Y>y).forEach(Y=>eventsIn(Y).forEach(x=>{ if(seriesKey(x)===k||baseId(x.id)===bid) out.push(x); }));
@@ -2067,6 +2078,39 @@ const spotYear=b=>/^\d{4}$/.test(String(b.rolledLabelYear))?String(b.rolledLabel
 const spotTag=b=>lastYearsSpot(b)?`<span class="spot" title="Where we were in ${spotYear(b)==='Last year'?'the last show':spotYear(b)}. Not this year's spot until someone fixes the name.">${spotYear(b)}'s spot</span>`:'';
 const unspot=b=>{delete b.rolledLabel; delete b.rolledLabelYear;};
 /* booth-spots:end */
+/* app-dates:start (Alan, 2026-10-26) When applications open and the deadline, each with where it came from: Research
+   (a page states it; the page, its words, the day checked), Manual (typed in by a coordinator; research never changes it,
+   and a different finding shows here as "Research found ..., your date kept"), or last year's date moved a year on by a
+   roll ("Taken from last year", an estimate research replaces). Same rules as scripts/lib/app-dates.mjs: change both (the
+   tests hold them together, and run this block by itself). */
+const APP_DATES=[['applyOpens','Application opens'],['applyBy','Application deadline']];
+const SUBMISSION_MAX=350;
+const APP_ISO=/^\d{4}-\d{2}-\d{2}$/;
+const appEsc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const appSrc=(e,f)=>{ if(!APP_ISO.test(String((e&&e[f])||'').trim())) return null; const s=e[f+'Source'];
+  return s&&typeof s==='object'&&['research','manual','rolled'].includes(s.kind)?s:{kind:'manual'}; };
+const shiftYears=(iso,n)=>{ const y=+iso.slice(0,4)+n, m=iso.slice(5,7), d=+iso.slice(8,10), last=new Date(Date.UTC(y,+m,0)).getUTCDate();
+  return `${y}-${m}-${String(Math.min(d,last)).padStart(2,'0')}`; };
+const rollAppDates=(e,Y,fromYear)=>{ const out={};
+  for(const [f] of APP_DATES){ const s=appSrc(e,f);
+    const from=s&&s.kind==='rolled'&&APP_ISO.test(String(s.from||'').trim())&&+s.fromYear?{date:s.from,year:+s.fromYear}:s?{date:String(e[f]).trim(),year:+fromYear}:null;
+    const n=from?Y-from.year:0;
+    if(!from||n<1||n>3){ out[f]=''; out[f+'Source']=null; continue; }
+    out[f]=shiftYears(from.date,n); out[f+'Source']={kind:'rolled',from:from.date,fromYear:from.year}; }
+  return out; };
+const appMD=iso=>{ if(!APP_ISO.test(String(iso||''))) return ''; const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('en-US',{month:'short',day:'numeric'}); };
+const appHost=u=>{ try{ const x=new URL(String(u)); return /^https?:$/.test(x.protocol)?x.hostname.replace(/^www\./,''):''; }catch(err){ return ''; } };
+const appLink=u=>{ const h=appHost(u); return h?`<a href="${appEsc(u)}" target="_blank" rel="noopener">${appEsc(h)}</a>`:'a page'; };
+const appTag=(e,f)=>{ const s=appSrc(e,f); if(!s) return '';
+  if(s.kind==='research') return `<span class="srctag">Research · ${appLink(s.url)}${s.checked?` · checked ${appEsc(appMD(s.checked))}`:''}</span>`+
+    (s.quote?`<q class="srcq">${appEsc(String(s.quote).slice(0,160))}</q>`:'');
+  if(s.kind==='rolled'){ const y=+(e.year||e.season), fy=+s.fromYear, w=fy&&fy!==y-1?String(fy):'last year';
+    return `<span class="srctag est" title="${appEsc(w==='last year'?'Last year':w)}'s date moved a year on, as an estimate. Research replaces it once this year's is posted.">Taken from ${appEsc(w)}</span>`; }
+  const f2=s.found&&APP_ISO.test(String(s.found.date||''))&&s.found.date!==String(e[f]).trim()?s.found:null;
+  return `<span class="srctag">Manual${s.by?` · ${appEsc(s.by)}`:''}${s.at?` · ${appEsc(appMD(s.at))}`:''}</span>`+
+    (f2?`<span class="srctag warn">Research found ${appEsc(appMD(f2.date))} on ${appLink(f2.url)}, your date kept</span>`:''); };
+/* app-dates:end */
+const manualSrc=()=>({kind:'manual',by:editorName,at:iso(TODAY)});
 const shortBooth=(l,bi)=>{ l=(l||'').replace(/\s*\(.*$/,'').trim()||('Booth '+(bi+1)); return l.length>22?l.slice(0,21)+'…':l; };
 const ACCCLS=a=>a==='Unassigned'?'none':a.replace('/','');
 const ACCSHORT={'Trade/Industry':'Trade','Unassigned':'any level'};
@@ -2272,19 +2316,25 @@ function bodyHtml(e){
   const SETTINGS=[['','not known yet'],['indoor','Indoor'],['outdoor','Outdoor'],['both','Indoor & outdoor']];
   const setSel=`<div class="dl"><dt>Indoor or outdoor</dt><dd><select class="fld" data-f="setting">${SETTINGS.map(([v,l])=>`<option value="${v}"${(e.setting||'')===v?' selected':''}>${l}</option>`).join('')}</select></dd></div>`;
   const settingLabel=(SETTINGS.find(x=>x[0]===(e.setting||''))||['',''])[1];
-  const applyByLabel=e.applyBy?(()=>{const dd=fromISO(e.applyBy); return dd?dd.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+(dd<TODAY?' — passed':''):e.applyBy;})():'';
+  const appLabel=k=>{ const v=e[k]; if(!v) return ''; const dd=fromISO(v); return dd?dd.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+(k==='applyBy'&&dd<TODAY?' — passed':''):v; };
+  const appDl=(label,k)=>{ const v=appLabel(k); return `<div class="dl"><dt>${label}</dt><dd class="${v?'':'empty'}">${v?esc(v)+appTag(e,k):'not listed yet'}</dd></div>`; };
+  const appEd=(label,k)=>`<div class="dl"><dt>${label}</dt><dd><input class="fld" type="date" data-f="${k}" value="${esc(e[k]||'')}" aria-label="${label}">${appTag(e,k)}</dd></div>`;
+  const subLen=String(e.submissionNotes||'').length;
+  const subEd=`<div class="dl wide"><dt>Submission notes for Cutco</dt><dd><textarea class="fld" data-f="submissionNotes" rows="3" maxlength="${SUBMISSION_MAX}" placeholder="What Cutco's events team should know: booth number to ask for, returning vendor since 2022, promoter already contacted…">${esc(e.submissionNotes||'')}</textarea>`+
+    `<span class="cnt" data-cnt>${subLen}/${SUBMISSION_MAX} · goes in the Booking Request's comments</span></dd></div>`;
   const promoter=P
     ? `${ed('Event name','name')}${ed('Venue','location')}${ed('Street address','address','120 S Cortez St')}${ed('City, state','cityState','Prescott, AZ')}${setSel}${ed('Promoter','promoter')}${ed('Contact','contact')}`+
-      `${ed('Phone','phone','(928) 555-0100')}${ed('Email','email','','email')}${ed('Website','website','https://…')}${ed('Vendor application link','applyUrl','https://…/vendors')}${ed('Application deadline','applyBy','','date')}${ed('VC event #','vcNumber','000…')}${ed('VC status','vcStatus','Booked')}${ed('Booth cost','cost','$850')}`+
+      `${ed('Phone','phone','(928) 555-0100')}${ed('Email','email','','email')}${ed('Website','website','https://…')}${ed('Vendor application link','applyUrl','https://…/vendors')}${appEd('Application opens','applyOpens')}${appEd('Application deadline','applyBy')}${ed('VC event #','vcNumber','000…')}${ed('VC status','vcStatus','Booked')}${ed('Booth cost','cost','$850')}`+
       `<div class="dl"><dt>Cost is for</dt><dd><select class="fld" data-f="costBasis"><option value="date"${(e.costBasis||'date')==='date'?' selected':''}>this date only</option><option value="month"${e.costBasis==='month'?' selected':''}>the whole month (split across dates)</option><option value="season"${e.costBasis==='season'?' selected':''}>the whole year (split across dates)</option></select></dd></div>`+
-      (B?'':`${d('Sheet row',String(e.row),true,rowLink)}`)+ta('Notes for the booking request','notes','Anything Olean should know when they contact the promoter')
+      (B?'':`${d('Sheet row',String(e.row),true,rowLink)}`)+subEd+ta('Team notes (never sent to Cutco)','notes','For the team only')
     : `${d('Promoter',e.promoter)}${d('Contact',e.contact)}`+
     `${d('Phone',e.phone,true,e.phone?'tel:'+e.phone.replace(/[^0-9+]/g,''):null)}`+
     `${d('Email',e.email,false,e.email?'mailto:'+e.email:null)}`+
     `${d('Website',e.website?e.website.replace(/^https?:\/\//,'').slice(0,34):'',false,e.website?(e.website.startsWith('http')?e.website:'https://'+e.website):null)}`+
     `${d('Street address',e.address)}${d('Indoor or outdoor',settingLabel)}`+
-    `${d('Vendor application',e.applyUrl?e.applyUrl.replace(/^https?:\/\//,'').slice(0,34):'',false,e.applyUrl?(e.applyUrl.startsWith('http')?e.applyUrl:'https://'+e.applyUrl):null)}${d('Apply by',applyByLabel)}`+
-    `${d('VC event #',e.vcNumber,true)}${d('VC status',e.vcStatus)}${d('Booth cost',(()=>{const cd=costForDate(e); if(cd.total==null)return e.cost; if(cd.basis==='date')return e.cost; return '$'+Math.round(cd.total).toLocaleString('en-US')+' for the whole '+(cd.basis==='month'?'month':'year')+' · '+cd.n+' dates · '+cd.filled+' filled shifts'+(cd.per!=null?' → $'+Math.round(cd.per)+'/shift':'');})(),true)}`+(B?'':`${d('Sheet row',String(e.row),true,rowLink)}`)+(e.notes?`<div class="dl wide"><dt>Notes for the booking request</dt><dd class="notes">${esc(e.notes)}</dd></div>`:'');
+    `${d('Vendor application',e.applyUrl?e.applyUrl.replace(/^https?:\/\//,'').slice(0,34):'',false,e.applyUrl?(e.applyUrl.startsWith('http')?e.applyUrl:'https://'+e.applyUrl):null)}${appDl('Application opens','applyOpens')}${appDl('Application deadline','applyBy')}`+
+    `${d('VC event #',e.vcNumber,true)}${d('VC status',e.vcStatus)}${d('Booth cost',(()=>{const cd=costForDate(e); if(cd.total==null)return e.cost; if(cd.basis==='date')return e.cost; return '$'+Math.round(cd.total).toLocaleString('en-US')+' for the whole '+(cd.basis==='month'?'month':'year')+' · '+cd.n+' dates · '+cd.filled+' filled shifts'+(cd.per!=null?' → $'+Math.round(cd.per)+'/shift':'');})(),true)}`+(B?'':`${d('Sheet row',String(e.row),true,rowLink)}`)+(e.submissionNotes?`<div class="dl wide"><dt>Submission notes for Cutco</dt><dd class="notes">${esc(e.submissionNotes)}</dd></div>`:'')+
+    (e.notes?`<div class="dl wide"><dt>Team notes (never sent to Cutco)</dt><dd class="notes">${esc(e.notes)}</dd></div>`:'');
   const grids=boothsOf(e).map((b,bi)=>grid(e,b,bi,ps,P)).join('')+
     (P&&B?`<button class="addshift addbooth" data-add-booth="1">+ Add a booth${e.booths.length>1?'':' (splits this show into named booths, like Maricopa)'}</button>`:'');
   let edit='';
@@ -2339,17 +2389,17 @@ async function patchEvent(id,patch){
   try{ await db.doc('events/'+id).update(patch); return true; }
   catch(err){ toastErr(err&&err.code==='read_only'?'Read-only preview — this copy isn\'t connected to the database yet':err&&err.code==='invalid_argument'?'You don\'t have edit access to this board':'Couldn\'t save — try again'); return false; }
 }
-async function setOne(e,k,v){
-  if(e.source==='board'){ try{ await db.doc('events/'+e.id).update({[k]:v}); return true; }catch(err){ return false; } }
-  const next=Object.assign({},ovMap[e.id]||{},{[k]:v,updatedAt:new Date().toISOString()});
+async function setOne(e,k,v,extra){
+  if(e.source==='board'){ try{ await db.doc('events/'+e.id).update({[k]:v,...(extra||{})}); return true; }catch(err){ return false; } }
+  const next=Object.assign({},ovMap[e.id]||{},{[k]:v,...(extra||{}),updatedAt:new Date().toISOString()});
   try{ await db.doc('overrides/'+e.id).set(next); return true; }catch(err){ return false; }
 }
-async function setField(e,k,v){
+async function setField(e,k,v,extra){
   if(!db){toastErr('Shared storage not available');return false;}
   const same=SHARED.includes(k)?seriesOf(e):[e];
   const fwd=FORWARD.includes(k)?forwardTargets(e):[];
   const seen=new Set(); const members=same.concat(fwd).filter(m=>{const id=m.source+':'+m.id; if(seen.has(id))return false; seen.add(id); return true;});
-  const results=await Promise.all(members.map(m=>setOne(m,k,v)));
+  const results=await Promise.all(members.map(m=>setOne(m,k,v,extra)));
   const ok=results.filter(Boolean).length;
   if(!ok){ toastErr('Couldn\'t save — check your edit access'); return false; }
   if(members.length>1){ const yrs=[...new Set(members.map(yearOf))].sort(); toast(`Updated ${ok} date${ok===1?'':'s'}${yrs.length>1?' across '+yrs[0]+'–'+yrs[yrs.length-1]:' of this show'}`); }
@@ -2376,7 +2426,7 @@ function rollDoc(e,Y){
   return {year:Y,season:String(Y),source:'board',name:e.name,weekend,days:e.days,dates:startISO?dayDates(e.days,startISO):[],
     startDate:startISO,endDate:startISO?(()=>{const a=booths.flatMap(b=>b.dates).filter(Boolean).sort();return a.length?a[a.length-1]:startISO;})():null,
     datesEstimated:true,cityState:e.cityState||'',location:e.location||'',promoter:e.promoter||'',contact:e.contact||'',phone:e.phone||'',
-    email:e.email||'',website:e.website||'',address:e.address||'',setting:e.setting||'',applyUrl:e.applyUrl||'',applyBy:'',notes:e.notes||'',cost:e.cost||'',costBasis:e.costBasis||'date',costNum:costNum(e),bestCPO:e.bestCPO||'',bestEver:e.bestEver||null,tier:tierOf(e),access:accOf(e),level:e.level||'',flag:e.flag||'',
+    email:e.email||'',website:e.website||'',address:e.address||'',setting:e.setting||'',applyUrl:e.applyUrl||'',...rollAppDates(e,Y,yearOf(e)),submissionNotes:e.submissionNotes||'',notes:e.notes||'',cost:e.cost||'',costBasis:e.costBasis||'date',costNum:costNum(e),bestCPO:e.bestCPO||'',bestEver:e.bestEver||null,tier:tierOf(e),access:accOf(e),level:e.level||'',flag:e.flag||'',
     status:'Prospective',vcNumber:'',dead:false,skipNext:false,neverWork:false,booths,
     lastYear:{status:e.status,vcNumber:e.vcNumber||'',cost:e.cost||'',row:e.row||null,sheetStatus:e.sheetStatus||'',year:yearOf(e)},
     rolledFrom:String(yearOf(e)),rolledFromId:e.id,createdAt:new Date().toISOString()};
@@ -2535,6 +2585,9 @@ board.addEventListener('click',async ev=>{
     }catch(err){ toastErr(kErr(err)); build(); }
     return; }
 });
+/* the Submission notes counter: VC's comments hold 500 characters in all, so the notes get 350 */
+board.addEventListener('input',ev=>{ const ta=ev.target.closest('textarea[data-f="submissionNotes"]'); if(!ta) return;
+  const c=ta.parentElement.querySelector('[data-cnt]'); if(c) c.textContent=`${ta.value.length}/${SUBMISSION_MAX} · goes in the Booking Request's comments`; });
 board.addEventListener('change',async ev=>{
   if(!viewKiosk()) return;
   const f=ev.target.closest('[data-kf]'); if(!f) return;
@@ -2565,7 +2618,11 @@ board.addEventListener('change',async ev=>{
   const sk=ev.target.closest('input[data-skipnext]');
   if(sk){ const ok=await patchEvent(id,{skipNext:sk.checked}); if(ok) toast(sk.checked?'Won\'t roll into '+(yearOf(e)+1):'Will roll forward again'); return; }
   const fi=ev.target.closest('.fld[data-f]');
-  if(fi){ let v=fi.value.trim(); if(fi.dataset.f==='cost'&&v&&/^\d+(\.\d+)?$/.test(v)) v='$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0}); await setField(e,fi.dataset.f,v); return; }
+  if(fi){ let v=fi.value.trim(); const k=fi.dataset.f; if(k==='cost'&&v&&/^\d+(\.\d+)?$/.test(v)) v='$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0});
+    if(k==='submissionNotes') v=v.slice(0,SUBMISSION_MAX);
+    // a date typed in here is a person's: tagged Manual with who and when, and research never changes it
+    const extra=APP_DATES.some(([f])=>f===k)?{[k+'Source']:v?manualSrc():null}:null;
+    await setField(e,k,v,extra); return; }
   const bl=ev.target.closest('input[data-booth-label]');
   if(bl&&B){ const bi=+bl.dataset.boothLabel; const booths=withBooths(e,bs=>{bs[bi].label=bl.value.trim(); if(!lastYearsSpot(bs[bi])) unspot(bs[bi]);}); await patchEvent(id,{booths}); return; }
   const ds=ev.target.closest('input[data-start]');
@@ -2816,10 +2873,11 @@ P('qaGo').addEventListener('click',async()=>{
     cityState:P('qaCity').value.trim(),location:P('qaLoc').value.trim(),address:P('qaAddr').value.trim(),setting:P('qaSetting').value,
     promoter:P('qaPromoter').value.trim(),contact:P('qaContact').value.trim(),phone:P('qaPhone').value.trim(),email:P('qaEmail').value.trim(),website:P('qaWeb').value.trim(),
     cost:(()=>{let v=P('qaCost').value.trim(); if(v&&/^\d+(\.\d+)?$/.test(v)) v='$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0}); return v;})(),
-    applyUrl:P('qaApply').value.trim(),applyBy:P('qaApplyBy').value,notes:P('qaNotes').value.trim(),bestCPO:'',
+    applyUrl:P('qaApply').value.trim(),applyOpens:P('qaApplyOpens').value,applyBy:P('qaApplyBy').value,submissionNotes:P('qaSubNotes').value.trim().slice(0,SUBMISSION_MAX),notes:P('qaNotes').value.trim(),bestCPO:'',
     tier:P('qaTier').value,access:P('qaAcc').value,level:'',flag:'',status:'Prospective',vcNumber:'',dead:false,
     booths:[{label:'',status:'',days,dates,shifts:[{label:'Shift 1',slots:days.map(()=>({rep:'',ft:[]}))}]}],createdAt:new Date().toISOString()};
-  try{ const ref=await db.collection('events').add(doc); toast('Added '+name+' to '+Y); ['qaName','qaStart','qaEnd','qaCity','qaLoc','qaAddr','qaSetting','qaPromoter','qaContact','qaPhone','qaEmail','qaWeb','qaCost','qaApply','qaApplyBy','qaNotes'].forEach(i=>P(i).value=''); P('qaMore').open=false; closePanels(); open.add(ref.id); if(Y!==year()){store.year=Y;save();} }
+  for(const [f] of APP_DATES) if(doc[f]) doc[f+'Source']=manualSrc();
+  try{ const ref=await db.collection('events').add(doc); toast('Added '+name+' to '+Y); ['qaName','qaStart','qaEnd','qaCity','qaLoc','qaAddr','qaSetting','qaPromoter','qaContact','qaPhone','qaEmail','qaWeb','qaCost','qaApply','qaApplyOpens','qaApplyBy','qaSubNotes','qaNotes'].forEach(i=>P(i).value=''); P('qaMore').open=false; closePanels(); open.add(ref.id); if(Y!==year()){store.year=Y;save();} }
   catch(err){ toastErr(err&&err.code==='quota_exceeded'?'The board is full — remove some events first':'Couldn\'t add — check your edit access'); }
 });
 P('btnKAdd').addEventListener('click',openKAdd);
@@ -3065,10 +3123,10 @@ function makeStaticDb(){
   };
 }
 async function checkEditor(){
-  isEditor=false; isOwner=false;
+  isEditor=false; isOwner=false; editorName='';
   if(!authUser||!db||db.kind!=='supabase') return;
-  try{ const {data}=await db.client.from('editors').select('role').eq('email',String(authUser.email).toLowerCase()).maybeSingle();
-    isEditor=!!data; isOwner=!!data&&data.role==='owner'; }catch(e){}
+  try{ const {data}=await db.client.from('editors').select('role,name').eq('email',String(authUser.email).toLowerCase()).maybeSingle();
+    isEditor=!!data; isOwner=!!data&&data.role==='owner'; editorName=data&&data.name?String(data.name).trim():''; }catch(e){}
 }
 (async()=>{
   const cfg=window.BOARD_CONFIG||{};

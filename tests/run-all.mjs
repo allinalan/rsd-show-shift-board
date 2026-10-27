@@ -489,6 +489,83 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(/source:'board',madeBy:/.test(html), 'index.html: every database row is editable as a board show, whatever made it (the 166 Sheet-sync shows were read-only)');
   });
 
+  await section('application dates: lib/app-dates.mjs, the page\'s copy, board set, the roll, the research', async () => {
+    const A = await import(path.join(REPO, 'scripts/lib/app-dates.mjs'));
+    const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    const m = html.match(/\/\* app-dates:start[\s\S]*?\*\/([\s\S]*?)\/\* app-dates:end \*\//);
+    ok(!!m, 'index.html: the app-dates block is marked');
+    const P = new Function(m[1] + '\nreturn { APP_DATES, SUBMISSION_MAX, appSrc, rollAppDates, appTag };')();
+    ok(P.APP_DATES.map(x => x[0]).join() === A.APP_DATES.map(x => x[0]).join() && P.SUBMISSION_MAX === A.SUBMISSION_MAX, 'index.html: the same two dates and the same 350-character limit as the lib');
+    const research = { kind: 'research', url: 'https://www.fairtest.org/vendors', quote: 'Applications due January 15', checked: '2026-10-26' };
+    const cases = [
+      { year: 2026, applyBy: '2026-01-15', applyBySource: research, applyOpens: '2025-10-01', applyOpensSource: { kind: 'manual', by: 'Matt Foss', at: '2026-10-20' } },
+      { year: 2026, applyBy: '2026-01-15', applyBySource: { kind: 'rolled', from: '2024-01-16', fromYear: 2024 }, applyOpens: '' },
+      { year: 2024, applyBy: '2024-02-29', applyOpens: 'soon' },
+      { year: 2026, applyBy: '2026-01-15', applyBySource: { kind: 'odd' } },
+    ];
+    for (const [i, c] of cases.entries()) for (const Y of [2027, 2028, 2030])
+      ok(JSON.stringify(P.rollAppDates(c, Y, c.year)) === JSON.stringify(A.rollAppDates(c, Y, c.year)), `index.html rollAppDates agrees with the lib (case ${i}, into ${Y})`);
+    const r1 = A.rollAppDates(cases[0], 2027, 2026), r2 = A.rollAppDates(cases[1], 2027, 2026), r3 = A.rollAppDates(cases[2], 2025, 2024);
+    ok(r1.applyBy === '2027-01-15' && r1.applyBySource.kind === 'rolled' && r1.applyBySource.from === '2026-01-15' && r1.applyBySource.fromYear === 2026 && r1.applyOpens === '2026-10-01',
+      'rollAppDates: last year\'s dates come along a year on, tagged with the date they came from (Alan, 2026-10-26: a good estimate)');
+    ok(r2.applyBy === '2027-01-16' && r2.applyBySource.from === '2024-01-16' && r2.applyOpens === '' && r2.applyOpensSource === null, 'rollAppDates: an estimate nobody confirmed keeps its real date and year; a blank stays blank');
+    ok(r3.applyBy === '2025-02-28' && r3.applyOpens === '', 'rollAppDates: Feb 29 lands on Feb 28; a value that is not a date is not carried');
+    ok(A.rollAppDates({ applyBy: '2020-01-10' }, 2027, 2020).applyBy === '', 'rollAppDates: a date more than three years old is not carried');
+    const tagR = P.appTag(cases[0], 'applyBy'), tagM = P.appTag(cases[0], 'applyOpens'), tagE = P.appTag({ year: 2027, ...r1 }, 'applyBy'), tag2 = P.appTag({ year: 2026, ...cases[1] }, 'applyBy');
+    ok(/Research · <a href="https:\/\/www\.fairtest\.org\/vendors"[^>]*>fairtest\.org<\/a> · checked Oct 26/.test(tagR) && /Applications due January 15/.test(tagR), 'the page: a researched date says Research, links the page, says the day checked and shows its words');
+    ok(/Manual · Matt Foss · Oct 20/.test(tagM) && /Taken from last year/.test(tagE) && /Taken from 2024/.test(tag2), 'the page: Manual · <editor> · <date>; a rolled date says Taken from last year (or the year it really came from)');
+    const found = { ...cases[0], applyOpensSource: { ...cases[0].applyOpensSource, found: { date: '2025-10-15', url: 'https://fairtest.org/apply', quote: 'x', checked: '2026-10-26' } } };
+    ok(/Research found Oct 15 on <a[^>]*>fairtest\.org<\/a>, your date kept/.test(P.appTag(found, 'applyOpens')), 'the page: research disagreeing with a date typed by hand shows under it; the date stays');
+    const evil = { applyBy: '2026-01-15', applyBySource: { kind: 'research', url: 'javascript:alert(1)', quote: '<img src=x onerror=alert(1)>', checked: '2026-10-26' } };
+    ok(!/javascript:|<img/.test(P.appTag(evil, 'applyBy')) && P.appTag({ applyBy: '' }, 'applyBy') === '' && /Manual/.test(P.appTag({ applyBy: '2026-01-15' }, 'applyBy')), 'the page: a stored link or quote never runs; no date, no tag; an old untagged date counts as a person\'s');
+    // research's finding, checked by code
+    const run = { start: '2027-03-06', end: '2027-03-07' }, app = (x = {}) => ({ url: 'https://fairtest.org/apply', opens: '2026-11-01', opensQuote: 'Applications open November 1', deadline: '2027-01-15', deadlineQuote: 'Apply by January 15', confidence: 'official', sourceUrl: 'https://fairtest.org/apply', ...x });
+    ok(A.checkFinding(app(), 'deadline', run).date === '2027-01-15' && A.checkFinding(app(), 'opens', run, '2027-01-15').date === '2026-11-01', 'checkFinding: an official page, a date, the words, this edition');
+    ok(A.checkFinding(app({ deadline: '2026-01-15' }), 'deadline', run).rejected && A.checkFinding(app({ deadline: '2027-04-01' }), 'deadline', run).rejected, 'checkFinding: last year\'s date, or one after the show, is set aside (never carried as this year\'s)');
+    ok(A.checkFinding(app({ confidence: 'secondary' }), 'deadline', run).rejected && A.checkFinding(app({ deadlineQuote: '' }), 'deadline', run).rejected && A.checkFinding(app({ deadline: 'mid January' }), 'deadline', run).rejected, 'checkFinding: a third-party page, no words, or not a date is set aside');
+    ok(A.checkFinding(app({ opens: '2027-02-01' }), 'opens', run, '2027-01-15').rejected && A.checkFinding(app({ deadline: '' }), 'deadline', run) === null && A.checkFinding(app(), 'deadline', null).rejected, 'checkFinding: opens after the deadline is set aside; nothing stated is null; no board dates to check against is set aside');
+    const f = { date: '2027-01-15', url: 'https://fairtest.org/apply', quote: 'Apply by January 15' }, opt = { today: '2026-10-26' };
+    const man = { applyBy: '2027-01-10', applyBySource: { kind: 'manual', by: 'JP', at: '2026-10-01' } };
+    const dk = A.decideAppDate(man, 'applyBy', f, opt);
+    ok(dk.kind === 'kept' && !('applyBy' in dk.patch) && dk.patch.applyBySource.found.date === '2027-01-15' && dk.patch.applyBySource.by === 'JP', 'decideAppDate: a date typed by hand is never changed; the different finding is flagged on it');
+    ok(Object.keys(A.decideAppDate({ ...man, applyBySource: dk.patch.applyBySource }, 'applyBy', f, opt).patch).length === 0, 'decideAppDate: the same disagreement again writes nothing new');
+    const ag = A.decideAppDate({ applyBy: '2027-01-15', applyBySource: { ...dk.patch.applyBySource } }, 'applyBy', f, opt);
+    ok(ag.kind === 'agrees' && !('found' in ag.patch.applyBySource), 'decideAppDate: research agreeing with a person clears the flag');
+    ok(A.decideAppDate(man, 'applyBy', f, { ...opt, manualWins: false }).patch.applyBy === '2027-01-15', 'decideAppDate: with "a date typed by hand wins" off, research replaces it');
+    const est = A.decideAppDate({ applyBy: '2027-01-16', applyBySource: { kind: 'rolled', from: '2026-01-16', fromYear: 2026 } }, 'applyBy', f, opt);
+    ok(est.kind === 'set' && est.patch.applyBy === '2027-01-15' && est.patch.applyBySource.kind === 'research' && est.fromKind === 'rolled', 'decideAppDate: this year\'s date replaces last year\'s estimate');
+    ok(A.decideAppDate({ applyBy: '' }, 'applyBy', null, opt).kind === 'not-found' && A.decideAppDate({ applyBy: '2027-01-16', applyBySource: { kind: 'rolled', from: '2026-01-16', fromYear: 2026 } }, 'applyBy', null, opt).estimate
+      && A.decideAppDate({ applyBy: '2027-01-15', applyBySource: research }, 'applyBy', null, opt).kind === 'none', 'decideAppDate: not stated anywhere leaves it as it is (blank or estimate listed as not found); a research date is not cleared');
+    ok(A.wantsAppDates({ applyBy: '' }, '2026-10-26') && A.wantsAppDates({ applyBy: '2027-01-16', applyBySource: { kind: 'rolled' } }, '2026-10-26') && !A.wantsAppDates({ applyBy: '2026-10-01', applyOpens: '' }, '2026-10-26')
+      && !A.wantsAppDates({ applyBy: '2027-01-15', applyBySource: research, applyOpens: '2026-11-01', applyOpensSource: research }, '2026-10-26'), 'wantsAppDates: blank or last year\'s estimate, and the deadline not passed');
+    const { decideAppDates } = await import(path.join(REPO, 'scripts/board-research.mjs'));
+    const both = decideAppDates({ applyBy: '' }, { application: app() }, run, opt);
+    ok(both.patch.applyBy === '2027-01-15' && both.patch.applyOpens === '2026-11-01' && both.found.length === 2, 'decideAppDates: both dates from one page');
+    const bad = decideAppDates({ applyBy: '' }, { application: app({ opens: '2026-01-01', deadline: '2026-02-01' }) }, run, opt);
+    ok(!('applyBy' in bad.patch) && bad.rejected.length === 2 && bad.notFound.length === 2, 'decideAppDates: last year\'s pair is set aside and listed, nothing written');
+    // board set: a date typed in is a person's; the CLI refuses a bad date and over-long notes
+    T('events').set('2026-ad1', { name: 'App Dates Test Fair', year: 2026, startDate: '2026-12-05', booths: [] });
+    r = await board(['set', '2026-ad1', 'applyBy=2026-11-01', 'submissionNotes=Ask for booth 12, returning vendor', '--by', 'Matt Foss', '--date', '2026-10-26']);
+    const ad = T('events').get('2026-ad1');
+    ok(r.code === 0 && ad.applyBy === '2026-11-01' && ad.applyBySource.kind === 'manual' && ad.applyBySource.by === 'Matt Foss' && ad.applyBySource.at === '2026-10-26' && ad.submissionNotes === 'Ask for booth 12, returning vendor', 'board set: a date typed in is tagged Manual with who and when');
+    r = await board(['set', '2026-ad1', 'applyBy=']);
+    ok(r.code === 0 && T('events').get('2026-ad1').applyBy === '' && T('events').get('2026-ad1').applyBySource === null, 'board set: clearing a date clears its tag');
+    r = await board(['set', '2026-ad1', 'applyOpens=Jan 5']);
+    const r2b = await board(['set', '2026-ad1', 'submissionNotes=' + 'x'.repeat(351)]);
+    ok(r.code !== 0 && r2b.code !== 0 && T('events').get('2026-ad1').submissionNotes === 'Ask for booth 12, returning vendor', 'board set: a date that is not YYYY-MM-DD, or Submission Notes over 350 characters, is refused');
+    // the roll carries the dates as last year's estimate, and the Submission Notes as they are
+    await board(['set', '2026-ad1', 'applyBy=2026-11-01', 'applyOpens=2026-08-01', '--by', 'JP', '--date', '2026-10-26']);
+    T('events').set('2026-ad1', { ...T('events').get('2026-ad1'), days: ['Saturday'], weekend: '2026-12-04', booths: [{ label: '', days: ['Saturday'], dates: ['2026-12-05'], shifts: [] }] });
+    r = await board(['rollforward', '2027']);
+    const rolled = T('events').get('2027-ad1');
+    ok(r.code === 0 && rolled && rolled.applyBy === '2027-11-01' && rolled.applyBySource.kind === 'rolled' && rolled.applyBySource.from === '2026-11-01' && rolled.applyOpens === '2027-08-01'
+      && rolled.submissionNotes === 'Ask for booth 12, returning vendor', 'board rollforward: application dates roll as last year\'s estimate, Submission Notes as they are');
+    ok(/applyOpens:P\('qaApplyOpens'\)\.value/.test(html) && /\.\.\.rollAppDates\(e,Y,yearOf\(e\)\)/.test(html) && /Team notes \(never sent to Cutco\)/.test(html) && !/Notes for the booking request/.test(html),
+      'index.html: quick add takes both dates and the Submission Notes; Roll forward carries the dates; the team\'s notes say they never go to Cutco');
+    for (const id of [...T('events').keys()].filter(k => /^202[67]-ad1$/.test(k))) T('events').delete(id);
+    T('seasons').delete('2027');
+  });
+
   await section('tick.py: the freshmen reminder', async () => {
     // ---- tick.py words the freshmen reminder as an ask, not an "open Claude on this repo" routine
     fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
@@ -1230,7 +1307,8 @@ def post(route, text, mention=None, fallback=True, **k):
     const ev = (id, name, weekend, reps, extra = {}) => { const days = ['Friday', 'Saturday', 'Sunday']; const dates = days.map((_, i) => addD(weekend, i));
       T('events').set(id, { year: 2026, name, weekend, startDate: dates[0], endDate: dates[2], days, dates,
         booths: [{ label: '', days, dates, shifts: [{ label: 'Shift 1', slots: days.map((_, i) => ({ rep: reps[i] || '', ft: [] })) }] }], status: 'Prospective', ...extra }); };
-    ev('2026-r1', 'Pinecone Craft Fair', '2026-11-13', ['Eli', 'Eli'], { cityState: 'Flagstaff, AZ', promoter: 'Pinecone Co', cost: '$300', setting: 'outdoor', notes: 'north lot, not south' });
+    ev('2026-r1', 'Pinecone Craft Fair', '2026-11-13', ['Eli', 'Eli'], { cityState: 'Flagstaff, AZ', promoter: 'Pinecone Co', cost: '$300', setting: 'outdoor', notes: 'north lot, not south',
+      submissionNotes: 'Returning vendor since 2022', applyBy: '2026-10-20', applyBySource: { kind: 'rolled', from: '2025-10-20', fromYear: 2025 }, applyOpens: '2026-08-01', applyOpensSource: { kind: 'manual', by: 'JP', at: '2026-09-01' } });
     T('event_contacts').set('2026-r1', { contact: 'Jane Doe', phone: '(928) 555-0100', email: 'jane@example.com' });
     ev('2026-r2', 'Estimated Expo', '2026-11-20', ['Sarah'], { datesEstimated: true });
     ev('2026-r3', 'Soon Fest', '2026-10-02', ['Reed']);
@@ -1270,6 +1348,8 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(r.code === 0 && out.mode === 'apply', 'booking-sweep --apply exits 0: ' + r.stderr.slice(0, 300));
     ok(ids('requests') === '2026-d2,2026-r1', 'booking-sweep: a staffed show VC does not have is a request (a placeholder record is never a duplicate): ' + ids('requests'));
     const req = out.requests.find(x => x.id === '2026-r1');
+    ok(req && req.fields.submissionNotes === 'Returning vendor since 2022' && req.fields.applyOpens === '2026-08-01' && req.fields.applyBy === '2026-10-20' && req.fields.applyByKind === 'rolled' && req.fields.applyOpensKind === 'manual',
+      'booking-sweep: the request carries the Submission Notes and each application date with where it came from (lib/booking-sweep.js writes the Comments)');
     ok(req.fields.phone === '(928) 555-0100' && req.fields.contact === 'Jane Doe' && req.fields.setting === 'outdoor' && req.fields.notes === 'north lot, not south' && req.run.start === '2026-11-13' && req.run.end === '2026-11-15', 'booking-sweep: the request carries what the form needs, contacts included');
     ok(ids('holds') === '2026-d1,2026-r2,2026-r3', 'booking-sweep: estimated dates, a show days away and a same-name VC record at other dates are held: ' + ids('holds'));
     ok(out.holds.find(x => x.id === '2026-d1').why.join().includes('00400005'), 'booking-sweep: the duplicate hold names the VC record');
@@ -1403,7 +1483,8 @@ def post(route, text, mention=None, fallback=True, **k):
         promoter: { name: 'Promoter Test LLC', contactName: 'New Person', phone: '(480) 555-0199', email: 'promoter@example.com', website: 'https://promotertest.com', confidence: 'official', sourceUrl: 'https://promotertest.com/vendors' },
         indoorOutdoor: { value: 'outdoor', evidence: 'all booths are outdoors on the lawn', sourceUrl: 'https://promoterest.com/vendors' },
         boothCost: { amount: '150', note: '10x10', sourceUrl: 'https://promotertest.com/vendors' },
-        application: { url: 'https://promotertest.com/apply', deadline: '2026-11-15', confidence: 'official', sourceUrl: 'https://promotertest.com/apply' } }),
+        application: { url: 'https://promotertest.com/apply', opens: '2026-09-01', opensQuote: 'Vendor applications open September 1', deadline: '2026-11-15', deadlineQuote: 'Applications are due November 15, 2026',
+          confidence: 'official', sourceUrl: 'https://promotertest.com/apply' } }),
     } };
     const rfile = path.join(home, 'br-research.json'); fs.writeFileSync(rfile, JSON.stringify(research));
     const before = JSON.stringify(T('events').get('2026-m1'));
@@ -1425,6 +1506,9 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(out.cancelled.some(x => x.id === '2026-x1') && !T('events').get('2026-x1').dead, 'board-research: a cancellation found online is reported, never written');
     const P1 = T('events').get('2026-p1'), PC = T('event_contacts').get('2026-p1');
     ok(P1.location === 'Test Park Pavilion' && P1.address === '12 Park Rd, Mesa Verde, AZ 85001' && P1.promoter === 'Promoter Test LLC' && P1.applyUrl === 'https://promotertest.com/apply' && P1.applyBy === '2026-11-15' && P1.cost === '$150' && P1.setting === 'outdoor', 'board-research (full): blanks filled from the official pages');
+    ok(P1.applyOpens === '2026-09-01' && P1.applyBySource.kind === 'research' && P1.applyBySource.url === 'https://promotertest.com/apply' && /due November 15/.test(P1.applyBySource.quote)
+      && P1.applyBySource.checked === '2026-10-01' && P1.applyOpensSource.kind === 'research' && out.appDates.found.length === 2, 'board-research (full): the application dates, each tagged Research with the page, its words and the day checked');
+    ok(out.appDates.notFound.some(x => x.id === '2026-m1' && x.which === 'deadline') && /Application dates no page states yet/.test(fs.readFileSync(path.join(outd, 'reports', 'preflight-2026-10-01.md'), 'utf8')), 'board-research (full): a show no page gives application dates for is listed as not found');
     ok(PC.contact === 'Existing Person' && PC.phone === '(480) 555-0199' && PC.email === 'promoter@example.com' && !('phone' in P1), 'board-research (full): an existing contact is never overwritten; new contact details go to event_contacts');
     ok(out.fieldNotes.some(x => x.id === '2026-p1' && x.field === 'contact'), 'board-research (full): the different contact online is reported instead');
     const md = fs.readFileSync(path.join(outd, 'reports', 'preflight-2026-10-01.md'), 'utf8');

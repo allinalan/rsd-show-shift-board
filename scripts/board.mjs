@@ -14,6 +14,8 @@
     board list [--year 2027] [--status Prospective] [--staffed] [--no-vc] [--upcoming] [--weekend 2027-01-15] [--json]
     board get <id>
     board set <id> field=value [field=value ...]       (field:=json for arrays/objects/booleans)
+        applyOpens= / applyBy= (application opens / deadline, YYYY-MM-DD or empty) are tagged "Manual" [--by "Name"];
+        submissionNotes= is what Cutco reads in the Booking Request's Comments (at most 350 characters)
     board add --name "…" --start 2027-03-06 [--end 2027-03-07] [--city "Prescott, AZ"] [field=value ...]
     board delete <id>
     board rollforward <year> [--include-dead] [--dry-run]
@@ -143,7 +145,7 @@ const isSE = d => /\bSE\b/i.test(d || '');
 const today = () => { const d = flags.date ? fromISO(flags.date) : new Date(); d.setHours(0, 0, 0, 0); return d; };
 
 // spot(b) = the booth's "last year's spot" tag on a Maricopa show (scripts/lib/booth-spots.mjs), {} on any other
-function rollDoc(e, Y, spot = () => ({})) {
+function rollDoc(e, Y, spot = () => ({}), rollAppDates = () => ({})) {
   const sd = parseUS(e.startDate);
   const n = sd ? Math.max(0, Y - sd.getFullYear()) : 1;
   const nsd = sd ? addDays(sd, 364 * n) : null, startISO = nsd ? iso(nsd) : null;
@@ -155,7 +157,9 @@ function rollDoc(e, Y, spot = () => ({})) {
   return { year: Y, season: String(Y), source: 'board', name: e.name, weekend, days: e.days, dates: startISO ? dayDates(e.days || [], startISO) : [],
     startDate: startISO, endDate: startISO ? (all.length ? all[all.length - 1] : startISO) : null, datesEstimated: true,
     cityState: e.cityState || '', location: e.location || '', promoter: e.promoter || '', contact: e.contact || '', phone: e.phone || '',
-    email: e.email || '', website: e.website || '', address: e.address || '', setting: e.setting || '', applyUrl: e.applyUrl || '', applyBy: '', notes: e.notes || '',
+    email: e.email || '', website: e.website || '', address: e.address || '', setting: e.setting || '', applyUrl: e.applyUrl || '', notes: e.notes || '',
+    // last year's application dates come along as an estimate, tagged "Taken from last year" (Alan, 2026-10-26)
+    ...rollAppDates(e, Y, yearOf(e)), submissionNotes: e.submissionNotes || '',
     cost: e.cost || '', costBasis: e.costBasis || 'date', bestCPO: e.bestCPO || '', bestEver: e.bestEver || null, tier: e.tier || 'Traditional', access: e.access || 'Unassigned',
     level: e.level || '', flag: e.flag || '', status: 'Prospective', vcNumber: '', dead: false, skipNext: false, neverWork: false, booths,
     lastYear: { status: e.status, vcNumber: e.vcNumber || '', cost: e.cost || '', row: e.row || null, sheetStatus: e.sheetStatus || '', year: yearOf(e) },
@@ -191,6 +195,15 @@ const commands = {
   async get() { const e = await getDoc('events', pos[0] || die('get <id>')); if (!e) die('no such event'); out({ ...e, ...pickPriv(await getDoc(CONTACTS, e.id)) }); },
   async set() {
     const id = pos[0] || die('set <id> field=value …'); if (!Object.keys(kv).length) die('nothing to set');
+    const { APP_DATES, SUBMISSION_MAX, manualSource, srcKey } = await import('./lib/app-dates.mjs');   // loaded here: the tick's path stays dependency-free
+    // a date typed in by hand is tagged as a person's (lib/app-dates.mjs): research never changes it
+    for (const [f] of APP_DATES) if (f in kv) {
+      const v = String(kv[f] ?? '').trim();
+      if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) die(`${f} must be YYYY-MM-DD (or empty to clear it)`);
+      kv[f] = v;
+      if (!(srcKey(f) in kv)) kv[srcKey(f)] = v ? manualSource(flags.by || process.env.BOARD_BY || '', iso(today())) : null;
+    }
+    if ('submissionNotes' in kv) { kv.submissionNotes = String(kv.submissionNotes ?? '').trim(); if (kv.submissionNotes.length > SUBMISSION_MAX) die(`submissionNotes is ${kv.submissionNotes.length} characters; VC's Comments hold 500 in all, so keep it to ${SUBMISSION_MAX}`); }
     if (kv.startDate) Object.assign(kv, recomputeDates(await getDoc('events', id), kv.startDate));
     const { pub, priv } = splitPriv(kv); let r = null;
     if (hasKeys(priv)) { if (!(await getDoc('events', id))) die('no such event'); await mergeDoc(CONTACTS, id, priv); }
@@ -206,9 +219,11 @@ const commands = {
     const slug = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
     const id = `${Y}-${slug}-${Math.random().toString(36).slice(2, 7)}`;
     const doc = { year: Y, season: String(Y), source: 'board', name, weekend: fridayKey(st), days, dates, startDate: st, endDate: en, datesEstimated: false,
-      cityState: flags.city || '', location: '', promoter: '', contact: '', phone: '', email: '', website: '', address: '', setting: '', applyUrl: '', applyBy: '', notes: '',
+      cityState: flags.city || '', location: '', promoter: '', contact: '', phone: '', email: '', website: '', address: '', setting: '', applyUrl: '', applyBy: '', applyOpens: '', submissionNotes: '', notes: '',
       cost: '', costBasis: 'date', bestCPO: '', tier: 'Traditional', access: 'Unassigned', level: '', flag: '', status: 'Prospective', vcNumber: '', dead: false, skipNext: false, neverWork: false,
       booths: [{ label: '', status: '', days, dates, shifts: [{ label: 'Shift 1', slots: days.map(() => ({ rep: '', ft: [] })) }] }], createdAt: new Date().toISOString(), createdBy: ACTOR, ...kv };
+    const { APP_DATES, manualSource, srcKey } = await import('./lib/app-dates.mjs');
+    for (const [f] of APP_DATES) if (doc[f] && !doc[srcKey(f)]) doc[srcKey(f)] = manualSource(flags.by || process.env.BOARD_BY || '', iso(today()));
     const { pub, priv } = splitPriv(doc);
     await setDoc('events', id, pub); if (hasValue(priv)) await setDoc(CONTACTS, id, priv);
     out(json ? { id } : `added ${name} as ${id}`);
@@ -225,9 +240,10 @@ const commands = {
     if (flags['dry-run']) return out(todo.map(e => ({ from: e.id, to: rollId(e, Y), name: e.name })));
     const cm = await contactMap();
     const { spotShow, rollSpot } = await import('./lib/booth-spots.mjs');
+    const { rollAppDates } = await import('./lib/app-dates.mjs');
     const spots = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8')).boothSpots;
     const spotOf = e => spotShow(e.name, spots) ? b => rollSpot(b, yearOf(e)) : undefined;
-    let n = 0; for (const e of todo) { const to = rollId(e, Y); await setDoc('events', to, splitPriv(rollDoc(e, Y, spotOf(e))).pub); const c = pickPriv(cm[e.id]); if (hasValue(c)) await setDoc(CONTACTS, to, c); n++; }
+    let n = 0; for (const e of todo) { const to = rollId(e, Y); await setDoc('events', to, splitPriv(rollDoc(e, Y, spotOf(e), rollAppDates)).pub); const c = pickPriv(cm[e.id]); if (hasValue(c)) await setDoc(CONTACTS, to, c); n++; }
     await setDoc('seasons', String(Y), { id: String(Y), label: String(Y), source: 'board', rolledFrom: String(Y - 1), rolledAt: new Date().toISOString(), count: n, by: ACTOR });
     out(`rolled ${n} events into ${Y}`);
   },

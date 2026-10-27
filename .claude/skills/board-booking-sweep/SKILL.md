@@ -36,10 +36,13 @@ Two things change now that the board exists:
 1. **The board is the schedule.** Where that skill says "pull the schedule row", read the event
    from the board instead. The fields it needs are already there: `promoter`, `contact`, `phone`,
    `email`, `website`, `location`, `address`, `cityState`, `cost`, `setting` (indoor / outdoor /
-   both), `applyUrl`, `applyBy`. Research only what is blank or looks stale.
-2. **`notes` go into the form's Comments.** Alan and JP write there what Olean needs to hear —
-   "north side of the venue, not south", "returning vendor since 2022", "cost is an estimate".
-   Put the event's `notes` first in Comments (500-char cap), then the skill's own caveats.
+   both), `applyUrl`, `applyOpens`, `applyBy`. Research only what is blank or looks stale.
+2. **`submissionNotes` go into the form's Comments** (since 2026-10-26; `notes` is the team's own and never goes to
+   Cutco). Coordinators write there what Olean needs to hear: "returning vendor since 2022", "ask for booth 12".
+   Comments = the Submission Notes, then "Application opens: <date> · Deadline: <date>." (VC's form has no field for
+   either), then the skill's own caveats, all within 500 characters; never cut the notes, hold the show and say why.
+   A date tagged "Taken from last year" (`applyBySource.kind` rolled) is an estimate: write "(last year's date, not
+   confirmed)" after it. A Manual date is a coordinator's: never replace it with what research finds.
 
 Batch rule stands: gather everything, show Alan the whole batch, submit only after he says go.
 A meeting produces 20–40 of these; one approval covers the batch.

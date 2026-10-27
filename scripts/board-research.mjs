@@ -16,7 +16,7 @@
     board-research.mjs targets --mode dates|full|mismatches --check <out/event-check/latest.json> [--exclude-file <json>] [--skip-tiers Elite,...] [--skip-names golf,builder]
                                [--out <file>] [--date YYYY-MM-DD]
     board-research.mjs apply --targets <file> --research <file> --mode dates|full [--label date-research|preflight|booking-sweep]
-                             [--apply] [--max-date-changes N] [--date YYYY-MM-DD]
+                             [--apply] [--max-date-changes N] [--date YYYY-MM-DD] [--app-dates on|off] [--manual-wins on|off]
 
   targets: upcoming, live (not dead or never-work), not Mesa (outside VC), not on the exclude list, not of a tier in
   --skip-tiers (Alan, 2026-09-24: Elite events are handled by the team, never researched; they are counted), not a show
@@ -38,9 +38,16 @@
     Every change writes datesNote (shown on the board), datesSource and datesMoved. More than --max-date-changes
     (default 25) at once is refused and nothing is written (exit 5).
   apply, full (the preflight) also: blanks are filled from the event's or promoter's own pages (venue, address,
-    city/state, promoter, website, application link and deadline, contact name/phone/e-mail, indoor/outdoor,
-    cost); venue, promoter, website and application link are corrected when the official page says otherwise;
-    an existing contact, cost, address or indoor/outdoor answer is never overwritten, only reported.
+    city/state, promoter, website, application link, contact name/phone/e-mail, indoor/outdoor, cost); venue,
+    promoter, website and application link are corrected when the official page says otherwise; an existing contact,
+    cost, address or indoor/outdoor answer is never overwritten, only reported.
+  apply, full, application dates (Alan, 2026-10-26; lib/app-dates.mjs; --app-dates off leaves them alone): when the
+    applications open and the deadline, each only from words on the event's or promoter's own page that fit THIS
+    edition (last year's dates and guesses are set aside and listed). A found date fills a blank, replaces last year's
+    estimate (a roll's "Taken from last year") or an earlier research date, tagged Research with the page, the words
+    and the day checked. A date a person typed (Manual) is never changed while --manual-wins is on (the default): a
+    different finding is flagged on the show (shown on the board) and listed. No page states it = left as it is and
+    listed as not found. A failed lookup changes nothing.
   Output: out/research/latest.json (+ dated copy, 600), out/reports/<label>-<date>.md (no contacts).
   Exit: 0 ok · 1 error · 4 no trustworthy event check · 5 refused (too many date changes; nothing written)
 */
@@ -51,6 +58,7 @@ import { boardApi } from './lib/board-api.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { normName, dayDiff, tierOf, lastDay } from './lib/match.mjs';
 import { sellingRun, within, sameRun, planMove, runDays, isSE, rolledForLater } from './lib/dates.mjs';
+import { APP_DATES, checkFinding, decideAppDate, wantsAppDates, sourceOf } from './lib/app-dates.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -104,8 +112,8 @@ async function targets() {
     if (mismatch === false && mode === 'mismatches') continue;
     if (r && (r.ruling || r.category === 'dead')) continue;
     const tgt = { id: e.id, name: t(e.name), weekend: e.weekend, run, datesEstimated: !!e.datesEstimated, cityState: t(e.cityState), location: t(e.location),
-      address: t(e.address), promoter: t(e.promoter), website: t(e.website), applyUrl: t(e.applyUrl), applyBy: t(e.applyBy), cost: t(e.cost), setting: t(e.setting),
-      staffed: !!(r && r.staffed), reps: r ? r.reps || [] : [], vc, mismatch, multiWeek: !!(vc && (claims.get(vc.number) || 0) > 1), lastYear: e.lastYear || null };
+      address: t(e.address), promoter: t(e.promoter), website: t(e.website), applyUrl: t(e.applyUrl), applyBy: t(e.applyBy), applyOpens: t(e.applyOpens), cost: t(e.cost), setting: t(e.setting),
+      appDatesWanted: wantsAppDates(e, TODAY), staffed: !!(r && r.staffed), reps: r ? r.reps || [] : [], vc, mismatch, multiWeek: !!(vc && (claims.get(vc.number) || 0) > 1), lastYear: e.lastYear || null };
     if (mode === 'full') Object.assign(tgt, { contact: t(e.contact), phone: t(e.phone), email: t(e.email) });
     if (mode === 'mismatches' && tgt.multiWeek) continue;          // never moved anyway: the sweep asks Alan about it
     out.push(tgt);
@@ -173,10 +181,7 @@ export function decideFields(e, R) {
     fill('contact', p.contactName, p); fill('phone', p.phone, p); fill('email', p.email, p);
     report('contact', p.contactName, p); report('phone', p.phone, p);
   }
-  if (R.application) {
-    correct('applyUrl', R.application.url, R.application, (a, b) => sameUrl(a, b, true));
-    if (/^\d{4}-\d{2}-\d{2}$/.test(t(R.application.deadline))) correct('applyBy', R.application.deadline, R.application);
-  }
+  if (R.application) correct('applyUrl', R.application.url, R.application, (a, b) => sameUrl(a, b, true));   // its dates: decideAppDates
   if (R.indoorOutdoor && ['indoor', 'outdoor', 'both'].includes(R.indoorOutdoor.value) && t(R.indoorOutdoor.evidence)) {
     const g = { confidence: 'official', sourceUrl: R.indoorOutdoor.sourceUrl };
     if (/^https?:\/\//i.test(t(g.sourceUrl))) { fill('setting', R.indoorOutdoor.value, g); report('setting', R.indoorOutdoor.value, g); }
@@ -193,6 +198,28 @@ export function decideFields(e, R) {
   return { patch, changes, notes };
 }
 
+/**
+ * The application dates for one researched show (lib/app-dates.mjs). Pure.
+ * @returns { patch, found: [...], kept: [...], notFound: [...], rejected: [...] } (report rows: { which, ... })
+ */
+export function decideAppDates(e, R, run, { today, manualWins = true } = {}) {
+  const out = { patch: {}, found: [], kept: [], notFound: [], rejected: [] };
+  const app = R && R.application;
+  const deadline = checkFinding(app, 'deadline', run, null);
+  const byAfter = deadline && deadline.date ? deadline.date : (sourceOf(e, 'applyBy') || {}).kind === 'rolled' ? '' : t(e.applyBy);
+  const opens = checkFinding(app, 'opens', run, byAfter);
+  for (const [field, which] of APP_DATES) {
+    let f = which === 'opens' ? opens : deadline;
+    if (f && f.rejected) { out.rejected.push({ which, why: f.rejected }); f = null; }
+    const d = decideAppDate(e, field, f, { today, manualWins });
+    Object.assign(out.patch, d.patch);
+    if (d.kind === 'set') out.found.push({ which, from: d.from, fromKind: d.fromKind, to: d.to, source: d.url });
+    else if (d.kind === 'kept') out.kept.push({ which, board: d.board, by: d.by, found: d.found.date, source: d.found.url });
+    else if (d.kind === 'not-found') out.notFound.push({ which, estimate: d.estimate, board: t(e[field]) });
+  }
+  return out;
+}
+
 async function apply() {
   const mode = opt('--mode'), label = opt('--label', mode === 'full' ? 'preflight' : 'date-research');
   if (!['dates', 'full'].includes(mode)) throw new Error('--mode dates|full');
@@ -202,8 +229,9 @@ async function apply() {
   const results = RS.results || {};
   const api = boardApi({ actor: `service:${label}` });
   const byId = new Map((await api.events()).map(e => [e.id, e]));
+  const appDates = mode === 'full' && opt('--app-dates', 'on') !== 'off', manualWins = opt('--manual-wins', 'on') !== 'off';
   const out = { date: TODAY, label, mode, apply: flag('--apply'), written: false, researched: 0, confirmed: 0, skippedTiers: T.skippedTiers || [], changes: [], vcDisagrees: [], unconfirmed: [], cancelled: [], failed: [],
-    notResearched: [], questions: [], fieldChanges: [], fieldNotes: [], usage: RS.usage || null, cost: RS.cost ?? null, capped: RS.capped || 0, maxCost: RS.maxCost ?? null,
+    notResearched: [], questions: [], fieldChanges: [], fieldNotes: [], appDates: appDates ? { manualWins, found: [], kept: [], notFound: [], rejected: [] } : null, usage: RS.usage || null, cost: RS.cost ?? null, capped: RS.capped || 0, maxCost: RS.maxCost ?? null,
     model: RS.model || null, meeting: RS.meeting || null, perMeeting: RS.perMeeting ?? null, spentBefore: RS.spentBefore ?? null,
     reused: Object.values(results).filter(x => x && x.reused).length };
   const moves = [], fieldPatches = [];
@@ -233,6 +261,11 @@ async function apply() {
     }
     if (mode === 'full' && res && res.ok) {
       const f = decideFields(e, res.result);
+      if (appDates) {
+        const a = decideAppDates(e, res.result, run, { today: TODAY, manualWins });
+        Object.assign(f.patch, a.patch);
+        for (const k of ['found', 'kept', 'notFound', 'rejected']) for (const x of a[k]) out.appDates[k].push({ id: e.id, name: tgt.name, ...x });
+      }
       if (Object.keys(f.patch).length) fieldPatches.push({ id: e.id, patch: f.patch });
       for (const c of f.changes) out.fieldChanges.push({ id: e.id, name: tgt.name, ...c, private: ['contact', 'phone', 'email'].includes(c.field) });
       for (const n of f.notes) out.fieldNotes.push({ id: e.id, name: tgt.name, ...n });
@@ -269,7 +302,8 @@ async function apply() {
   out.written = flag('--apply') && (out.changes.some(c => c.applied) || fieldPatches.length > 0);
   out.counts = { targets: (T.targets || []).length, researched: out.researched, reused: out.reused, confirmed: out.confirmed, changes: out.changes.length, vcDisagrees: out.vcDisagrees.length,
     unconfirmed: out.unconfirmed.length, cancelled: out.cancelled.length, failed: out.failed.length, notResearched: out.notResearched.length, questions: out.questions.length,
-    fieldChanges: out.fieldChanges.length, fieldNotes: out.fieldNotes.length };
+    fieldChanges: out.fieldChanges.length, fieldNotes: out.fieldNotes.length,
+    ...(out.appDates ? { appDatesFound: out.appDates.found.length, appDatesKept: out.appDates.kept.length, appDatesNotFound: out.appDates.notFound.length, appDatesRejected: out.appDates.rejected.length } : {}) };
   const dir = path.join(OUT_BASE, 'research');
   writeJson(path.join(dir, 'latest.json'), out); writeJson(path.join(dir, `${label}-${TODAY}.json`), out);
   fs.mkdirSync(path.join(OUT_BASE, 'reports'), { recursive: true });
@@ -284,6 +318,7 @@ export function summaryMd(r) {
   const n = (k, one, many = one + 's') => `${k} ${k === 1 ? one : many}`;
   if ((r.skippedTiers || []).length) L.push(`Not researched, the team handles them: ${r.skippedTiers.map(x => `${x.name} (${x.tier})`).join(', ')}.`, '');
   L.push(`${n(c.targets, 'show')}, ${c.researched} researched${c.reused ? ` (${c.reused} already known from earlier runs, not looked up again)` : ''}: ${n(c.confirmed, 'date')} confirmed, ${c.changes} moved, ${c.unconfirmed} not confirmed online, ${n(c.failed, 'lookup')} failed.`);
+  if (r.appDates) L.push(`Application dates: ${c.appDatesFound || 0} found, ${c.appDatesKept || 0} typed in by hand that research disagrees with (kept), ${c.appDatesNotFound || 0} not posted yet.`);
   const sec = (title, xs, line) => { if (xs && xs.length) { L.push('', `## ${title}`); for (const x of xs) L.push('- ' + line(x)); } };
   sec('Dates moved', r.changes, x => `${x.name}: ${fmt(x.from)} -> ${fmt(x.to)} (${x.basis === 'vc' ? `VectorConnect ${x.vcNumber}, not confirmed online` : x.host})${x.affected.length ? `; reps: ${x.affected.map(a => `${a.rep} ${a.to ? `${a.from}->${a.to}` : `${a.from} gone`}`).join(', ')}` : ''}${x.applied ? '' : ' (not applied)'}`);
   sec('VectorConnect disagrees with the event\'s own page (fix VC)', r.vcDisagrees, x => `${x.name}: VC ${x.vc.number} has ${fmt({ start: x.vc.start, end: x.vc.end })}, ${host(x.source)} says ${fmt(x.web)}`);
@@ -293,6 +328,15 @@ export function summaryMd(r) {
   sec('Lookups that failed (nothing changed)', r.failed, x => `${x.name}: ${x.why}`);
   sec('Filled or corrected on the board', r.fieldChanges, x => `${x.name}: ${x.field} ${x.private ? '(contact detail)' : `"${x.from || '(blank)'}" -> "${x.to}"`} per ${host(x.source)}`);
   sec('Different online, left alone', r.fieldNotes, x => `${x.name}: ${x.field} ${['contact', 'phone', 'email'].includes(x.field) ? '(contact detail)' : `board "${x.board}", online "${x.found}"`} per ${host(x.source)}`);
+  const A = r.appDates, W = { opens: 'opens', deadline: 'deadline' };
+  if (A) {
+    sec('Application dates typed in by hand that research disagrees with (the board kept yours)', A.kept, x => `${x.name}: ${W[x.which]} ${x.board}${x.by ? ` (Manual, ${x.by})` : ' (Manual)'}, ${host(x.source)} says ${x.found}`);
+    sec('Application dates found', A.found, x => `${x.name}: ${W[x.which]} ${x.to} per ${host(x.source)}${x.from ? ` (was ${x.from}${x.fromKind === 'rolled' ? ", last year's estimate" : x.fromKind === 'manual' ? ', typed in by hand' : ''})` : ''}`);
+    const nf = new Map();
+    for (const x of A.notFound) { if (!nf.has(x.id)) nf.set(x.id, { name: x.name, parts: [] }); nf.get(x.id).parts.push(`${W[x.which]}${x.estimate ? ` (still last year's estimate, ${x.board})` : ''}`); }
+    sec('Application dates no page states yet', [...nf.values()], x => `${x.name}: ${x.parts.join(', ')}`);
+    sec('Application dates set aside (last year\'s, another edition\'s, or no words that state them)', A.rejected, x => `${x.name}: ${W[x.which]}: ${x.why}`);
+  }
   return L.join('\n');
 }
 
