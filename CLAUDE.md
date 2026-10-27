@@ -325,11 +325,11 @@ the service key moves them on.
   may wait on `animationend` without checking `RM` first.
 - **Grid is one cell per day, read-only too** (Alan, 2026-10-27: "think of it like an Excel. I want to see Alec on all the
   days he's working"). A run of one name, of open days or of no-shift days is never merged into one spanning cell (it put
-  the name in the first column only). The tests hold `gridCells` to it. **The month jump** (same day: scrolling down to
-  December took too long) sits in the pinned row beside the season tabs (`#mJump`; `renderMonthJump`, `markMonth`,
-  `jumpToMonth`): it says the month in view, and its native select (16px) lists the season's months as filtered, with open
-  counts; a weekend counts in its Friday's month, a past-only month is under "Earlier" and opens that fold first, a long
-  jump is instant. Hidden on Kiosk and Never.
+  the name in the first column only). The tests hold `gridCells` to it. **The weekend jump** (same day: a month jump still left
+  7 phone screens of scrolling to Nov 20) sits in the pinned row beside the season tabs (`#wkJump`; `renderWeekJump`,
+  `markWeekend`, `jumpToWeekend`, `stepWeekend`): ‹ › step one weekend, and the button between says the weekend in view and
+  opens a native select (16px) of the season's weekends as filtered, under month headers, each with what its header says
+  (open shifts, Full, past). A past weekend opens the "Earlier" fold first; jumps are instant. Hidden on Kiosk and Never.
 - **A two-tap remove is armed in the page, never in the button** (`armed`, `arm()`, `isArmed()` in index.html; 10 s,
   "keep it" backs out). Any save redraws the board half a second later, and a button that kept its own "tap again" was
   reset by it, so the second tap only armed it again and nothing was removed (Park Place 2025, 2026-10-14; the show
