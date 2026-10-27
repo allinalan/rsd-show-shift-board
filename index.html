@@ -416,7 +416,6 @@ table.wgrid .namecell.is-open{border:0;background:none;color:var(--ok);opacity:.
 table.wgrid .namecell.is-x{background:none;color:var(--ink-3);opacity:.4;font-size:var(--t-cap2);border-color:transparent;text-align:left}
 /* one show, one name: consecutive days with the same person read as a single bar instead of
    five identical boxes you have to read five times */
-table.wgrid td.gcell.run .namecell{border-radius:7px}
 /* nothing to label: the column becomes a thin tier-colored spine tying the rows to their show */
 table.wgrid.nolbl th.gname{min-width:10px;width:10px;max-width:10px;padding:0;font-size:0}
 table.wgrid.nolbl thead th.gname{border-right:1px solid var(--line)}
@@ -933,6 +932,18 @@ h1{font-size:var(--t-title2);line-height:28px;letter-spacing:-.018em}
 .seg button small{font-family:var(--f-body);font-size:var(--t-cap);font-weight:400;color:var(--ink-3)}
 .seg button[aria-selected="true"] small{color:inherit}   /* ink-3 falls under 4.5:1 on the dark thumb */
 .seg button.tab-kiosk{color:var(--ink-2)} .seg button.tab-kiosk[aria-selected="true"]{background:var(--seg-thumb);color:var(--ink)}
+/* ---- jump to a month (Alan, 2026-10-27): beside the season tabs, so it stays pinned; says the month in view. The select
+   is laid over it unseen, so a tap opens the phone's own wheel. 16px or iOS zooms the page when it is tapped. ---- */
+.segrow{gap:8px}
+#seasonSeg{min-width:0}
+.mjump{position:relative;flex:none;display:inline-flex;align-items:center;gap:6px;padding:0 11px;min-height:34px;border-radius:10px;
+  background:color-mix(in srgb,var(--ink) 8%,transparent);font-family:var(--f-body);font-size:var(--t-foot);font-weight:600;color:var(--ink);
+  white-space:nowrap;cursor:pointer}
+.mjump[hidden]{display:none}
+.mjump svg{flex:none;color:var(--ink-2)}
+.mjump select{position:absolute;inset:0;width:100%;height:100%;margin:0;border:0;opacity:0;cursor:pointer;font-size:16px;-webkit-appearance:none;appearance:none}
+.mjump:focus-within{outline:2px solid var(--navy);outline-offset:2px}
+@media (max-width:640px){ .mjump{margin-left:auto;min-height:44px} }
 .seg button.tab-never{color:var(--pend)} .seg button.tab-never[aria-selected="true"]{background:var(--seg-thumb);color:var(--pend)}
 .kiosk .band-h .seg button{color:var(--ink-2)} .kiosk .band-h .seg button[aria-selected="true"]{background:var(--seg-thumb);color:var(--ink)}
 /* the switch at iOS proportions; the thumb is always the light one */
@@ -1088,7 +1099,13 @@ body:not(.gridv):not(.kioskv) .band:not(.past)>.band-h{position:sticky;top:var(-
    </label>
   </div>
   <div class="tallyrow"><div class="tally" id="tally"></div><div class="stamp" id="stamp"></div></div>
-  <div class="segrow"><div class="seg" id="seasonSeg" role="tablist"></div></div>
+  <div class="segrow"><div class="seg" id="seasonSeg" role="tablist"></div>
+   <label class="mjump ev-only" id="mJump" hidden title="Jump to a month">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M2.5 7h11M5.5 2v3M10.5 2v3"/></svg>
+    <span id="mJumpL"></span>
+    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+    <select id="mJumpSel" aria-label="Jump to a month"></select>
+   </label></div>
  </div>
 </header>
 
@@ -1544,6 +1561,46 @@ function pinHeads(){
     head.style.transform=off?'translateY('+off+'px)':'';
     head.classList.toggle('pinned',off>0);
   });
+  markMonth(topH);
+}
+/* ---- jump to a month (Alan, 2026-10-27: scrolling down to December took too long). The button beside the season tabs
+   says the month in view; picking a month scrolls to its first weekend. A weekend belongs to the month of its Friday, as
+   its "Weekend of" title does. A month with a weekend still to come goes to the first of those; a month that is all past
+   is listed under "Earlier" and opens the folded weekends first. Built from the weekends on the board, filters included. */
+let mjTo={}, mjHtml='';   // month key -> the weekend it jumps to
+const mKey=w=>{ const d=wkDate(w); return d?iso(d).slice(0,7):'none'; };
+const mName=(k,len)=>{ if(k==='none') return len==='long'?'No date yet':'No date';
+  const [y,m]=k.split('-').map(Number), s=new Date(y,m-1,1).toLocaleDateString('en-US',{month:len});
+  return y===year()?s:len==='long'?`${s} ${y}`:`${s} '${String(y).slice(2)}`; };
+function renderMonthJump(order,byW){
+  const box=document.getElementById('mJump'), sel=document.getElementById('mJumpSel'), ms=new Map();
+  (order||[]).forEach(w=>{ const k=mKey(w), m=ms.get(k)||{past:[],live:[],open:0}; ms.set(k,m);
+    if(wkPast(w)) m.past.push(w);
+    else { m.live.push(w); byW[w].forEach(e=>{ const p=pickState(e); if(p.key==='open') m.open+=p.n; }); } });
+  mjTo={}; box.hidden=ms.size<2; if(box.hidden) return;
+  const opt=(k,t)=>`<option value="${esc(k)}">${esc(t)}</option>`, past=[], live=[];
+  ms.forEach((m,k)=>{ if(m.live.length){ mjTo[k]=m.live[0]; live.push(opt(k,mName(k,'long')+(m.open?` · ${m.open} open`:''))); }
+    else { mjTo[k]=m.past[0]; past.push(opt(k,mName(k,'long'))); } });
+  const html=past.length?`<optgroup label="Earlier in ${year()}">${past.join('')}</optgroup><optgroup label="Coming up">${live.join('')}</optgroup>`:live.join('');
+  if(html!==mjHtml){ sel.innerHTML=html; mjHtml=html; }   // a redraw while the picker is open leaves it alone
+}
+function markMonth(topH){
+  const box=document.getElementById('mJump'); if(box.hidden) return;
+  let on=null;
+  for(const b of document.querySelectorAll('#board .band')){ if(b.getBoundingClientRect().top<=topH+48) on=b; else break; }
+  on=on||document.querySelector('#board .band'); if(!on) return;
+  const k=mKey(on.dataset.w), sel=document.getElementById('mJumpSel');
+  document.getElementById('mJumpL').textContent=mName(k,'short');
+  if(mjTo[k]&&sel.value!==k) sel.value=k;
+}
+function jumpToMonth(k){
+  const w=mjTo[k]; if(!w) return;
+  if(wkPast(w)&&!pastAllOpen){ pastAllOpen=true; build(); }
+  const el=[...document.querySelectorAll('#board .band')].find(b=>b.dataset.w===w); if(!el) return;
+  const topH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topH'))||0;
+  const y=Math.max(0,el.getBoundingClientRect().top+scrollY-topH);   // a long way is there at once: a glide over months took 2 s
+  scrollTo({top:y,behavior:RM.matches||Math.abs(y-scrollY)>innerHeight*1.5?'auto':'smooth'});
+  markMonth(topH);
 }
 function drawColRules(){
   document.querySelectorAll('table.wgrid').forEach(t=>{
@@ -1646,6 +1703,7 @@ function build(){
   document.body.classList.toggle('kioskv',viewKiosk());
   { const n=(F.rep?1:0)+(F.lvl?1:0)+(F.bk?1:0)+F.state.size+F.tier.size, b=document.getElementById('ctlN'); if(b){ b.hidden=!n; b.textContent=n; } }
   renderHeader();
+  renderMonthJump(null);   // shown again below once there are weekends to jump between
   if(viewNever()){ renderNever(); return; }
   if(viewKiosk()){ renderKiosks(); return; }
   refreshFilters();
@@ -1662,6 +1720,7 @@ function build(){
   const byW={};
   list.forEach(e=>{const d=wkDate(e.weekend); const w=d?iso(d):'Unscheduled'; (byW[w]=byW[w]||[]).push(e);});
   const order=Object.keys(byW).sort((a,b)=>{const da=wkDate(a),dbb=wkDate(b); if(!da&&!dbb)return 0; if(!da)return 1; if(!dbb)return -1; return da-dbb;});
+  renderMonthJump(order,byW);
   const bandHtml=w=>{
     const evs=byW[w].sort((a,b)=>KORDER.indexOf(pickState(a).key)-KORDER.indexOf(pickState(b).key));
     const past=wkPast(w), collapsed=past&&pastClosed.has(w);
@@ -2125,7 +2184,7 @@ function gtags(e){
   if(!isDefaultAcc(e)) h+=`<span class="acc mini pillish acc-${ACCCLS(ac)}"><i>for</i> ${esc(ACCSHORT[ac]||ac)}</span>`;
   return h;
 }
-function cellFor(e,b,bi,s,si,di,ps,P,wide,runN){
+function cellFor(e,b,bi,s,si,di,ps,P,wide){
   const sl=s.slots[di]||{rep:'',ft:[]}; const v=val(e,bi,si,di,sl.rep), se=isSE(b.days[di]);
   const cap=x=>String(x).replace(/\b\w/g,ch=>ch.toUpperCase());
   const ft=(sl.ft||[]).length?`<div class="ft">${sl.ft.map(f=>`<span>ft. ${esc(cap(f))}</span>`).join('')}</div>`:'';
@@ -2133,7 +2192,7 @@ function cellFor(e,b,bi,s,si,di,ps,P,wide,runN){
   if(!P){
     if(v==='__X__') return `<div class="namecell is-x">${wide?'no shift':'—'}</div>`;
     if(!v&&se) return `<div class="namecell is-se" title="${SETIP}">sharpening</div>`;
-    if(!v) return `<div class="namecell is-open">${ps.key==='closed'?'—':(runN>1?`open · ${runN} days`:'open')}</div>`;
+    if(!v) return `<div class="namecell is-open">${ps.key==='closed'?'—':'open'}</div>`;
     return `<div class="namecell${se?' se-on':''}"${se?` title="${SETIP}"`:''}>${esc(v)}${se?'<span class="setag">SE</span>':''}${ft}${cv}</div>`;
   }
   const cls=(v==='__X__'?'xd':(v?'filled':'open-slot'))+(se?' se':'');
@@ -2141,34 +2200,14 @@ function cellFor(e,b,bi,s,si,di,ps,P,wide,runN){
   return `<div class="slotbox ${cls}"${se?` title="${SETIP}"`:''}><button class="slotpick" data-b="${bi}" data-s="${si}" data-d="${di}" aria-haspopup="listbox" aria-label="${esc(s.label)} ${esc(b.days[di])}${se?' (sharpening event)':''} — ${esc(txt)}">${esc(txt)}</button>${ft}${cv}</div>`;
 }
 
-/* Read-only: collapse a run of identical assignments into one cell that spans those days, so
-   "J. Parker" on five days reads as one bar instead of five boxes saying the same thing.
-   Plan mode keeps one cell per day — you have to be able to change a single day. */
+/* One cell per day, read-only and Plan mode alike, like the Sheet (Alan, 2026-10-27: "think of it like an Excel. I want
+   to see Alec on all the days he's working"). A run of the same name used to be one cell spanning its days, which put
+   the name in the first column only, so three days worked read as one. */
 function gridCells(cols,byDate,e,b,bi,s,si,ps,P){
-  const stateOf=di=>{
-    if(di==null) return 'NA';
-    const sl=s.slots[di]||{rep:'',ft:[]}, v=val(e,bi,si,di,sl.rep), se=isSE(b.days[di])?'SE':'';
-    if(!v) return 'OPEN|'+se;
-    if(v==='__X__') return 'X|'+se;
-    const cv=covAt(covKey.show(e.id,bi,si,di),v);   // a day with a coverage ask is its own cell, never merged into the run
-    return 'N|'+v+'|'+((sl.ft||[]).join('&'))+'|'+se+'|'+(cv?cv.text:'');
-  };
-  let out='',i=0;
-  while(i<cols.length){
-    const [k,l,se]=cols[i], di=byDate[k], st=stateOf(di);
-    /* A run of days in the same state is one cell. Two boxes side by side in a one-shift row read
-       as two shifts, which is exactly the wrong thing. Plan mode keeps one cell per day so a single
-       day can still be changed — but the days a show does not run collapse in both modes. */
-    const mergeable=!P||st==='NA';
-    let n=1;
-    if(mergeable){ while(i+n<cols.length && stateOf(byDate[cols[i+n][0]])===st) n++; }
-    const span=n>1?` colspan="${n}"`:'';
-    const seCls=(se||(di!=null&&isSE(b.days[di])))?' se-col':'';
-    if(di==null) out+=`<td class="gcell na${seCls}"${span}></td>`;
-    else out+=`<td class="gcell${seCls}${n>1?' run':''}"${span}>${cellFor(e,b,bi,s,si,di,ps,P,false,n)}</td>`;
-    i+=n;
-  }
-  return out;
+  return cols.map(([k,,se])=>{
+    const di=byDate[k], seCls=(se||(di!=null&&isSE(b.days[di])))?' se-col':'';
+    return di==null?`<td class="gcell na${seCls}"></td>`:`<td class="gcell${seCls}">${cellFor(e,b,bi,s,si,di,ps,P,false)}</td>`;
+  }).join('');
 }
 function gridTable(w,evs){
   const cols=weekendCols(w,evs), P=plan();
@@ -2838,6 +2877,7 @@ if(window.visualViewport) visualViewport.addEventListener('resize',()=>{ if(pick
 addEventListener('scroll',()=>{ if(pickCtx) placePop(); },true);
 document.getElementById('seasonSeg').addEventListener('click',e=>{const b=e.target.closest('[data-year]'); if(!b)return; const y=b.dataset.year; store.year=(y==='never'||y==='kiosk')?y:+y; save(); open.clear(); build();});
 document.getElementById('q').addEventListener('input',e=>{F.q=e.target.value;build();});
+document.getElementById('mJumpSel').addEventListener('change',e=>jumpToMonth(e.target.value));
 document.getElementById('rep').addEventListener('change',e=>{F.rep=e.target.value;build();});
 document.getElementById('lvl').addEventListener('change',e=>{F.lvl=e.target.value;build();});
 document.getElementById('bk').addEventListener('change',e=>{F.bk=e.target.value;build();});
