@@ -376,9 +376,10 @@ the service key moves them on.
   remove a booth or a shift row, a booth's name, the spot tag, a date move) with `set_booths`, built on a fresh read of the
   row and written only if `booths` hasn't moved since (`saveShow` and the `safe-saves` block in index.html,
   `supabase/schema.sql`). Never write a whole `booths` copied from the page through `merge_doc` again: that is how a pick
-  made a second earlier on another screen was put back with no error. The routines (Sheet sync, coverage agent, research,
-  roll-forward) still write through `merge_doc`; the coverage agent's slot move should go through `set_slot` before the
-  January meeting (stage 3 doc, item 1).
+  made a second earlier on another screen was put back with no error. A routine that moves one person's shift uses
+  `setSlot` in `scripts/lib/board-api.mjs` (the same function, with the routine as the changelog actor): rsd-shift-picking's
+  coverage agent since 2026-10-27. The Sheet sync, the research and roll-forward still write whole shows through
+  `merge_doc` (they rebuild a show, not one slot; the sync stops on January 13).
 - A shift is a slot with a `rep` that isn't empty or `__X__`. **SE days are never shifts.** Nor are set-up / tear-down
   days ("set-up" with a hyphen too) or a day column that names no day ("Tucson, AZ", "Service Events"): the page's
   `offDay()` / `notShift()`, the scripts' `isSE()` (2026-10-27). A day label is read for the weekday it names past

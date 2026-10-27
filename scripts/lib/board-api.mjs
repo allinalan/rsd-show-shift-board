@@ -66,6 +66,12 @@ export function boardApi({ actor } = {}) {
       if (Object.keys(priv).length) await merge('event_contacts', id, priv);
       if (Object.keys(pub).length) await merge('events', id, pub);
     },
+    /** One slot of a show, written only if it still holds `seen` ({ rep, ft }): set_slot in supabase/schema.sql (stage 3,
+     *  2026-10-27; the coverage agent's move). Answers { ok: true, slot } or { ok: false, why: 'changed' (with `now`, what
+     *  the slot holds) | 'gone' | 'bad' }; a stale slot is an answer, never a throw. The changelog says who (`actor`). */
+    async setSlot(id, booth, shift, day, seen, value) {
+      return rest('POST', 'rpc/set_slot', { p_event: id, p_booth: booth, p_shift: shift, p_day: day, p_seen: seen, p_value: value, p_actor: who });
+    },
     /** Create an event document (and its contacts row when it carries any). */
     async createEvent(id, doc) {
       const { pub, priv } = splitPriv(doc);

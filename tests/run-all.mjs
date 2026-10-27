@@ -42,6 +42,14 @@ const server = http.createServer((req, res) => {
       if (req.method === 'POST') { for (const r of JSON.parse(body)) { const id = ++flatId; T(p).set(id, { id, requested_at: new Date().toISOString(), requested_by: '', status: 'pending', started_at: null, finished_at: null, result: null, ...r }); } return send(201); }
       if (req.method === 'PATCH') { const hit = rows.filter(r => pgMatch(r, u)); const patch = JSON.parse(body); hit.forEach(r => Object.assign(r, patch)); return send(200, hit); }
     }
+    if (p === 'rpc/set_slot') {                 // what supabase/schema.sql set_slot does: one slot, only if it still holds p_seen
+      const a = JSON.parse(body); actors.add(a.p_actor); const d = T('events').get(a.p_event);
+      const sh = d && d.booths && d.booths[a.p_booth] && d.booths[a.p_booth].shifts[a.p_shift];
+      if (!sh || a.p_day >= Math.max((d.booths[a.p_booth].days || []).length, (sh.slots || []).length)) return send(200, { ok: false, why: 'gone' });
+      const cur = (sh.slots || [])[a.p_day] || {}, now = { rep: cur.rep || '', ft: cur.ft || [] };
+      if (now.rep !== (a.p_seen.rep || '') || JSON.stringify(now.ft) !== JSON.stringify(a.p_seen.ft || [])) return send(200, { ok: false, why: 'changed', now });
+      sh.slots[a.p_day] = { ...cur, rep: a.p_value.rep || '', ft: a.p_value.ft || [] }; return send(200, { ok: true, slot: sh.slots[a.p_day] });
+    }
     if (p === 'rpc/merge_doc') { const { tbl, doc_id, patch, actor } = JSON.parse(body); actors.add(actor); const cur = T(tbl).get(doc_id) || {}; const next = { ...cur, ...patch }; T(tbl).set(doc_id, next); return send(200, next); }
     const eq = u.searchParams.get('id'); const id = eq && eq.startsWith('eq.') ? decodeURIComponent(eq.slice(3)) : null;
     if (req.method === 'GET') { let r = [...T(p)].map(([i, data]) => ({ id: i, data, updated_at: 'now' })); if (id !== null) r = r.filter(x => x.id === id); r.sort((a, b) => a.id.localeCompare(b.id)); const lim = +u.searchParams.get('limit'); return send(200, lim ? r.slice(0, lim) : r); }
@@ -1711,6 +1719,29 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /no rep master list/.test(r.stdout) && /nothing due/.test(r.stdout), 'tick.py: no master list on the mini is an alert, and the tick carries on');
     fs.writeFileSync(path.join(stage, 'ROSTER-PAUSED'), '');
     fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });   // as the blocks before left it: the next block checks a missing env
+  });
+
+  await section('board-api setSlot: one slot through set_slot (the coverage agent\'s move, stage 3)', async () => {
+    // in-process against the stand-in server: these two win over ~/.rsd/board.env (loadEnv only fills what is unset)
+    const keep = { url: process.env.BOARD_SUPABASE_URL, key: process.env.BOARD_SERVICE_KEY };
+    process.env.BOARD_SUPABASE_URL = base; process.env.BOARD_SERVICE_KEY = 'test';
+    try {
+      const { boardApi } = await import((await import('url')).pathToFileURL(path.join(REPO, 'scripts', 'lib', 'board-api.mjs')).href);
+      T('events').set('ss-1', { name: 'Slot test', booths: [{ label: '', days: ['Friday', 'Saturday'], shifts: [{ label: 'Shift 1', slots: [{ rep: 'Marcus R.', ft: ['Nina'] }, { rep: '', ft: [] }] }] }] });
+      const api = boardApi({ actor: 'service:coverage' });
+      const slot = () => T('events').get('ss-1').booths[0].shifts[0].slots;
+      let r = await api.setSlot('ss-1', 0, 0, 0, { rep: 'Marcus R.', ft: ['Nina'] }, { rep: 'Jordan L.', ft: ['Nina'] });
+      ok(r.ok && slot()[0].rep === 'Jordan L.' && JSON.stringify(slot()[0].ft) === '["Nina"]' && slot()[1].rep === '' && actors.has('service:coverage'),
+        'setSlot: the slot still holds what was read, so it moves; the helper stays; the actor reaches the changelog');
+      r = await api.setSlot('ss-1', 0, 0, 0, { rep: 'Marcus R.', ft: ['Nina'] }, { rep: 'Tyler B.', ft: [] });
+      ok(!r.ok && r.why === 'changed' && r.now.rep === 'Jordan L.' && slot()[0].rep === 'Jordan L.', 'setSlot: a slot that changed since it was read is not touched, and the answer says what it holds');
+      ok((await api.setSlot('ss-1', 0, 4, 0, { rep: '' }, { rep: 'x' })).why === 'gone' && (await api.setSlot('nope', 0, 0, 0, { rep: '' }, { rep: 'x' })).why === 'gone',
+        'setSlot: a row or show that is not there is "gone", never a throw');
+    } finally {
+      T('events').delete('ss-1');
+      if (keep.url === undefined) delete process.env.BOARD_SUPABASE_URL; else process.env.BOARD_SUPABASE_URL = keep.url;
+      if (keep.key === undefined) delete process.env.BOARD_SERVICE_KEY; else process.env.BOARD_SERVICE_KEY = keep.key;
+    }
   });
 
   await section('index.html: safe saves, two coordinators at once (set_slot / set_booths, stage 3)', async () => {
