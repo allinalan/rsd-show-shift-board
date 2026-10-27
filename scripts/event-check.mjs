@@ -38,7 +38,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
 import { isMain } from './lib/is-main.mjs';
-import { matchAll, duplicateClaims, statusCategory, CATEGORY_LABEL, effectiveDate, lastDay, dateCellsOff, inRun, addDaysIso, dayDiff, normName } from './lib/match.mjs';
+import { matchAll, duplicateClaims, statusCategory, CATEGORY_LABEL, effectiveDate, lastDay, dateCellsOff, inRun, addDaysIso, dayDiff, normName, nameScore } from './lib/match.mjs';
 import { boardStatus, isSEday, XLSX_PATHS } from './parse-sheet.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -85,7 +85,7 @@ const onList = (s, list) => { const l = String(s || '').toLowerCase(); return li
 
 async function main() {
   const api = boardApi({ actor: 'service:event-check' });
-  const events = (await api.events()).filter(inScope);
+  const allEvents = await api.events(), events = allEvents.filter(inScope);
 
   if (flag('--window')) {
     // Effective dates, not raw end dates: a typo'd year on one row (12/12/2027 for a Dec 2026 show) must not
@@ -259,6 +259,33 @@ async function main() {
       .slice(0, 3).map(v => ({ eventNumber: v.eventNumber, name: v.name, startDate: v.startDate, endDate: v.endDate, status: v.status }));
   }
 
+  // ---- booked in VectorConnect, not on the board (Alan, 2026-10-26). The March 5-7 2027 Maricopa County Home &
+  // Landscape Show was Booked in VC (00096371) and on no Sheet, so no load brought it over, and everything above only
+  // looks at shows the board has staffed. Here every board show of any year counts, by its VC number or by the usual
+  // name-and-date match; Mesa (one record a month, handled above), the placeholder, a holiday mall kiosk (the kiosks
+  // table: VC keeps the malls as events) and a record in config vcOnlyOk (Alan said it stays off the board) are left out.
+  const kiosks = await api.rows('kiosks').catch(() => []);
+  const placeholders = new Set((CFG.placeholders || []).map(String));
+  const okOff = (CFG.vcOnlyOk || []).map(x => ({ ...x, re: x.match ? new RegExp(x.match, 'i') : null }));
+  const leftOff = r => okOff.some(x => String(x.vcNumber || '') === r.eventNumber || (x.re && x.re.test(r.name)));
+  const boardNums = new Set(allEvents.map(e => t(e.vcNumber)).filter(Boolean));
+  const notMesa = allEvents.filter(e => !MESA.test(e.name));
+  const anyClaims = matchAll(notMesa, rows, CFG).claims;
+  const isKiosk = r => kiosks.some(k => String(k.year) === String(r.startDate).slice(0, 4)
+    && [r.name, r.location].some(n => normName(n).includes(normName(k.name)) || nameScore(k.name, n) >= (CFG.minScore ?? 0.5)));
+  // the same show on the board on another weekend (Spring Carefree: VC Mar 5-7 Booked, the board 3/26 Prospective) is
+  // a date to fix there, not a show to add: the closest same-named board show within 60 days is named beside it
+  // ("(Formerly SAHBA)" and the like set aside). Never for Queen Creek Family Market: each date is its own booking.
+  const QC = new RegExp(CFG.qcfmPattern, 'i'), bare = s => String(s || '').replace(/\([^)]*\)/g, ' ');
+  const elsewhere = r => QC.test(r.name) ? null : notMesa.map(e => ({ e, d: Math.abs(dayDiff(effectiveDate(e, CFG.effectiveDateMaxDrift) || e.weekend || '1900-01-01', r.startDate)) }))
+    .filter(x => x.d <= 60 && nameScore(bare(x.e.name), bare(r.name)) >= 0.85).sort((a, b) => a.d - b.d)[0]?.e || null;
+  const bookedNotOnBoard = rows.filter(r => /^booked/i.test(t(r.status)) && (r.endDate || r.startDate || '') >= TODAY && !MESA.test(r.name)
+      && !placeholders.has(r.eventNumber) && !boardNums.has(r.eventNumber) && !anyClaims.has(r.eventNumber) && !leftOff(r) && !isKiosk(r))
+    .sort((a, b) => String(a.startDate).localeCompare(String(b.startDate)))
+    .map(r => { const b = elsewhere(r);
+      return { vcNumber: r.eventNumber, name: t(r.name), startDate: r.startDate, endDate: r.endDate || r.startDate, city: t(r.city), location: t(r.location), status: t(r.status), cost: Math.round(Number(r.eventCost) || 0),
+        board: b ? { id: b.id, name: b.name, weekend: b.weekend, status: t(b.status) } : null }; });
+
   // ---- safety checks before any write
   const numbered = toMatch.filter(f => t(f.e.vcNumber) && !(CFG.placeholders || []).includes(t(f.e.vcNumber)));
   const found = numbered.filter(f => rows.some(r => r.eventNumber === t(f.e.vcNumber))).length;
@@ -319,6 +346,7 @@ async function main() {
     dateCellsOff: out.filter(r => r.dateCellsOff.length).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, startDate: r.startDate || '', endDate: r.endDate || '', days: `${r.effective}..${r.lastDay}`, upcoming: r.upcoming })),
   };
   result.flags.ruledOff = out.filter(r => r.ruling).map(r => ({ id: r.id, name: r.name, weekend: r.weekend, vc: r.vcStatus || 'no VC record', note: r.ruling.note }));
+  result.flags.bookedNotOnBoard = bookedNotOnBoard;
   result.aliasesUsed = out.filter(r => r.matchedBy === 'alias').map(r => ({ board: r.name, vc: r.vcName, number: r.vcNumber }));
   result.sync = syncReport ? { mode: syncReport.mode, wrote: syncReport.wrote, eventsTouched: syncReport.eventsTouched, slotChanges: syncReport.slotChanges,
     held: syncReport.held, conflicts: syncReport.conflicts, flagged: syncReport.flagged, created: syncReport.created, stopped: syncReport.stopped || null, unresolved: syncReport.unresolved } : null;
@@ -367,6 +395,9 @@ export function summaryMd(r) {
     const cats = Object.entries(r.byCategory).filter(([k, n]) => n && k !== 'booked');
     if (cats.length) { md.push('', '## Not fully booked, by what unblocks it'); for (const [k, n] of cats) md.push(`- ${CATEGORY_LABEL[k]}: ${n}`); }
     const f = r.flags;
+    const vcOnly = f.bookedNotOnBoard || [], vcLine = x => `${fmtRange(x.startDate, x.endDate)} ${x.name} (${x.vcNumber}, ${x.status}${x.location ? `, ${x.location}` : ''}${x.city ? `, ${x.city}` : ''}${x.cost ? `, $${x.cost.toLocaleString('en-US')}` : ''})`;
+    if (vcOnly.some(x => !x.board)) { md.push('', '## Booked in VectorConnect, not on the board (add it, or put it in config vcOnlyOk to leave it off)'); for (const x of vcOnly.filter(x => !x.board)) md.push(`- ${vcLine(x)}`); }
+    if (vcOnly.some(x => x.board)) { md.push('', '## Booked in VectorConnect, on the board on another weekend (fix the date there)'); for (const x of vcOnly.filter(x => x.board)) md.push(`- ${vcLine(x)}: the board has ${x.board.name} on ${x.board.weekend}, ${x.board.status || 'no status'}`); }
     if (f.sheetSaysBooked.length) { md.push('', '## Column C says Booked, VectorConnect does not'); for (const x of f.sheetSaysBooked) md.push(`- ${x.weekend} ${x.name}: VC ${x.vc}`); }
     if (f.offListStatuses.length) md.push('', `Statuses not on the definitions list: ${f.offListStatuses.map(x => `${x.status} (${x.count})`).join(', ')}`);
     if ((f.ruledOff || []).length) { md.push('', "## Not happening by Alan's ruling (dead on the board whatever VC shows)"); for (const x of f.ruledOff) md.push(`- ${x.weekend} ${x.name}: VC ${x.vc}. ${x.note}`); }

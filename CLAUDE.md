@@ -173,7 +173,13 @@ routines in `.claude/skills/` keep it true.
   and is never a conflict). More than `checkWrite.maxCostChanges` (80) differences in one run changes none and says so. Alan's global "not-worked" rulings
   (rsd-shift-picking data/event-rulings.json, `--rulings`) outrank VC: the show is dead on the board, VC's
   status is kept beside it, and the rep text uses the ruling's repReason. Refuses to write when the pull
-  is too small (exit 4) or lacks the board's own VC numbers (exit 5). Writes `out/event-check/latest.json`
+  is too small (exit 4) or lacks the board's own VC numbers (exit 5). **Booked in VC, not on the board** (Alan,
+  2026-10-26: the March 5-7 Maricopa show was Booked in VC, on no Sheet, and nothing noticed): every upcoming VC record
+  whose status starts "Booked" that no board show of any year claims (by VC number, or the usual name-and-date match,
+  staffed or not) is listed in `flags.bookedNotOnBoard`, and one the board has under the same name within 60 days on
+  another weekend carries that show (`board`: a date to fix, not a show to add). Never listed: Mesa, the placeholder, a
+  mall kiosk (the kiosks table), a record in config `vcOnlyOk` (by number or name pattern; the reps' own Service & Sales
+  events by default). Both lists are in the report and in Alan's Wednesday text. It writes nothing. Writes `out/event-check/latest.json`
   (read by rsd-shift-picking's texts), the workbook and a summary under `out/reports/`.
 - `scripts/fill-dates.mjs` — a show with no Start Date gets one (Alan, 2026-10-06), run by rsd-shift-picking's
   `run-event-check.sh` right after the event check (stage 3b). In order: the show's own day columns (the Sheet's weekend
