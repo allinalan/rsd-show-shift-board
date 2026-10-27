@@ -1759,6 +1759,12 @@ def post(route, text, mention=None, fallback=True, **k):
       && /id="wkPrev" aria-label="Previous weekend"/.test(seg[1]) && /id="wkNext" aria-label="Next weekend"/.test(seg[1]),
       'the weekend jump and its arrows sit in the pinned row, beside the season tabs, and say what they do');
     ok(/\.wkpick select\{[^}]*font-size:16px/.test(html), 'the weekend jump\'s select is 16px (iOS zooms the page on a smaller field)');
+    // pinch zoom on a phone: only the board scales, so every on-screen position read goes through screenRect, which corrects
+    // for WebKit reporting a zoomed box in the board's own px (right in Chrome, off by the zoom on an iPhone)
+    ok(/@media \(pointer:coarse\)\{ #board,#board \.gridwrap\{touch-action:pan-x pan-y\} \}/.test(html), 'pinch zoom: on a touch screen a pinch on the board is the board\'s, not the page\'s');
+    ok(/const ZMIN=\.55, ZMAX=1\.5,/.test(html), 'pinch zoom: 55% to 150%');
+    const sr = html.match(/function screenRect\([\s\S]*?\n}\n/), raw = (html.match(/getBoundingClientRect\(/g) || []).length;
+    ok(!!sr && raw === (sr[0].match(/getBoundingClientRect\(/g) || []).length, 'every getBoundingClientRect is inside screenRect (call screenRect instead)');
   });
 
   await section('index.html: every day label the board holds finds its day (Alan, 2026-10-27)', async () => {
