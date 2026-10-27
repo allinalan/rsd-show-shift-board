@@ -116,7 +116,7 @@ export function nameScore(a, b) {
  * date when it sits within `maxDrift` days of the weekend, then the weekend itself. Start dates are
  * routinely stale: the Queen Creek October rows carried 11/1, the placeholder's date, on 2026-09-23.
  */
-const isSE = label => /set\s*up|tear\s*down|\bse\b/i.test(String(label || ''));
+const isSE = label => /set\s*-?\s*up|tear\s*-?\s*down|\bse\b/i.test(String(label || ''));
 export function effectiveDate(e, maxDrift = 45) {
   const w = e.weekend || null, s = e.startDate || null;
   // Selling days only: a set-up day is not when the show runs, and some rows carry stale dates in their

@@ -118,7 +118,7 @@ function resolvableWeekday(label) {
   return weekdayOf(s);
 }
 /** SE / set-up / tear-down days are scheduled, but they are never selling shifts. */
-export const isSEday = label => /set\s*up|tear\s*down|\bse\b/i.test(String(label || ''));
+export const isSEday = label => /set\s*-?\s*up|tear\s*-?\s*down|\bse\b/i.test(String(label || ''));
 
 const looksShift = d => /^shift\s*\d/i.test(d);
 const looksBooth = d => /^booth\s*#?\s*\d/i.test(d);

@@ -354,7 +354,11 @@ the service key moves them on.
   to Cutco (label "Team notes (never sent to Cutco)"). The page and `board.mjs` load the lib's rules; the tests hold the page's
   copy to it. The Show Research switches (rsd-shift-picking `config/divisions/<id>.json` `showResearch`, The Block's rules)
   reach `board-research.mjs apply` as `--app-dates` and `--manual-wins`.
-- A shift is a slot with a `rep` that isn't empty or `__X__`. **SE days are never shifts.**
+- A shift is a slot with a `rep` that isn't empty or `__X__`. **SE days are never shifts.** Nor are set-up / tear-down
+  days ("set-up" with a hyphen too) or a day column that names no day ("Tucson, AZ", "Service Events"): the page's
+  `offDay()` / `notShift()`, the scripts' `isSE()` (2026-10-27). A day label is read for the weekday it names past
+  the notes the Sheet adds ("Friday (SE)", "Wed (set-up", an old year's "1/26/2024"): the page's `dayOf()`. Before that,
+  Grid hid those days and still counted them open.
 - **Tier rules** (config/event-check.json `tierRules`, Alan 2026-09-24): every show named Maricopa is Elite, except the
   Maricopa County Fair. The Sheet sync creates new shows with the rule's tier, and the research runs and the booking
   sweep use `tierOf()` (lib/match.mjs), so the rule wins even over a wrong tag. Elite shows are never researched and
