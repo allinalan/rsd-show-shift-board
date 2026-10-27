@@ -179,9 +179,10 @@ and JP on the Sheet, Alan entering the same picks on the board) and the flip wai
 | May 2027 meeting | | The second meeting on the board; the mirror takes on the May-Sept book. |
 | May - Aug 2027 | | Stage 4 as the roadmap has it, rsd-shift-picking last. |
 
-## Questions (answered 2026-MM-DD)
+## Questions (answered 2026-10-27: "All defaults")
 
-Defaults first; "all defaults" is an answer.
+Alan took every default on 2026-10-27. What each one decided is below; question 5 still needs what "MF" means, and
+until then it is kept as a tick on the board that the mirror writes back.
 
 1. **The weekends it owns:** January 15 on, the same rows in both books that carry them, everything earlier left as the
    team left it. Default: yes. Why: the picking order keeps a show from whichever book is newest, so both have to agree.
