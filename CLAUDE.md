@@ -370,6 +370,15 @@ the service key moves them on.
   to Cutco (label "Team notes (never sent to Cutco)"). The page and `board.mjs` load the lib's rules; the tests hold the page's
   copy to it. The Show Research switches (rsd-shift-picking `config/divisions/<id>.json` `showResearch`, The Block's rules)
   reach `board-research.mjs apply` as `--app-dates` and `--manual-wins`.
+- **A show's shifts and booths are saved so two screens never undo each other** (stage 3, 2026-10-27: two coordinators
+  type at the January 13 meeting). The page saves one slot with `set_slot` (written only if the slot still holds what the
+  page showed; otherwise nothing changes and the coordinator is told who has it) and any other change to `booths` (add or
+  remove a booth or a shift row, a booth's name, the spot tag, a date move) with `set_booths`, built on a fresh read of the
+  row and written only if `booths` hasn't moved since (`saveShow` and the `safe-saves` block in index.html,
+  `supabase/schema.sql`). Never write a whole `booths` copied from the page through `merge_doc` again: that is how a pick
+  made a second earlier on another screen was put back with no error. The routines (Sheet sync, coverage agent, research,
+  roll-forward) still write through `merge_doc`; the coverage agent's slot move should go through `set_slot` before the
+  January meeting (stage 3 doc, item 1).
 - A shift is a slot with a `rep` that isn't empty or `__X__`. **SE days are never shifts.** Nor are set-up / tear-down
   days ("set-up" with a hyphen too) or a day column that names no day ("Tucson, AZ", "Service Events"): the page's
   `offDay()` / `notShift()`, the scripts' `isSE()` (2026-10-27). A day label is read for the weekday it names past
@@ -478,6 +487,12 @@ is never left unseen. `python3 deploy/tick.py --status` says which it is right n
 `node tests/run-all.mjs`, `python3 deploy/tick.py --dry`, then `touch PAUSED; launchctl start
 com.allinalan.rsd-board-tick; tail logs/tick.log; rm PAUSED`. If how a job starts changes, update
 `install.sh`, this file and `~/ai-system/REGISTRY.yaml` in the same change.
+
+`set_slot` and `set_booths` went into the live database on 2026-10-27 as SQL (the Supabase connector's execute_sql, the
+same statements as `supabase/schema.sql`), after 22 cases ran against them in a transaction that rolled itself back
+(editor, service key and anon; nothing stayed), then again on the deployed functions, and a call over the REST API to an
+id that does not exist (the service key answered "gone", the anon key "permission denied"). Supabase grants anon execute on
+every new function in `public`; the schema takes it back for these two.
 
 The `kiosks` table went into the live database on 2026-10-14: the same statements as `supabase/schema.sql`, run as SQL
 (Supabase's migration tool hung on them), then the ten malls from `seed/kiosks.json` (the changelog names
