@@ -312,6 +312,13 @@ the service key moves them on.
   headers pin under; put nothing below `.segrow`. Failures go through `toastErr()` (red, `role=alert`, 6 s), news
   through `toast()`. Motion uses the `--ease-*` / `--d-*` tokens; under reduced motion no animation runs, so nothing
   may wait on `animationend` without checking `RM` first.
+- **Grid is one cell per day, read-only too** (Alan, 2026-10-27: "think of it like an Excel. I want to see Alec on all the
+  days he's working"). A run of one name, of open days or of no-shift days is never merged into one spanning cell (it put
+  the name in the first column only). The tests hold `gridCells` to it. **The month jump** (same day: scrolling down to
+  December took too long) sits in the pinned row beside the season tabs (`#mJump`; `renderMonthJump`, `markMonth`,
+  `jumpToMonth`): it says the month in view, and its native select (16px) lists the season's months as filtered, with open
+  counts; a weekend counts in its Friday's month, a past-only month is under "Earlier" and opens that fold first, a long
+  jump is instant. Hidden on Kiosk and Never.
 - **A two-tap remove is armed in the page, never in the button** (`armed`, `arm()`, `isArmed()` in index.html; 10 s,
   "keep it" backs out). Any save redraws the board half a second later, and a button that kept its own "tap again" was
   reset by it, so the second tap only armed it again and nothing was removed (Park Place 2025, 2026-10-14; the show

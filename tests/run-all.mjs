@@ -1710,6 +1710,15 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(!/from\('coverage'\)\.(insert|update|upsert|delete)\b/.test(html) && !/coverage_request/.test(html) && !/['"]coverage\//.test(html), 'index.html never writes coverage, never calls coverage_request');
   });
 
+  await section('index.html: Grid shows every day; the month jump (Alan, 2026-10-27)', async () => {
+    const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    const g = html.match(/function gridCells\([\s\S]*?\n}\n/);
+    ok(!!g && !/colspan/.test(g[0]), 'Grid: one cell per day, read-only too (a run of the same name was one cell with the name in its first column)');
+    const seg = html.match(/<div class="segrow">([\s\S]*?)<\/header>/);
+    ok(!!seg && /id="mJump"/.test(seg[1]) && /<select id="mJumpSel" aria-label="Jump to a month">/.test(seg[1]), 'the month jump sits in the pinned row, beside the season tabs, and says what it does');
+    ok(/\.mjump select\{[^}]*font-size:16px/.test(html), 'the month jump\'s select is 16px (iOS zooms the page on a smaller field)');
+  });
+
   await section('no env', async () => {
     // ---- missing env is a loud failure
     r = await board(['tick'], { BOARD_SUPABASE_URL: '', BOARD_SERVICE_KEY: '' }); ok(r.code !== 0 && /board\.env/.test(r.stderr), 'no env: exits non-zero and says where to put it');
