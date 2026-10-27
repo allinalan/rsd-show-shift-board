@@ -1746,13 +1746,19 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(!/from\('coverage'\)\.(insert|update|upsert|delete)\b/.test(html) && !/coverage_request/.test(html) && !/['"]coverage\//.test(html), 'index.html never writes coverage, never calls coverage_request');
   });
 
-  await section('index.html: Grid shows every day; the month jump (Alan, 2026-10-27)', async () => {
+  await section('index.html: Grid shows every day; the weekend jump (Alan, 2026-10-27)', async () => {
     const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    // the page's own scripts parse: a name declared twice (wkShort, 2026-10-27) stops the whole board, and no block test sees it
+    const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+    let parsed = inline.length > 1; for (const src of inline) { try { new Function(src); } catch (err) { parsed = false; console.log('  page script: ' + err.message); } }
+    ok(parsed, 'index.html: every inline script parses (nothing declared twice)');
     const g = html.match(/function gridCells\([\s\S]*?\n}\n/);
     ok(!!g && !/colspan/.test(g[0]), 'Grid: one cell per day, read-only too (a run of the same name was one cell with the name in its first column)');
     const seg = html.match(/<div class="segrow">([\s\S]*?)<\/header>/);
-    ok(!!seg && /id="mJump"/.test(seg[1]) && /<select id="mJumpSel" aria-label="Jump to a month">/.test(seg[1]), 'the month jump sits in the pinned row, beside the season tabs, and says what it does');
-    ok(/\.mjump select\{[^}]*font-size:16px/.test(html), 'the month jump\'s select is 16px (iOS zooms the page on a smaller field)');
+    ok(!!seg && /id="wkJump"/.test(seg[1]) && /<select id="wkJumpSel" aria-label="Jump to a weekend">/.test(seg[1])
+      && /id="wkPrev" aria-label="Previous weekend"/.test(seg[1]) && /id="wkNext" aria-label="Next weekend"/.test(seg[1]),
+      'the weekend jump and its arrows sit in the pinned row, beside the season tabs, and say what they do');
+    ok(/\.wkpick select\{[^}]*font-size:16px/.test(html), 'the weekend jump\'s select is 16px (iOS zooms the page on a smaller field)');
   });
 
   await section('index.html: every day label the board holds finds its day (Alan, 2026-10-27)', async () => {

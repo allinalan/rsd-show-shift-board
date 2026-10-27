@@ -934,18 +934,27 @@ h1{font-size:var(--t-title2);line-height:28px;letter-spacing:-.018em}
 .seg button small{font-family:var(--f-body);font-size:var(--t-cap);font-weight:400;color:var(--ink-3)}
 .seg button[aria-selected="true"] small{color:inherit}   /* ink-3 falls under 4.5:1 on the dark thumb */
 .seg button.tab-kiosk{color:var(--ink-2)} .seg button.tab-kiosk[aria-selected="true"]{background:var(--seg-thumb);color:var(--ink)}
-/* ---- jump to a month (Alan, 2026-10-27): beside the season tabs, so it stays pinned; says the month in view. The select
-   is laid over it unseen, so a tap opens the phone's own wheel. 16px or iOS zooms the page when it is tapped. ---- */
+/* ---- jump to a weekend (Alan, 2026-10-27): beside the season tabs, so it stays pinned. ‹ and › step a weekend; the button
+   between says the weekend in view, with a select laid over it unseen, so a tap opens the phone's own wheel (16px, or iOS
+   zooms the page when it is tapped). Drawn like the season tabs: a quiet track, the button as its raised thumb. ---- */
 .segrow{gap:8px}
 #seasonSeg{min-width:0}
-.mjump{position:relative;flex:none;display:inline-flex;align-items:center;gap:6px;padding:0 11px;min-height:34px;border-radius:10px;
-  background:color-mix(in srgb,var(--ink) 8%,transparent);font-family:var(--f-body);font-size:var(--t-foot);font-weight:600;color:var(--ink);
-  white-space:nowrap;cursor:pointer}
-.mjump[hidden]{display:none}
-.mjump svg{flex:none;color:var(--ink-2)}
-.mjump select{position:absolute;inset:0;width:100%;height:100%;margin:0;border:0;opacity:0;cursor:pointer;font-size:16px;-webkit-appearance:none;appearance:none}
-.mjump:focus-within{outline:2px solid var(--navy);outline-offset:2px}
-@media (max-width:640px){ .mjump{margin-left:auto;min-height:44px} }
+.wkjump{flex:none;display:inline-flex;align-items:stretch;gap:2px;padding:2px;border-radius:10px;background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.wkjump[hidden]{display:none}
+.wkjump>button{width:30px;border:0;border-radius:8px;background:none;color:var(--ink-2);display:grid;place-items:center;cursor:pointer}
+.wkjump>button:hover:not(:disabled){background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.wkjump>button:disabled{cursor:default}
+.wkjump>button:disabled svg{opacity:.3}
+.wkjump>button:focus-visible{outline:2px solid var(--navy);outline-offset:1px}
+.wkpick{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 9px;border-radius:8px;background:var(--seg-thumb);
+  box-shadow:0 1px 2px rgba(40,28,10,.12),0 0 0 var(--hair) rgba(40,28,10,.08);font-family:var(--f-body);font-size:var(--t-foot);font-weight:600;
+  color:var(--ink);white-space:nowrap;cursor:pointer}
+.wkpick svg{flex:none;color:var(--ink-2)}
+#wkJumpL{min-width:3.4em;font-variant-numeric:tabular-nums}
+.wkpick select{position:absolute;inset:0;width:100%;height:100%;margin:0;border:0;opacity:0;cursor:pointer;font-size:16px;-webkit-appearance:none;appearance:none}
+.wkpick:focus-within{outline:2px solid var(--navy);outline-offset:1px}
+@media (max-width:640px){ .wkjump{margin-left:auto} .wkjump>button{width:40px} .wkpick{min-height:44px} }
+@media (max-width:420px){ .wkpick .wkcal{display:none} }
 .seg button.tab-never{color:var(--pend)} .seg button.tab-never[aria-selected="true"]{background:var(--seg-thumb);color:var(--pend)}
 .kiosk .band-h .seg button{color:var(--ink-2)} .kiosk .band-h .seg button[aria-selected="true"]{background:var(--seg-thumb);color:var(--ink)}
 /* the switch at iOS proportions; the thumb is always the light one */
@@ -1102,12 +1111,16 @@ body:not(.gridv):not(.kioskv) .band:not(.past)>.band-h{position:sticky;top:var(-
   </div>
   <div class="tallyrow"><div class="tally" id="tally"></div><div class="stamp" id="stamp"></div></div>
   <div class="segrow"><div class="seg" id="seasonSeg" role="tablist"></div>
-   <label class="mjump ev-only" id="mJump" hidden title="Jump to a month">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M2.5 7h11M5.5 2v3M10.5 2v3"/></svg>
-    <span id="mJumpL"></span>
-    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
-    <select id="mJumpSel" aria-label="Jump to a month"></select>
-   </label></div>
+   <div class="wkjump ev-only" id="wkJump" hidden>
+    <button type="button" id="wkPrev" aria-label="Previous weekend" title="Previous weekend"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
+    <label class="wkpick" title="Jump to a weekend">
+     <svg class="wkcal" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M2.5 7h11M5.5 2v3M10.5 2v3"/></svg>
+     <span id="wkJumpL"></span>
+     <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+     <select id="wkJumpSel" aria-label="Jump to a weekend"></select>
+    </label>
+    <button type="button" id="wkNext" aria-label="Next weekend" title="Next weekend"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
+   </div></div>
  </div>
 </header>
 
@@ -1578,47 +1591,56 @@ function pinHeads(){
     head.style.transform=off?'translateY('+off+'px)':'';
     head.classList.toggle('pinned',off>0);
   });
-  markMonth(topH);
+  markWeekend(topH);
 }
-/* ---- jump to a month (Alan, 2026-10-27: scrolling down to December took too long). The button beside the season tabs
-   says the month in view; picking a month scrolls to its first weekend. A weekend belongs to the month of its Friday, as
-   its "Weekend of" title does. A month with a weekend still to come goes to the first of those; a month that is all past
-   is listed under "Earlier" and opens the folded weekends first. Built from the weekends on the board, filters included. */
-let mjTo={}, mjHtml='';   // month key -> the weekend it jumps to
-const mKey=w=>{ const d=wkDate(w); return d?iso(d).slice(0,7):'none'; };
-const mName=(k,len)=>{ if(k==='none') return len==='long'?'No date yet':'No date';
-  const [y,m]=k.split('-').map(Number), s=new Date(y,m-1,1).toLocaleDateString('en-US',{month:len});
-  return y===year()?s:len==='long'?`${s} ${y}`:`${s} '${String(y).slice(2)}`; };
-function renderMonthJump(order,byW){
-  const box=document.getElementById('mJump'), sel=document.getElementById('mJumpSel'), ms=new Map();
-  (order||[]).forEach(w=>{ const k=mKey(w), m=ms.get(k)||{past:[],live:[],open:0}; ms.set(k,m);
-    if(wkPast(w)) m.past.push(w);
-    else { m.live.push(w); byW[w].forEach(e=>{ const p=pickState(e); if(p.key==='open') m.open+=p.n; }); } });
-  mjTo={}; box.hidden=ms.size<2; if(box.hidden) return;
-  const opt=(k,t)=>`<option value="${esc(k)}">${esc(t)}</option>`, past=[], live=[];
-  ms.forEach((m,k)=>{ if(m.live.length){ mjTo[k]=m.live[0]; live.push(opt(k,mName(k,'long')+(m.open?` · ${m.open} open`:''))); }
-    else { mjTo[k]=m.past[0]; past.push(opt(k,mName(k,'long'))); } });
-  const html=past.length?`<optgroup label="Earlier in ${year()}">${past.join('')}</optgroup><optgroup label="Coming up">${live.join('')}</optgroup>`:live.join('');
-  if(html!==mjHtml){ sel.innerHTML=html; mjHtml=html; }   // a redraw while the picker is open leaves it alone
+/* ---- jump to a weekend (Alan, 2026-10-27). A month jump came first the same day, but from November 1 it was still 7 phone
+   screens to Nov 20: Nov 6 and Nov 13 carry 30 shows between them. Now the button beside the season tabs says the weekend in
+   view and lists the season's weekends under their months, each with what its header says (open shifts, Full, past), and
+   ‹ › step one weekend. A past weekend opens the folded ones first. A jump is instant: weekends run to 4 screens, and a glide
+   would leave the label behind the next tap. Built from the weekends on the board, filters included. */
+/* wkAt: the weekend last jumped to and where that left the page. It stays named until the page moves: the last weekends are
+   too short to reach the top, so the one above them would be named and › would go nowhere. */
+let wkOrder=[], wkHtml='', wkAt=null;
+const wkBtn=w=>{ const d=wkDate(w); return d?d.toLocaleDateString('en-US',{month:'short',day:'numeric'}):'No date'; };
+const wkRange=w=>{ const d=wkDate(w); if(!d) return 'No date yet';
+  const e=addDays(d,2), m=x=>x.toLocaleDateString('en-US',{month:'short'});
+  return `${m(d)} ${d.getDate()}–${e.getMonth()===d.getMonth()?'':m(e)+' '}${e.getDate()}`; };
+function renderWeekJump(order,byW){
+  const box=document.getElementById('wkJump'), sel=document.getElementById('wkJumpSel'), groups=new Map();
+  wkOrder=order||[]; box.hidden=wkOrder.length<2; if(box.hidden) return;
+  wkOrder.forEach(w=>{
+    const d=wkDate(w), g=d?d.toLocaleDateString('en-US',{month:'long'})+(d.getFullYear()===year()?'':' '+d.getFullYear()):'No date';
+    let n=0, live=0; if(!wkPast(w)) byW[w].forEach(e=>{ const p=pickState(e); if(p.key==='open') n+=p.n; if(p.key!=='closed') live++; });
+    const tail=wkPast(w)?'past':n?`${n} open`:live?'Full':'nothing on';   // what the weekend's own header says
+    if(!groups.has(g)) groups.set(g,[]);
+    groups.get(g).push(`<option value="${esc(w)}">${esc(wkRange(w))} · ${tail}</option>`);
+  });
+  const html=[...groups].map(([g,o])=>`<optgroup label="${esc(g)}">${o.join('')}</optgroup>`).join('');
+  if(html!==wkHtml){ sel.innerHTML=html; wkHtml=html; }   // a redraw while the picker is open leaves it alone
 }
-function markMonth(topH){
-  const box=document.getElementById('mJump'); if(box.hidden) return;
-  let on=null;
-  for(const b of document.querySelectorAll('#board .band')){ if(b.getBoundingClientRect().top<=topH+48) on=b; else break; }
-  on=on||document.querySelector('#board .band'); if(!on) return;
-  const k=mKey(on.dataset.w), sel=document.getElementById('mJumpSel');
-  document.getElementById('mJumpL').textContent=mName(k,'short');
-  if(mjTo[k]&&sel.value!==k) sel.value=k;
+function markWeekend(topH){
+  const box=document.getElementById('wkJump'); if(box.hidden) return;
+  const bands=[...document.querySelectorAll('#board .band')]; let on=null;
+  if(wkAt&&Math.abs(scrollY-wkAt.y)<2) on=bands.find(b=>b.dataset.w===wkAt.w);
+  else { wkAt=null;
+    if(scrollY>0&&scrollY+innerHeight>=document.documentElement.scrollHeight-2) on=bands[bands.length-1];   // at the bottom: the last one
+    else for(const b of bands){ if(b.getBoundingClientRect().top<=topH+48) on=b; else break; } }
+  on=on||bands[0]; if(!on) return;
+  const w=on.dataset.w, i=wkOrder.indexOf(w), sel=document.getElementById('wkJumpSel');
+  document.getElementById('wkJumpL').textContent=wkBtn(w);
+  if(i>=0&&sel.value!==w) sel.value=w;
+  document.getElementById('wkPrev').disabled=i<=0;
+  document.getElementById('wkNext').disabled=i<0||i>=wkOrder.length-1;
 }
-function jumpToMonth(k){
-  const w=mjTo[k]; if(!w) return;
+function jumpToWeekend(w){
+  if(!wkOrder.includes(w)) return;
   if(wkPast(w)&&!pastAllOpen){ pastAllOpen=true; build(); }
   const el=[...document.querySelectorAll('#board .band')].find(b=>b.dataset.w===w); if(!el) return;
   const topH=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topH'))||0;
-  const y=Math.max(0,el.getBoundingClientRect().top+scrollY-topH);   // a long way is there at once: a glide over months took 2 s
-  scrollTo({top:y,behavior:RM.matches||Math.abs(y-scrollY)>innerHeight*1.5?'auto':'smooth'});
-  markMonth(topH);
+  scrollTo(0,Math.max(0,el.getBoundingClientRect().top+scrollY-topH));
+  wkAt={w,y:scrollY}; markWeekend(topH);
 }
+const stepWeekend=d=>{ const w=wkOrder[wkOrder.indexOf(document.getElementById('wkJumpSel').value)+d]; if(w) jumpToWeekend(w); };
 function drawColRules(){
   document.querySelectorAll('table.wgrid').forEach(t=>{
     const ths=[...t.querySelectorAll('thead th')];
@@ -1720,7 +1742,7 @@ function build(){
   document.body.classList.toggle('kioskv',viewKiosk());
   { const n=(F.rep?1:0)+(F.lvl?1:0)+(F.bk?1:0)+F.state.size+F.tier.size, b=document.getElementById('ctlN'); if(b){ b.hidden=!n; b.textContent=n; } }
   renderHeader();
-  renderMonthJump(null);   // shown again below once there are weekends to jump between
+  renderWeekJump(null);   // shown again below once there are weekends to jump between
   if(viewNever()){ renderNever(); return; }
   if(viewKiosk()){ renderKiosks(); return; }
   refreshFilters();
@@ -1737,7 +1759,7 @@ function build(){
   const byW={};
   list.forEach(e=>{const d=wkDate(e.weekend); const w=d?iso(d):'Unscheduled'; (byW[w]=byW[w]||[]).push(e);});
   const order=Object.keys(byW).sort((a,b)=>{const da=wkDate(a),dbb=wkDate(b); if(!da&&!dbb)return 0; if(!da)return 1; if(!dbb)return -1; return da-dbb;});
-  renderMonthJump(order,byW);
+  renderWeekJump(order,byW);
   const bandHtml=w=>{
     const evs=byW[w].sort((a,b)=>KORDER.indexOf(pickState(a).key)-KORDER.indexOf(pickState(b).key));
     const past=wkPast(w), collapsed=past&&pastClosed.has(w);
@@ -2897,7 +2919,9 @@ if(window.visualViewport) visualViewport.addEventListener('resize',()=>{ if(pick
 addEventListener('scroll',()=>{ if(pickCtx) placePop(); },true);
 document.getElementById('seasonSeg').addEventListener('click',e=>{const b=e.target.closest('[data-year]'); if(!b)return; const y=b.dataset.year; store.year=(y==='never'||y==='kiosk')?y:+y; save(); open.clear(); build();});
 document.getElementById('q').addEventListener('input',e=>{F.q=e.target.value;build();});
-document.getElementById('mJumpSel').addEventListener('change',e=>jumpToMonth(e.target.value));
+document.getElementById('wkJumpSel').addEventListener('change',e=>jumpToWeekend(e.target.value));
+document.getElementById('wkPrev').addEventListener('click',()=>stepWeekend(-1));
+document.getElementById('wkNext').addEventListener('click',()=>stepWeekend(1));
 document.getElementById('rep').addEventListener('change',e=>{F.rep=e.target.value;build();});
 document.getElementById('lvl').addEventListener('change',e=>{F.lvl=e.target.value;build();});
 document.getElementById('bk').addEventListener('change',e=>{F.bk=e.target.value;build();});
