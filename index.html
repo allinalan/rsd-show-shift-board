@@ -742,6 +742,8 @@ table.nwtbl td.mono{font-family:var(--f-num);font-size:var(--t-cap);color:var(--
 .neverform{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--pend-bg);border:1px solid color-mix(in srgb,var(--pend) 30%,transparent);border-radius:8px;padding:10px}
 .neverform input{flex:1 1 240px;font:inherit;font-size:var(--t-foot);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
 .neverform .btn{background:var(--pend);color:#fff}
+.neverform .nw-note{flex-basis:100%;margin:0;font-size:var(--t-cap);line-height:1.45;color:var(--ink-2)}
+.lifecycle .nw-on{margin:0;font-size:var(--t-foot);color:var(--ink-2)}
 .authbox{display:inline-flex;align-items:center;gap:8px;font-size:var(--t-cap);color:var(--ink-3);margin-left:auto}
 .authbox .who b{color:var(--ink-2);font-weight:600}
 .stamp-mtg b{color:var(--slate);font-weight:600}
@@ -1772,7 +1774,7 @@ function renderNever(){
     <td>${P?`<button class="linkbtn" data-restore="${esc(n.id)}">restore</button>`:''}</td></tr>`).join('');
   document.getElementById('board').innerHTML=`<section class="never">
    <div class="band-h"><h2>Never work again</h2><span class="cov">${neverList.length} event${neverList.length===1?'':'s'}</span></div>
-   <p class="legend">Roll forward skips everything here, every year, so a show only has to be a bad idea once. Restoring it lets it roll again — it doesn't put it back on this year's board.</p>
+   <p class="legend">Roll forward skips everything here, every year, so a show only has to be a bad idea once. Adding a show leaves the year it was added from as it was (it was worked, or still will be). Restoring it lets it roll again.</p>
    ${neverList.length?`<div class="nw-wrap"><table class="nwtbl"><thead><tr><th>Event</th><th>Last worked</th><th>Why</th><th>Added</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
      :`<div class="empty-season"><b>Nothing here yet.</b><span>Open any event in plan mode and choose <em>Never work this event again</em>.</span></div>`}
   </section>`;
@@ -2412,14 +2414,16 @@ function bodyHtml(e){
    </div>
    ${P?resultsEditor(e):''}
    ${P?`<div class="detail">${promoter}</div>`:`<details class="more"><summary>Promoter, cost &amp; VC details</summary><div class="detail">${promoter}</div></details>`}
-   ${P&&B?`<div class="lifecycle">
-     <label class="ck"><input type="checkbox" data-skipnext ${e.skipNext?'checked':''}> Skip next year — don't roll this into ${yearOf(e)+1}${e.skipNext?'':' (it can still roll the year after)'}</label>
+   ${P&&B?(()=>{ const Y=yearOf(e), nv=neverKeys().has(seriesKey(e)||e.id); return `<div class="lifecycle">
+     ${nv?`<p class="nw-on">On the Never list: won't roll into ${Y+1} or after. Its ${Y} dates stay as they are. Restore it from the Never tab.</p>`
+       :`<label class="ck"><input type="checkbox" data-skipnext ${e.skipNext?'checked':''}> Skip next year — don't roll this into ${Y+1}${e.skipNext?'':' (it can still roll the year after)'}</label>`}
      <div class="lifecycle-btns">
-      <button class="danger" data-never="1">Never work this event again</button>
+      ${nv?'':'<button class="danger" data-never="1">Never work this event again</button>'}
       ${evDelBtns(e)}
      </div>
-     <div class="neverform" hidden><input type="text" data-never-why placeholder="Why? (shows on the Never list — optional)"><button class="btn" data-never-go="1">Confirm — never again</button><button class="btn ghost" data-never-cancel="1">Cancel</button></div>
-    </div>`:''}`;
+     ${nv?'':`<div class="neverform" hidden><input type="text" data-never-why placeholder="Why? (shows on the Never list — optional)"><button class="btn" data-never-go="1">Confirm — never again</button><button class="btn ghost" data-never-cancel="1">Cancel</button>
+      <p class="nw-note">Stops it rolling into ${Y+1} and after. Its ${Y} dates stay as they are: set the status to Cancelled if you're not working this one either.</p></div>`}
+    </div>`; })():''}`;
 }
 
 /* ---- db writes ---- */
@@ -2494,7 +2498,7 @@ let rollY=year()+1;
 function rollPlan(includeDead){
   const Y=rollY, nk=neverKeys();
   const all=eventsIn(Y-1);
-  const held=all.filter(e=>e.skipNext||e.neverWork||nk.has(seriesKey(e)));
+  const held=all.filter(e=>e.skipNext||e.neverWork||nk.has(seriesKey(e)||e.id));
   const src=all.filter(e=>!held.includes(e)).filter(e=>includeDead||!e.dead);
   const have=new Set(boardEvents.map(e=>e.id));
   const todo=src.filter(e=>!have.has(rollId(e,Y)));
@@ -2603,11 +2607,11 @@ board.addEventListener('click',async ev=>{
   if(ev.target.closest('[data-never-go]')){
     const why=art.querySelector('[data-never-why]').value.trim();
     const key=seriesKey(e)||e.id, nid=key.replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60);
-    const members=seriesOf(e);
+    /* the years after, not this one: the show's dates this year keep their status (Alan, 2026-10-27: Kendall worked
+       Salt River Spooktacular 2026, and once marked it was crossed off on the 2026 board). The list holds it back from the roll. */
     try{
       await db.doc('never_work/'+nid).set({name:e.name,seriesKey:key,cityState:e.cityState||'',reason:why,lastYear:yearOf(e),fromEventId:e.id,addedAt:new Date().toISOString(),addedBy:authUser?authUser.email:''});
-      await Promise.all(members.map(m=>db.doc('events/'+m.id).update({neverWork:true,dead:true,status:'Cancelled'})));
-      toast(members.length>1?`Never again — all ${members.length} dates of ${e.name}`:`Never again — ${e.name}`);
+      toast(`Never again — ${e.name} won't roll into ${yearOf(e)+1} or after`);
     }catch(err){ toastErr('Couldn\'t save — check your edit access'); }
     return; }
 });

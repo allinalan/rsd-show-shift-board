@@ -234,7 +234,7 @@ const commands = {
     const all = await rows('events'), never = await rows('never_work'); const nk = new Set(never.map(n => n.seriesKey));
     const have = new Set(all.map(e => e.id));
     const src = all.filter(e => yearOf(e) === Y - 1);
-    const held = src.filter(e => e.skipNext || e.neverWork || nk.has(seriesKey(e)));
+    const held = src.filter(e => e.skipNext || e.neverWork || nk.has(seriesKey(e) || e.id));
     const todo = src.filter(e => !held.includes(e)).filter(e => flags['include-dead'] || !e.dead).filter(e => !have.has(rollId(e, Y)));
     console.error(`${src.length} in ${Y - 1} → ${todo.length} to roll, ${held.length} held (skip-next / never-work), ${src.length - held.length - todo.length} already in ${Y} or dead`);
     if (flags['dry-run']) return out(todo.map(e => ({ from: e.id, to: rollId(e, Y), name: e.name })));
@@ -251,9 +251,9 @@ const commands = {
     const e = await getDoc('events', pos[0] || die('never <event-id> [--why …]')); if (!e) die('no such event');
     const key = seriesKey(e) || e.id, nid = key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
     await setDoc('never_work', nid, { name: e.name, seriesKey: key, cityState: e.cityState || '', reason: flags.why || '', lastYear: yearOf(e), fromEventId: e.id, addedAt: new Date().toISOString(), addedBy: ACTOR });
-    const sibs = (await rows('events')).filter(x => yearOf(x) === yearOf(e) && seriesKey(x) === key);
-    for (const m of sibs) await mergeDoc('events', m.id, { neverWork: true, dead: true, status: 'Cancelled' });
-    out(`never again: ${e.name} (${sibs.length} date${sibs.length === 1 ? '' : 's'} this year) → never_work/${nid}`);
+    // the years after, not this one: its dates this year keep their status (Alan, 2026-10-27: Salt River Spooktacular
+    // 2026 was worked, and showed as Cancelled once marked). The list is what holds the show back from the roll.
+    out(`never again: ${e.name} → never_work/${nid} (won't roll into ${yearOf(e) + 1} or after; its ${yearOf(e)} dates are left as they are)`);
   },
   async restore() { const n = await getDoc('never_work', pos[0] || die('restore <never-id>')); if (!n) die('not on the list'); await delDoc('never_work', n.id); if (n.fromEventId) await mergeDoc('events', n.fromEventId, { neverWork: false }).catch(() => {}); out('restored ' + n.name); },
   async editors() {
