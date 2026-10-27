@@ -47,6 +47,16 @@
   "tierRules": [{ "match": "Maricopa", "except": ["Maricopa County Fair"], "tier": "Elite" }],
   "_tierRules": "Alan, 2026-09-24: 'Maricopa is Elite. always (except for the maricopa county fair)'. A show whose name has the word(s) in match, and none of except, is that tier: the Sheet sync creates new shows with it, and the research runs and the booking sweep treat the show so whatever its tag on the board says.",
   "boothSpots": [{ "match": "Maricopa", "except": ["Maricopa County Fair"] }],
+  "maricopaMaps": {
+    "page": "https://maricopacountyhomeshows.com/exhibit/download-floor-plans/",
+    "exhibitor": "Cutco",
+    "venues": {
+      "Fairgrounds": [[98, 395, "Exhibit Building"], [700, 1099, "Ag Building"], [3000, 3155, "South Entrance Tent"], [4000, 4155, "North Entrance Tent"]],
+      "Scottsdale": [[100, 1599, "North Hall"], [1999, 2053, "Concourse"], [2100, 2999, "Arena"], [3000, 3050, "Concourse"]],
+      "State Farm Stadium": []
+    }
+  },
+  "_maricopaMaps": "scripts/maricopa-booths.mjs (Alan, 2026-10-26). page: the promoter's public 'Download Floor Plans' page, whose links are '<dates> <venue> Show Map' PDFs. venues: [first, last, area] booth-number ranges as the plans print them (checked on the 2027 plans: the Fairgrounds overview page, WestWorld's North Hall and Equidome pages); a venue keyed by a word in the link text. A number in no range is named with no area. State Farm Stadium is one hall.",
   "_boothSpots": "Alan, 2026-10-24: a Maricopa County Home Shows booth name is a spot on that show's floor plan, so a roll carries it forward tagged as last year's spot until someone fixes it (scripts/lib/booth-spots.mjs). Matched like tierRules. index.html keeps the same rule (SPOT_RULE): change both.",
   "aliases": [
     { "board": "FallFest In the Park", "vc": "Prescott Fall Arts & Crafts Show", "confirmed": "Alan, 2026-08-26" },

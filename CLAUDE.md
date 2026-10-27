@@ -93,7 +93,14 @@ routines in `.claude/skills/` keep it true.
   config `boothSpots` (Maricopa, not the Maricopa County Fair), mirrored in index.html `SPOT_RULE` (the tests hold the
   two together). `scripts/lib/booth-spots.mjs`. Applied by hand the same day (actor `service:maricopa-booths-fix`): the
   July 2027 Summer show rebuilt as its three booths, and the April 2027 Home & Flower show's three names tagged as 2026's.
-  Finding this year's spots from the promoter's vendor page: `docs/maricopa-booths.md`.
+  **This year's spots come off the promoter's floor plans** (Alan, 2026-10-26): `scripts/maricopa-booths.mjs` reads
+  the public plan PDFs (config `maricopaMaps`; no password, the vendor page is not involved), finds every "Cutco" and
+  the booth numbers at its box's corners (pdftotext word places, plus the rendered page to see a wall between the
+  name and a number), names the area from the venue's number ranges, and with `--apply` renames only booths still
+  tagged as last year's spot (a booth already holding the plan's numbers just loses its tag). A name set this season
+  is reported, never overwritten; a count that doesn't match, or a Cutco with no number, writes nothing for that
+  show. Needs poppler (Homebrew). Hand-run; not scheduled. First run 2026-10-26 (actor `service:maricopa-booths`).
+  Details and what the 2027 plans said: `docs/maricopa-booths.md`.
 - `scripts/sheet-sync.mjs` — the Sheet -> board sync (stage 2 of the roadmap, live 2026-09-23). **Two books since
   2026-10-23** (Alan: "upload the Jan-May 2027 sheet"): the Sept-Feb and Jan-May schedules are separate Google Sheets
   that both carry January and February (config `sheets`). Each weekend is fed by one book only: until the January
