@@ -566,6 +566,36 @@ def post(route, text, mention=None, fallback=True, **k):
     T('seasons').delete('2027');
   });
 
+  await section('maricopa-booths: reading the promoter\'s plans, and what it writes', async () => {
+    const M = await import(path.join(REPO, 'scripts/maricopa-booths.mjs'));
+    const links = M.parseMapLinks(`<a href="/x">Download Floor Plans</a>
+      <a href="https://m.example/wp-content/uploads/2026/10/Jan-2027.pdf"><strong>January 15-17, 2027</strong> Fairgrounds Show Map</a>
+      <a href="/wp-content/uploads/May.pdf">April 30-May 2, 2027 Scottsdale Show Map</a>
+      <a href="/wp-content/uploads/2025/09/Unknown-1.jpeg">October 8-10, 2027 Scottsdale Show Map</a>`, 'https://m.example/exhibit/');
+    ok(links.length === 3 && links.map(l => `${l.start}/${l.venue}/${l.pdf}`).join() === '2027-01-15/Fairgrounds/true,2027-04-30/Scottsdale/true,2027-10-08/Scottsdale/false'
+      && links[1].href === 'https://m.example/wp-content/uploads/May.pdf', 'parseMapLinks: each "<dates> <venue> Show Map" link, its start date, venue and whether it is a PDF: ' + JSON.stringify(links));
+    // one page: Cutco in a box from 820 down to 822, the next column 20pt over, the next booth down past 822 (824)
+    const w = (t, x, y) => ({ t, x, y, x0: x - 5, x1: x + 5, y0: y - 2.5, y1: y + 2.5 });
+    const page = { page: 2, width: 612, height: 792, words: [w('Cutco', 237, 98), w('820', 234, 83), w('822', 234.1, 113), w('824', 233.9, 118), w('819', 224, 83), w('821', 274, 91), w('Cutco', 500, 400), w('1223', 498, 390), w('1225', 498, 409), w('738', 516, 403)] };
+    const spots = M.findSpots(page, { wallBetween: (pg, n) => n.t === '1225' });
+    ok(spots.map(s => s.numbers.join('-')).join() === '820-822,1223', 'findSpots: the corner numbers above and below in the nearest column (822, not 824 a hair closer in x); a wall below makes it one booth (1223); a number level with the name is the booth beside it: ' + JSON.stringify(spots));
+    ok(M.areaOf('Fairgrounds', 821) === 'Ag Building' && M.areaOf('Scottsdale', 2049) === 'Concourse' && M.areaOf('State Farm Stadium', 301) === '' && M.areaOf('Somewhere', 5) === '', 'areaOf: the venue\'s number ranges from config; none for one-hall State Farm Stadium or an unknown venue');
+    ok(M.spotName(1, { area: 'Ag Building', numbers: [820, 822] }) === 'Booth #2 (Ag Building) (820-822)' && M.spotName(0, { area: '', numbers: [709] }) === 'Booth #1 (709)', 'spotName: "Booth #N (Area) (numbers)"');
+    const tag = (label, y = 2026) => ({ label, rolledLabel: label, rolledLabelYear: y, shifts: [] });
+    const ev = { id: '2027-x', name: 'Maricopa County Summer Home & Landscape Show', booths: [tag('Booth #301-303'), tag('Booth #421-423'), tag('Booth #921-923')] };
+    const S = (...n) => ({ page: 1, numbers: n, area: '' });
+    let p = M.planShow(ev, [S(921, 923), S(221, 223), S(301, 303)]);
+    ok(p.ok && p.writes.length === 1 && p.writes[0].booth === 1 && p.writes[0].to === 'Booth #2 (221-223)' && p.kept.map(k => `${k.booth}:${k.confirm}`).sort().join() === '0:true,2:true',
+      'planShow: a spot a booth already names is kept (and its tag comes off); the new one goes to the tagged booth left: ' + JSON.stringify(p));
+    p = M.planShow({ ...ev, booths: [{ label: 'Booth #1 South Entrance Tent', shifts: [] }, tag('Booth #421-423'), { label: 'Booth #3 (#135/137)', shifts: [] }] }, [S(3128, 3130), S(221, 223), S(125, 127)]);
+    ok(p.writes.length === 0 && p.report.some(r => /3128-3130/.test(r)) && p.report.some(r => /221-223/.test(r)) && p.report.filter(r => /named this season/.test(r)).length === 2,
+      'planShow: a name set this season is never overwritten, and beside one no spot is guessed onto a tagged booth either: ' + JSON.stringify(p.report));
+    p = M.planShow(ev, [S(921, 923), S(221, 223)]);
+    ok(!p.ok && p.writes.length === 0 && p.kept.every(k => !k.confirm) && /2 Cutco booth\(s\), the board has 3/.test(p.report.join()), 'planShow: a different number of Cutco booths than the board has: nothing written, no tag dropped');
+    p = M.planShow(ev, [S(921, 923), S(), S(301, 303)]);
+    ok(!p.ok && p.writes.length === 0 && /no booth number beside them/.test(p.report.join()), 'planShow: a Cutco with no number beside it: nothing written for the show');
+  });
+
   await section('tick.py: the freshmen reminder', async () => {
     // ---- tick.py words the freshmen reminder as an ask, not an "open Claude on this repo" routine
     fs.mkdirSync(path.join(home, '.rsd'), { recursive: true });
