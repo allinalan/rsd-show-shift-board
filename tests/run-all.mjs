@@ -1719,6 +1719,42 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(/\.mjump select\{[^}]*font-size:16px/.test(html), 'the month jump\'s select is 16px (iOS zooms the page on a smaller field)');
   });
 
+  await section('index.html: every day label the board holds finds its day (Alan, 2026-10-27)', async () => {
+    const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    const a = html.indexOf('/* ---- date helpers ---- */'), z = html.indexOf('/* ---- meetings ---- */');
+    ok(a > 0 && z > a, 'index.html: the date helpers block is where the test reads it');
+    const H = new Function(html.slice(a, z) + '\nreturn {dayOf,offDay,notShift,isSE,slotDates,dshort};')();
+    const D = await import(path.join(REPO, 'scripts/lib/dates.mjs'));
+    // the labels on the live board on 2026-10-27 that Grid could not place: each one's dates against its weekend
+    const cases = [
+      ['2026-11-27', ['Thursday (Thanksgiving Day)', 'Friday', 'Saturday', 'Sunday'], '2026-11-26,2026-11-27,2026-11-28,2026-11-29'],
+      ['2027-02-26', ['Friday (set-up)', 'Saturday', 'Sunday', 'Monday'], '2027-02-26,2027-02-27,2027-02-28,2027-03-01'],
+      ['2027-05-14', ['Thursday\n (SET UP DAY)', 'Friday', 'Saturday'], '2027-05-13,2027-05-14,2027-05-15'],
+      ['2027-02-05', ['Friday (SE)', 'Saturday', 'Sunday', 'Monday (SE)'], '2027-02-05,2027-02-06,2027-02-07,2027-02-08'],
+      ['2027-04-16', ['Wed (set-up', 'Thurs', 'Friday', 'Sat', 'Sun'], '2027-04-14,2027-04-15,2027-04-16,2027-04-17,2027-04-18'],
+      ['2027-07-02', ['Tuesday', 'Wednesday (SC1)', 'Thursday', 'Friday', 'Saturday', 'Sunday'], '2027-06-29,2027-06-30,2027-07-01,2027-07-02,2027-07-03,2027-07-04'],
+      ['2026-10-30', ['1/26/2024', '1/27/2024', '1/28/2024'], '2026-10-30,2026-10-31,2026-11-01'],
+      ['2027-06-18', ['Saturday', 'Sunday', 'MUST be set up by 8 am morning of'], '2027-06-19,2027-06-20,'],
+      ['2027-02-26', ['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Tucson, AZ'], '2027-02-23,2027-02-24,2027-02-25,2027-02-26,2027-02-27,2027-02-28,'],
+    ];
+    for (const [w, days, want] of cases) {
+      const got = H.slotDates({ days, dates: days.map(() => null) }, w).map(x => x || '').join();
+      ok(got === want, `Grid: ${JSON.stringify(days)} on the ${w} weekend falls on ${want}: ${got}`);
+    }
+    const off = ['Friday (set-up)', 'Wed (set-up', 'Thursday\n (SET UP DAY)', 'MUST be set up by 8 am morning of', 'Tucson, AZ', 'Service Events', 'Sunday tear-down'];
+    const days = ['Friday', 'Thursday (Thanksgiving Day)', 'Wednesday (SC1)', 'Thurs', '3/5', '1/26/2024', ''];
+    const se = ['Friday (SE)', 'Monday (SE)', 'Sunday SE', 'Mon SE', 'SE Surprise'];
+    ok(off.every(H.offDay) && ![...days, ...se].some(H.offDay), 'a set-up day and a column that names no day are not shifts; a weekday with a note, a date and an SE day are not that: ' +
+      JSON.stringify([...off, ...days, ...se].map(l => [l, H.offDay(l)])));
+    ok(se.every(H.isSE) && !off.some(H.isSE), 'SE still means a sharpening day only (a set-up day does not show as "sharpening")');
+    ok([...off.slice(0, 4), 'Sunday tear-down', ...days, ...se].every(l => H.notShift(l) === D.isSE(l)),
+      'the page and the scripts agree on which days are not shifts, "set-up" with a hyphen included: ' + JSON.stringify([...off.slice(0, 4), ...days, ...se].map(l => [l, H.notShift(l), D.isSE(l)])));
+    ok(H.dshort('1/26/2024') === 'Fri' && H.dshort('Wed (set-up') === 'Wed' && H.dshort('Friday (SE)') === 'Fri SE' && H.dshort('Mon SE') === 'Mon SE' && H.dshort('Thurs') === 'Thu',
+      'a column\'s short name is its weekday (a date shown as "Friday" on the Sheet was "1/2")');
+    ok(H.dayOf('constructor')[0] === 'none' && H.dayOf('Tucson, AZ')[0] === 'none', 'a word that is not a weekday names no day');
+    for (const f of ['sellableSlots', 'filledSlots', 'pickState']) ok(new RegExp(`function ${f}\\([^\\n]*\\n?[\\s\\S]{0,400}?notShift\\(`).test(html), `index.html ${f} skips set-up days and columns that name no day`);
+  });
+
   await section('no env', async () => {
     // ---- missing env is a loud failure
     r = await board(['tick'], { BOARD_SUPABASE_URL: '', BOARD_SERVICE_KEY: '' }); ok(r.code !== 0 && /board\.env/.test(r.stderr), 'no env: exits non-zero and says where to put it');

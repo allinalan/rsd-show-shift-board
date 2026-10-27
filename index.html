@@ -1329,6 +1329,21 @@ const parseUS=s=>{if(!s)return null;const m=String(s).match(/^(\d{1,2})\/(\d{1,2
 const addDays=(d,n)=>{const c=new Date(d);c.setDate(c.getDate()+n);return c;};
 const DAYN={monday:0,mon:0,tuesday:1,tue:1,tues:1,wednesday:2,wed:2,thursday:3,thu:3,thur:3,thurs:3,friday:4,fri:4,saturday:5,sat:5,sunday:6,sun:6};
 const isSE=d=>/\bSE\b/i.test(d||'');
+/* The weekday a day label names, read past what the Sheet adds to it (Alan, 2026-10-27): "Friday (SE)", "Thursday
+   (Thanksgiving Day)", "Wed (set-up" and "Thursday\n (SET UP DAY)" each name one, and so does an old year's full date
+   ("1/26/2024": the Sheet shows that cell as "Friday"). ['wd', Monday=0], ['md', [month, day]] for "3/5", or ['none'] for
+   a column that names no day ("Tucson, AZ", "Service Events"). */
+function dayOf(d){
+  const s=String(d||'').toLowerCase().replace(/\([^)]*(\)|$)/g,' ').replace(/\bse\b/g,' ').trim().replace(/\.$/,'');
+  let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if(m) return ['wd',(new Date(+m[3],+m[1]-1,+m[2]).getDay()+6)%7];
+  m=s.match(/^(\d{1,2})\/(\d{1,2})$/); if(m) return ['md',[+m[1],+m[2]]];
+  for(const t of s.split(/[^a-z]+/)) if(Object.prototype.hasOwnProperty.call(DAYN,t)) return ['wd',DAYN[t]];
+  return ['none',null];
+}
+/* Not a shift and not a sharpening day: a set-up or tear-down day (never a shift, Alan; the parser and the event check
+   agree) and a column that names no day at all. Never counted open or filled, never in the cost per shift. */
+const offDay=d=>!isSE(d)&&(/set\s*-?\s*up|tear\s*-?\s*down/i.test(d||'')||(String(d||'').trim()!==''&&dayOf(d)[0]==='none'));
+const notShift=d=>isSE(d)||offDay(d);
 function dayDates(days,startISO){
   const sd=fromISO(startISO); if(!sd) return days.map(()=>null);
   return days.map(d=>{
@@ -1343,9 +1358,7 @@ function dayDates(days,startISO){
 /* Resolve day-name columns against a weekend's Friday, in the order listed: Tue/Wed/Thu before, Sat/Sun/Mon after,
    a day that would go backwards jumps a week; Monday-first is ambiguous, keep the run nearest Friday. */
 function anchorDates(days,fri){
-  const seq=(days||[]).map(d=>{ const base=(d||'').replace(/\bSE\b/i,'').trim().toLowerCase().replace(/\.$/,'');
-    if(/^\d{1,2}\/\d{1,2}$/.test(base)){const [m,dd]=base.split('/').map(Number);return ['date',new Date(fri.getFullYear(),m-1,dd)];}
-    return (base in DAYN)?['wd',DAYN[base]]:['none',null]; });
+  const seq=(days||[]).map(d=>{ const [k,v]=dayOf(d); return k==='md'?['date',new Date(fri.getFullYear(),v[0]-1,v[1])]:[k,v]; });
   const resolve=monBefore=>{ let prev=null; return seq.map(([k,v])=>{
     if(k==='wd'){ let dt=addDays(fri,(v===0&&monBefore)?-4:(v===0?3:v-4)); while(prev&&dt<=prev) dt=addDays(dt,7); prev=dt; return dt; }
     if(k==='date'){ prev=v; return v; } return null; }); };
@@ -1370,7 +1383,8 @@ function wkDate(w){
 const wkPast=w=>{const d=wkDate(w); if(!d)return false; return addDays(d,3)<TODAY;};
 const wkLabel=w=>{const d=wkDate(w); return d?`Weekend of ${d.getMonth()+1}/${d.getDate()}`:`Weekend ${w}`;};
 function fdate(s){ if(!s)return ''; const d=fromISO(s); return d?(d.getMonth()+1)+'/'+d.getDate():''; }
-const dshort=d=>{d=(d||'').trim(); const se=isSE(d); d=d.replace(/\bSE\b/i,'').trim(); return d.slice(0,3)+(se?' SE':'');};
+const WD3=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const dshort=d=>{d=(d||'').trim(); const se=isSE(d), [k,v]=dayOf(d); return (k==='wd'?WD3[v]:d.replace(/\bSE\b/i,'').trim().slice(0,3))+(se?' SE':'');};
 
 /* ---- meetings ---- */
 function nextMeeting(){ const ms=(settings.meetings||[]).map(fromISO).filter(Boolean).filter(d=>d>=TODAY).sort((a,b)=>a-b); if(!ms.length)return null;
@@ -1422,10 +1436,11 @@ function costForDate(e){
   return {total:c,basis,n:members.length||1,filled,per:filled?c/filled:null};
 }
 const monthName=e=>{const d=wkDate(e.weekend); return d?d.toLocaleString('en-US',{month:'short'}):'';};
-function sellableSlots(e){ let n=0; boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{ if(isSE(b.days[di]))return; if(val(e,bi,si,di,sl.rep)==='__X__')return; n++; }))); return n; }
+function sellableSlots(e){ let n=0; boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{ if(notShift(b.days[di]))return; if(val(e,bi,si,di,sl.rep)==='__X__')return; n++; }))); return n; }
 /* SE = sharpening event: a day tacked on after the show ends to sign customers up for a sharpening
-   appointment. It is not a shift, so it never counts as open, filled, or in the cost-per-shift math. */
-function filledSlots(e){ let n=0; boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{ if(isSE(b.days[di]))return; const v=val(e,bi,si,di,sl.rep); if(v&&v!=='__X__') n++; }))); return n; }
+   appointment. It is not a shift, so it never counts as open, filled, or in the cost-per-shift math.
+   Nor does a set-up day or a column that names no day (offDay). */
+function filledSlots(e){ let n=0; boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{ if(notShift(b.days[di]))return; const v=val(e,bi,si,di,sl.rep); if(v&&v!=='__X__') n++; }))); return n; }
 function seSlots(e){ let n=0; boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{ if(!isSE(b.days[di]))return; const v=val(e,bi,si,di,sl.rep); if(v&&v!=='__X__') n++; }))); return n; }
 const SETIP='Sharpening event — signing customers up after the show ends. Not a shift.';
 const normName=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
@@ -1445,7 +1460,7 @@ function pickState(e){
   const opens=[]; const multi=e.booths.length>1;
   boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{
     const v=val(e,bi,si,di,sl.rep);
-    if(!v && !isSE(b.days[di])) opens.push({day:b.days[di],date:b.dates[di],shift:s.label,booth:multi?b.label:''});
+    if(!v && !notShift(b.days[di])) opens.push({day:b.days[di],date:b.dates[di],shift:s.label,booth:multi?b.label:''});
   })));
   if(!opens.length) return {key:'full',open:[],n:0};
   return {key:'open',open:opens,n:opens.length};
@@ -2097,6 +2112,7 @@ function rollup(evs){
   const counts={}, ses={}; let openN=0;
   evs.forEach(e=>boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{
     const v=val(e,bi,si,di,sl.rep), se=isSE(b.days[di]);
+    if(offDay(b.days[di])) return;   // a set-up day or a column that names no day: no shift to count
     if(!v){ if(!se&&pickState(e).key!=='closed') openN++; return; }
     if(v==='__X__') return;
     v.split(' / ').forEach(n=>{n=n.trim(); if(!n)return; if(se) ses[n]=(ses[n]||0)+1; else counts[n]=(counts[n]||0)+1;});
@@ -2185,18 +2201,18 @@ function gtags(e){
   return h;
 }
 function cellFor(e,b,bi,s,si,di,ps,P,wide){
-  const sl=s.slots[di]||{rep:'',ft:[]}; const v=val(e,bi,si,di,sl.rep), se=isSE(b.days[di]);
+  const sl=s.slots[di]||{rep:'',ft:[]}; const v=val(e,bi,si,di,sl.rep), se=isSE(b.days[di]), off=!v&&offDay(b.days[di]);
   const cap=x=>String(x).replace(/\b\w/g,ch=>ch.toUpperCase());
   const ft=(sl.ft||[]).length?`<div class="ft">${sl.ft.map(f=>`<span>ft. ${esc(cap(f))}</span>`).join('')}</div>`:'';
   const cv=v&&v!=='__X__'?covHtml(covAt(covKey.show(e.id,bi,si,di),v)):'';
   if(!P){
-    if(v==='__X__') return `<div class="namecell is-x">${wide?'no shift':'—'}</div>`;
+    if(v==='__X__'||off) return `<div class="namecell is-x">${wide?'no shift':'—'}</div>`;
     if(!v&&se) return `<div class="namecell is-se" title="${SETIP}">sharpening</div>`;
     if(!v) return `<div class="namecell is-open">${ps.key==='closed'?'—':'open'}</div>`;
     return `<div class="namecell${se?' se-on':''}"${se?` title="${SETIP}"`:''}>${esc(v)}${se?'<span class="setag">SE</span>':''}${ft}${cv}</div>`;
   }
-  const cls=(v==='__X__'?'xd':(v?'filled':'open-slot'))+(se?' se':'');
-  const txt=v==='__X__'?'no shift':(v||(se?'nobody':'open'));
+  const cls=(v==='__X__'||off?'xd':(v?'filled':'open-slot'))+(se?' se':'');
+  const txt=v==='__X__'?'no shift':(v||(se||off?'nobody':'open'));
   return `<div class="slotbox ${cls}"${se?` title="${SETIP}"`:''}><button class="slotpick" data-b="${bi}" data-s="${si}" data-d="${di}" aria-haspopup="listbox" aria-label="${esc(s.label)} ${esc(b.days[di])}${se?' (sharpening event)':''} — ${esc(txt)}">${esc(txt)}</button>${ft}${cv}</div>`;
 }
 
@@ -2964,7 +2980,7 @@ P('copy').addEventListener('click',()=>{
   cur().filter(matches).filter(e=>!wkPast(e.weekend)).forEach(e=>{
     const rows=[];
     boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>{
-      const cells=s.slots.map((sl,di)=>{const v=val(e,bi,si,di,sl.rep);return dshort(b.days[di])+': '+(v==='__X__'?'—':(v||(isSE(b.days[di])?'SE':'OPEN')));});
+      const cells=s.slots.map((sl,di)=>{const v=val(e,bi,si,di,sl.rep);return dshort(b.days[di])+': '+(v==='__X__'?'—':(v||(isSE(b.days[di])?'SE':offDay(b.days[di])?'—':'OPEN')));});
       rows.push('  '+(b.label?b.label+' · ':'')+s.label+' | '+cells.join(' | '));
     }));
     out.push(e.name+'  ['+e.status+' · '+tierOf(e)+' · '+accOf(e)+']\n'+rows.join('\n'));

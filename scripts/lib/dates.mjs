@@ -12,7 +12,7 @@
 import { addDaysIso, dayDiff } from './match.mjs';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
-export const isSE = label => /set\s*up|tear\s*down|\bse\b/i.test(String(label || ''));
+export const isSE = label => /set\s*-?\s*up|tear\s*-?\s*down|\bse\b/i.test(String(label || ''));
 const WD = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 export const weekday = iso => WD[new Date(iso + 'T12:00:00Z').getUTCDay()];
 /** The board's weekend key: the Friday of the Monday-to-Sunday week (board.mjs fridayKey). */
