@@ -30,7 +30,9 @@
   apply, dates (every mode):
     - the research found this year's dates (a page states them; a quote is kept) -> they win: if the board's days
       are not inside them, the show moves (lib/dates.mjs planMove: days that still happen keep their reps, a day
-      that moves to the same weekday carries its reps, a day that is gone is reported with its reps)
+      that moves to the same weekday carries its reps, a day that is gone is reported with its reps; a day with no
+      date whose label names a weekday moves like the others; a set-up or tear-down day keeps its weekday beside the
+      run, or is gone and reported with its reps; a day that names no weekday stays as it was and is listed)
     - not found online, and VC disagrees with the board -> the board moves to VC's dates, noted on the board
     - not found, no disagreement -> nothing changes (listed when the dates are still last year's +364 guess)
     - a cancellation found online is reported, never written; a failed lookup changes nothing (it is not "not
@@ -282,7 +284,7 @@ async function apply() {
     const p = m.plan.patch;
     const change = { id: m.tgt.id, name: m.tgt.name, from: sellingRun(m.e), to: m.d.truth, basis: m.d.basis, source: m.d.source || null, host: m.d.source ? host(m.d.source) : null,
       vcNumber: m.tgt.vc ? m.tgt.vc.number : '', vcStatus: m.tgt.vc ? m.tgt.vc.status : '', vcRun: m.tgt.vc ? { start: m.tgt.vc.start, end: m.tgt.vc.end } : null,
-      staffed: m.tgt.staffed, affected: m.plan.affected, added: m.plan.added, removed: m.plan.removed, note: m.note, applied: false,
+      staffed: m.tgt.staffed, affected: m.plan.affected, added: m.plan.added, removed: m.plan.removed, loose: m.plan.loose, note: m.note, applied: false,
       // the show as the Wednesday check will see it after the move (rsd-shift-picking records what reps were told from it)
       after: { startDate: p.startDate, endDate: p.endDate, weekend: p.weekend, first: p.dates.filter((d, i) => d && !isSE(p.days[i]))[0] || p.startDate } };
     if (flag('--apply')) {
@@ -321,6 +323,8 @@ export function summaryMd(r) {
   if (r.appDates) L.push(`Application dates: ${c.appDatesFound || 0} found, ${c.appDatesKept || 0} typed in by hand that research disagrees with (kept), ${c.appDatesNotFound || 0} not posted yet.`);
   const sec = (title, xs, line) => { if (xs && xs.length) { L.push('', `## ${title}`); for (const x of xs) L.push('- ' + line(x)); } };
   sec('Dates moved', r.changes, x => `${x.name}: ${fmt(x.from)} -> ${fmt(x.to)} (${x.basis === 'vc' ? `VectorConnect ${x.vcNumber}, not confirmed online` : x.host})${x.affected.length ? `; reps: ${x.affected.map(a => `${a.rep} ${a.to ? `${a.from}->${a.to}` : `${a.from} gone`}`).join(', ')}` : ''}${x.applied ? '' : ' (not applied)'}`);
+  sec('Days a move could not date (left as they were; set them on the board)', (r.changes || []).flatMap(x => (x.loose || []).map(l => ({ ...l, name: x.name }))),
+    x => `${x.name}: "${x.label}"${x.booth ? ` (${x.booth})` : ''}${x.reps.length ? `, ${x.reps.join(', ')} on it` : ''}`);
   sec('VectorConnect disagrees with the event\'s own page (fix VC)', r.vcDisagrees, x => `${x.name}: VC ${x.vc.number} has ${fmt({ start: x.vc.start, end: x.vc.end })}, ${host(x.source)} says ${fmt(x.web)}`);
   sec('Cancelled, per the web (not changed on the board)', r.cancelled, x => `${x.name}: ${x.why} (${host(x.source)})`);
   sec('Not confirmed online', r.unconfirmed, x => `${x.name} ${fmt(x.run)}: ${x.why}${x.estimated ? " (still last year's +364 guess)" : ''}`);
