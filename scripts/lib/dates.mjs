@@ -17,6 +17,19 @@ const WD = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 export const weekday = iso => WD[new Date(iso + 'T12:00:00Z').getUTCDay()];
 /** The board's weekend key: the Friday of the Monday-to-Sunday week (board.mjs fridayKey). */
 export const fridayKey = iso => { const off = (new Date(iso + 'T12:00:00Z').getUTCDay() + 6) % 7; return addDaysIso(iso, 4 - off); };
+const WDN = { sunday: 0, sun: 0, monday: 1, mon: 1, tuesday: 2, tue: 2, tues: 2, wednesday: 3, wed: 3, thursday: 4, thu: 4, thur: 4, thurs: 4, friday: 5, fri: 5, saturday: 6, sat: 6 };
+/**
+ * The weekday a day label names (0 = Sunday), read like the page's dayOf() in index.html: past any bracketed note
+ * ("Friday (SE)", "Wed (set-up"), and an old year's full date as its weekday ("3/1/2024": the Sept-Feb Sheet holds
+ * 2024 dates shown as "Friday"). null for a label that names no day ("Tucson, AZ", "Service Events").
+ */
+export function labelWeekday(label) {
+  const s = String(label || '').toLowerCase().replace(/\([^)]*(\)|$)/g, ' ').replace(/\bse\b/g, ' ').trim().replace(/\.$/, '');
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return new Date(Date.UTC(+m[3], +m[1] - 1, +m[2], 12)).getUTCDay();
+  for (const t of s.split(/[^a-z]+/)) if (Object.prototype.hasOwnProperty.call(WDN, t)) return WDN[t];
+  return null;
+}
 
 /**
  * The show's selling days on the board: every booth's day dates, SE days left out. null when there are none,
@@ -58,12 +71,49 @@ export function rolledForLater(e, today, days) {
 }
 
 /**
+ * A booth's days as dated before a move: each cell's own date, and for a day without one (the cell held "3/1/2024",
+ * which the Sheet shows as "Friday") the date its label's weekday stands for: the one such date within 3 days of the
+ * run, between the booth's dated days either side of it and on none of them. null when there is not exactly one, or
+ * when two undated days would be the same day.
+ */
+function oldDates(b, run) {
+  const days = b.days || [], own = days.map((_, i) => (ISO.test((b.dates || [])[i] || '') ? b.dates[i] : null));
+  const read = own.map((d, i) => {
+    const w = d ? null : labelWeekday(days[i]);
+    if (w === null) return null;
+    const before = own.slice(0, i).filter(Boolean).pop(), after = own.slice(i + 1).find(Boolean), c = [];
+    for (let x = addDaysIso(run.start, -3); x <= addDaysIso(run.end, 3); x = addDaysIso(x, 1))
+      if (WD.indexOf(weekday(x)) === w && (!before || x > before) && (!after || x < after) && !own.includes(x)) c.push(x);
+    return c.length === 1 ? c[0] : null;
+  });
+  return own.map((d, i) => d || (read[i] && read.indexOf(read[i]) === read.lastIndexOf(read[i]) ? read[i] : null));
+}
+
+/**
+ * Where a set-up or tear-down day goes when its show moves: on its own weekday and the same side of the run, at most
+ * one day further from the run than it was (Bluegrass on the Beach 2027's "Mon SE" after a Fri-Sun run stays the
+ * Monday after; shifting it by the run's offset put it on Sunday on 2026-09-24, where it was dropped). A day inside
+ * the old run takes its weekday in the new one when that weekday occurs there once. null when it has nowhere to go.
+ */
+function placeSE(d, span, target, tDates) {
+  if (d >= span.start && d <= span.end) { const c = tDates.filter(x => weekday(x) === weekday(d)); return c.length === 1 ? c[0] : null; }
+  const before = d < span.start, edge = before ? target.start : target.end, step = before ? -1 : 1;
+  const gap = Math.abs(dayDiff(d, before ? span.start : span.end));
+  let nd = addDaysIso(edge, step);
+  while (weekday(nd) !== weekday(d)) nd = addDaysIso(nd, step);
+  return Math.abs(dayDiff(nd, edge)) <= gap + 1 ? nd : null;
+}
+
+/**
  * Move a show to its true run. Per booth: a selling day whose date is in the new run stays (same rep); a day
  * whose weekday occurs once in the new run moves there (its rep with it); anything else is gone (its reps are
- * affected). New days the booth did not have come in empty, but only for a booth that sold every day of the old
- * run (a Saturday-only booth does not grow a Friday). SE days: kept where they were when the new run overlaps the
- * old one (unless the day is now a selling day), moved by the same offset when it does not.
- * @returns { patch, affected: [{ rep, from, to|null }], added: [iso], removed: [iso] } or { error }
+ * affected). A day with no date whose label names a weekday (oldDates) is read as that day and moved the same way,
+ * after the days that have their own date. New days the booth did not have come in empty, but only for a booth that
+ * sold every day of the old run (a Saturday-only booth does not grow a Friday). SE days keep their weekday next to
+ * the run (placeSE); one with nowhere to go is gone, and its reps are affected. A day whose date can't be read
+ * (a column that names no day, "Tucson, AZ") stays as it was, undated, and is listed in `loose` for the report.
+ * @returns { patch, affected: [{ rep, from, to|null }], added: [iso], removed: [iso], loose: [{ booth, label, reps }] }
+ *   or { error }
  */
 export function planMove(e, target) {
   if (!target || !ISO.test(target.start || '') || !ISO.test(target.end || '') || target.start > target.end) return { error: 'the new dates are not a valid run' };
@@ -71,47 +121,50 @@ export function planMove(e, target) {
   if (tDates.length > 21) return { error: 'the new run is longer than three weeks' };
   const old = sellingRun(e);
   if (!old) return { error: 'the board has no usable selling days to move' };
-  const overlap = !(target.end < old.start || target.start > old.end);
-  const offset = dayDiff(target.start, old.start);
+  const whens = (e.booths || []).map(b => oldDates(b, old));
+  const span = { ...old };                                            // the old run with the days read from their labels
+  (e.booths || []).forEach((b, k) => whens[k].forEach((d, i) => { if (d && !isSE((b.days || [])[i])) { if (d < span.start) span.start = d; if (d > span.end) span.end = d; } }));
   const oldAll = new Set(runDays(old));
-  const affected = [], added = new Set(), removed = new Set();
-  const booths = (e.booths || []).map(b => {
-    const days = b.days || [], dates = b.dates || [];
-    const sell = [], se = [], loose = [];
-    days.forEach((label, i) => { const d = dates[i]; if (isSE(label)) se.push(i); else if (d && ISO.test(d)) sell.push(i); else loose.push(i); });
+  const affected = [], added = new Set(), removed = new Set(), loose = [];
+  const repsOn = (b, i) => (b.shifts || []).flatMap(s => {
+    const r = s.slots && s.slots[i] && String(s.slots[i].rep || '').trim();
+    return !r || r === '__X__' ? [] : r.split(' / ').map(x => x.trim()).filter(Boolean);
+  });
+  const booths = (e.booths || []).map((b, k) => {
+    const days = b.days || [], when = whens[k];
+    const sell = [], se = [], undated = [];
+    days.forEach((label, i) => { if (isSE(label)) se.push(i); else if (when[i]) sell.push(i); else undated.push(i); });
+    const own = i => ISO.test((b.dates || [])[i] || ''), order = [...sell.filter(own), ...sell.filter(i => !own(i))];
     const mapTo = {}, used = new Set();
-    for (const i of sell) if (tDates.includes(dates[i]) && !used.has(dates[i])) { mapTo[i] = dates[i]; used.add(dates[i]); }
-    for (const i of sell) {
+    for (const i of order) if (tDates.includes(when[i]) && !used.has(when[i])) { mapTo[i] = when[i]; used.add(when[i]); }
+    for (const i of order) {
       if (mapTo[i]) continue;
-      const c = tDates.filter(d => weekday(d) === weekday(dates[i]) && !used.has(d));
+      const c = tDates.filter(d => weekday(d) === weekday(when[i]) && !used.has(d));
       if (c.length === 1) { mapTo[i] = c[0]; used.add(c[0]); }
     }
-    const coversRun = sell.length > 0 && [...oldAll].every(d => sell.some(i => dates[i] === d));
+    const coversRun = sell.length > 0 && [...oldAll].every(d => sell.some(i => when[i] === d));
     const cols = [];                                                   // { date, label, from: old index | null, se }
     for (const i of sell) if (mapTo[i]) cols.push({ date: mapTo[i], from: i, se: false });
     if (coversRun) for (const d of tDates) if (!used.has(d)) { cols.push({ date: d, from: null, se: false }); added.add(d); }
-    const sellingNow = new Set(cols.map(c => c.date));
-    for (const i of se) {
-      const d = dates[i];
-      if (!d || !ISO.test(d)) { cols.push({ date: null, from: i, se: true }); continue; }
-      const nd = overlap ? d : addDaysIso(d, offset);
-      if (!sellingNow.has(nd)) cols.push({ date: nd, from: i, se: true });
+    for (const i of sell) {
+      const gone = !mapTo[i], moved = mapTo[i] && mapTo[i] !== when[i];
+      if (gone) removed.add(when[i]);
+      if (gone || moved) for (const rep of repsOn(b, i)) affected.push({ rep, from: when[i], to: gone ? null : mapTo[i] });
     }
-    for (const i of loose) cols.push({ date: null, from: i, se: false, loose: true });
+    const taken = new Set(cols.map(c => c.date));
+    for (const i of se) {
+      const d = when[i];
+      if (!d) { cols.push({ date: null, from: i, se: true }); loose.push({ booth: b.label || '', label: days[i], reps: repsOn(b, i) }); continue; }
+      const nd = placeSE(d, span, target, tDates);
+      if (nd && !taken.has(nd)) { cols.push({ date: nd, from: i, se: true }); taken.add(nd); continue; }
+      removed.add(d);
+      for (const rep of repsOn(b, i)) affected.push({ rep, from: d, to: null });
+    }
+    for (const i of undated) { cols.push({ date: null, from: i, se: false, loose: true }); loose.push({ booth: b.label || '', label: days[i], reps: repsOn(b, i) }); }
     cols.sort((a, c) => (a.date === null) - (c.date === null) || String(a.date).localeCompare(String(c.date)));
     const newDays = cols.map(c => (c.loose ? days[c.from] : c.se ? (c.date ? `${weekday(c.date)} SE` : days[c.from]) : weekday(c.date)));
     const newDates = cols.map(c => c.date);
     const shifts = (b.shifts || []).map(s => ({ ...s, slots: cols.map(c => (c.from !== null && s.slots && s.slots[c.from] ? JSON.parse(JSON.stringify(s.slots[c.from])) : { rep: '', ft: [] })) }));
-    for (const i of sell) {
-      const gone = !mapTo[i], moved = mapTo[i] && mapTo[i] !== dates[i];
-      if (gone) removed.add(dates[i]);
-      if (!gone && !moved) continue;
-      for (const s of b.shifts || []) {
-        const r = s.slots && s.slots[i] && String(s.slots[i].rep || '').trim();
-        if (!r || r === '__X__') continue;
-        for (const one of r.split(' / ').map(x => x.trim()).filter(Boolean)) affected.push({ rep: one, from: dates[i], to: gone ? null : mapTo[i] });
-      }
-    }
     return { ...b, days: newDays, dates: newDates, shifts };
   });
   const all = booths.flatMap(b => b.dates).filter(d => d && ISO.test(d)).sort();
@@ -122,5 +175,5 @@ export function planMove(e, target) {
   const order = [...seen.keys()].sort();
   const patch = { startDate: all[0] || target.start, endDate: all[all.length - 1] || target.end, weekend: fridayKey(firstSell),
     days: order.map(d => seen.get(d)), dates: order, booths, datesEstimated: false };
-  return { patch, affected, added: [...added].sort(), removed: [...removed].sort() };
+  return { patch, affected, added: [...added].sort(), removed: [...removed].sort(), loose };
 }

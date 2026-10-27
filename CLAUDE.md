@@ -221,7 +221,12 @@ routines in `.claude/skills/` keep it true.
   board and VC's run does not cover it (VC holds one day of two), the report says VC is the one to fix. Each show is
   looked up once (rsd-shift-picking keeps the findings and reuses them; `counts.reused` says how many). A move
   (`planMove`) keeps reps on days that still happen, carries a rep to the same weekday in the new run, and reports
-  the reps whose day is gone (they get a text through Alan). The preflight (`--mode full`) also fills blanks and
+  the reps whose day is gone (they get a text through Alan). Since 2026-10-27 (Bluegrass on the Beach 2027, moved
+  2026-09-24, had Zach's Friday parked on a hidden column and his Mon SE dropped unreported): a day with no date whose
+  label names a weekday ("3/1/2024", "Friday (SE)") is read as that day and moved like the rest; an SE day keeps its
+  weekday beside the run (a Mon SE after Fri-Sun stays the Monday after), and one with nowhere to go is reported with
+  its reps; a column that names no day stays as it was and is listed in the report ("Days a move could not date").
+  The preflight (`--mode full`) also fills blanks and
   corrects venue/promoter/website/application from official pages; an existing contact, cost, address or
   indoor/outdoor answer is only reported, never overwritten. Every move writes `datesNote` (shown on the board as
   "checked" or "VC dates"), `datesSource`, `datesMoved`. Output `out/research/<label>-<date>.json` (600) and a
