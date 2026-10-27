@@ -257,7 +257,9 @@ routines in `.claude/skills/` keep it true.
 - `tests/run-all.mjs` — CLI, launcher, Sheet-parser, matcher, sync and event-check tests against an in-memory fake database. Run before every commit.
   Each block is a `section()`: one that throws is a single named failure, the blocks after it still run, and the count
   always prints. `./install.sh --arm` refuses while this fails.
-- `docs/ROADMAP.md` — the staged plan to replace the Sheet by Fall 2027. `docs/HANDOFF.md` — go-live steps.
+- `docs/ROADMAP.md` — the staged plan to replace the Sheet by Fall 2027. `docs/stage-3-january.md` — stage 3 moved to the
+  January 13, 2027 meeting (Alan, 2026-10-27): what the board still needs, the board → Sheet mirror, the parallel run, the
+  cutover. `docs/HANDOFF.md` — go-live steps.
 - `.claude/skills/` — the routines: `board-tick` (daily), `board-preflight` and `board-booking-sweep` (hand-run fallbacks),
   `board-event-check`, `board-rollforward`. They lean on the account skills
   `vectorconnect-booking-request`, `event-check`, `vectorconnect-event-export`, `humanizer`.
@@ -422,7 +424,8 @@ the service key moves them on.
   says whether the mailroom is ready. Routines and the tick still never e-mail. The rule in full:
   `@~/ai-system/claude/shared/email-sending.md`.
 - **The Sheet is still the truth (stage 1).** rsd-shift-picking, rsd-event-analyzer and three skills read it. Nothing here may retire, rename or restructure the Sheet. Read
-  `docs/ROADMAP.md` before any change that touches another system.
+  `docs/ROADMAP.md` before any change that touches another system. From the January 13, 2027 meeting the board is the
+  truth and the Sheet a mirror the board writes (`docs/stage-3-january.md`; not built yet as of 2026-10-27).
 - **SUNNY reads this board live (since 2026-10-03).** sunny-bot's `lib/board.js` reads `events`, `event_contacts` and
   `settings` with the public anon key on every rep question (10-minute cache). It depends on the event shape
   (`booths[].shifts[].slots[]`, `days`/`dates`, `status`, `vcNumber`, `costNum`, `costBasis`, `dead`, `cityState`). After

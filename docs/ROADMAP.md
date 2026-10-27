@@ -2,11 +2,16 @@
 
 Alan's goal (2026-09-19): by the Fall 2027 shift-picking meeting (August 2027), every RSD events
 automation reads and writes the Show Shift Board, and the Show Shift Schedule Google Sheet is an
-archive. The rule for getting there: **stages, slowly, and no routine breaks.** One reader moves at
+archive. **Moved up 2026-10-27 (Alan: "make the January 13 meeting the first one run on the board"): stage 3, the
+first meeting on the board, is the January 13, 2027 meeting, not May. Its scope, the mirror, the parallel run and the
+cutover are in `docs/stage-3-january.md`.** The rule for getting there: **stages, slowly, and no routine breaks.** One reader moves at
 a time, each one runs in parallel against the Sheet first, and the Sheet is never retired as a side
 effect of something else.
 
 ## Who still reads the Sheet (as of 2026-09-19)
+
+Kept as written then. Since 2026-09-30 rsd-event-analyzer reads the board first for 2026 on. The full list as of
+2026-10-27, with what each reader takes from the Sheet and what its colors mean, is in `docs/stage-3-january.md`.
 
 | system | where | what it reads |
 |---|---|---|
@@ -68,10 +73,12 @@ then checks. When Matt and JP rebuild March-May for 2027, the first sync after a
 40-show limit; read its report and run it with `--force` on the mini. The Dec 28 reminder is gone; the old Cowork "Jan-May
 Schedule Changeover Prep" task (bound to the MacBook) was written for the Sheet-based routine and should be deleted.
 
-**Stage 3 — the first meeting on the board (the May 2027 meeting).**
+**Stage 3 — the first meeting on the board (the January 13, 2027 meeting; was May, Alan 2026-10-27).**
 Coordinators enter picks in plan mode. Direction flips: board → Sheet export (a script writes the
 Sheet from the board), so every reader above keeps working off a Sheet that is now a mirror.
-Exit test: the mirror matches the board cell for cell after the meeting and after the sweep.
+Exit test: the mirror matches the board cell for cell after the meeting and after the sweep. Before it: 14 days of
+every reader parsing a copy of the mirror exactly as it parses the real Sheet, by January 6 (go / no-go). Scope in
+`docs/stage-3-january.md`.
 
 **Stage 4 — move the readers, one at a time (May → Aug 2027; the small ones start early, below).**
 Order by blast radius, smallest first: ~~sunny shift sync~~ (done 2026-10-03, see below) → count-mesa-shifts → show-shift-calendar-sync
@@ -99,11 +106,13 @@ Sheet path now.
 | Oct 15, 2026 | the mini | Hourly sync on (above). | the page's sync line reads "hourly" through a normal week |
 | end of Oct 2026 | Matt, JP | Sign in once, on the device they would use at a meeting (on iPhone, the Home Screen icon). Use the board for the one question the Sheet can no longer answer: is this show booked? VC status lives only on the board; the Sheet's Z/AA columns froze on 9/9. | both have signed in; booking questions get answered from the board |
 | ~~Nov 2026~~ done 2026-10-03 | Alan + Claude | SUNNY reads the board directly instead of a twice-a-month copy (Alan, 2026-10-03). There was no side-by-side run: both of SUNNY's old copies had stopped updating (Aug 28 and Sep 6), so there was nothing current to diff. Checked instead with sunny-bot's `scripts/board-audit/test-board.js` against the live board. **SUNNY is now a reader of the board: a change to the `events` / `event_contacts` shape (`booths[].shifts[].slots[]`, `days`/`dates`, `status`, `vcNumber`, `costNum`, `dead`) needs that test run.** | the board test passes; SUNNY's answers match the board page |
-| Nov–Dec 2026 | Alan + Claude | The board → Sheet mirror (stage 3's script), writing to a **copy** of the Sheet, never the Sheet itself, and diffed against the real Sheet after each sync. The fields rsd-shift-picking and the analyzer need (font-color meanings, field-training markers, stable rep ids) go on the board. | the copy matches the Sheet cell for cell for two weeks |
+| Nov 2026 | Alan + Claude | Safe slot saves (two coordinators at once), the board fields the mirror writes back (a "didn't work" mark per shift, column C, MF), the board → Sheet mirror (stage 3's script) writing **copies** of the books, never the books themselves, and the January 13 switches, built and off. Stable rep ids are stage 4's, not needed for the mirror. | `docs/stage-3-january.md` items 1-6 built |
+| Dec 1, 2026 – Jan 6, 2027 | the mini | The parallel run: after each hourly sync every reader parses the copy and the real book; a difference goes to #rsd-board. (Was "cell for cell": the team's Sheet has spills and stale cells the mirror must not copy.) | 14 days in a row with no unexplained difference by Jan 6 = go |
 | ~~Jan 6, 2027~~ done 2026-10-23 | Alan + Claude | The Jan-May book on the sync (above), before the date research's first real run: it can only research shows the board has. | the first load read back; the next sync of both books changed nothing |
-| Jan 13, 2027 meeting | all three | Dress rehearsal: Matt and JP run the meeting on the Sheet as usual; Alan enters the same picks on the board live. Afterwards the two are compared, and whatever was slow or missing on the board is the list to fix before May. | the gap list is fixed |
+| Jan 5-8, 2027 | all three | Practice on the board: a practice show, both coordinators at once, the projector view; and a dry run of the cutover morning. | what was slow or missing is fixed |
+| Jan 13, 2027 meeting | Matt, JP, Alan | **Stage 3** (Alan, 2026-10-27): picks go on the board, and the mirror starts writing the real books from the January 15 weekend on. The flip is all at once: the Sheet → board sync stops that morning. From then on nobody edits the Sheet. If January 6 was no-go, this meeting is the old dress rehearsal (Matt and JP on the Sheet, Alan entering the same picks on the board) and the flip waits for May. | the mirror matches the board after the meeting and after the Jan 15 sweep |
 | Feb–Apr 2027 | Alan + Claude | count-mesa-shifts and show-shift-calendar-sync: board adapters, both paths, diffed. The mirror keeps running against its copy. | clean diffs, then switch |
-| May 2027 meeting | Matt, JP | Stage 3: picks go on the board, and the mirror starts writing the real Sheet. The flip is all at once: the Sheet → board sync stops the day the mirror starts (both directions at once is a two-way sync). From then on nobody edits the Sheet. | the mirror matches the board after the meeting and after the sweep |
+| May 2027 meeting | Matt, JP | The second meeting on the board. The summer picks go on the board and the mirror takes on the May-Sept book until rsd-shift-picking reads the board. | the mirror matches the board after the meeting and after the sweep |
 | May–Aug 2027 | Alan + Claude | rsd-event-analyzer, then rsd-shift-picking (last: it texts reps). | each switched on a clean diff |
 | after the Aug 2027 meeting | Alan | Stage 5: the Sheet goes read-only. | the Sheet shows the banner |
 
@@ -114,4 +123,6 @@ Sheet path now.
 - Whether rsd-shift-picking's `run-booking-sweep.sh` runs the Sheet sync before it sorts staffed shows (checked
   from this repo it can't be). If not, the sweep judges picks made on the Sheet from a board synced by the
   hourly run (07:00 at the latest, for a 07:30 sweep), which is fine unless the hourly sync is paused or off.
-  Worth a look before the sweep's first real run on January 15, 2027.
+  Worth a look before the sweep's first real run on January 15, 2027. *Settled by stage 3 in January:* the sweep, the
+  preflight and shift cost each stop without that day's Sheet sync report (`run-booking-sweep.sh` "no Sheet sync report
+  for today"); from January 13 they read the mirror's report instead (`docs/stage-3-january.md` item 5).
