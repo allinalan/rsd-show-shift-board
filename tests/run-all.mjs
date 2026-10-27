@@ -1223,6 +1223,11 @@ def post(route, text, mention=None, fallback=True, **k):
       { eventNumber: '00300034', name: 'Tau Craft Fair', status: 'Booked', startDate: '2026-11-06', endDate: '2026-11-07' },
       { eventNumber: '00300035', name: 'Old Expo', status: 'Booked', startDate: '2026-09-01', endDate: '2026-09-02' },
       { eventNumber: '00300036', name: 'Upsilon Expo', status: 'Prospective', startDate: '2026-11-13', endDate: '2026-11-14' },
+      { eventNumber: '00300037', name: 'Mecum Kansas City', status: 'Booked', startDate: '2026-12-03', endDate: '2026-12-05', city: 'Kansas City', state: 'MO' },
+      { eventNumber: '00300038', name: 'Laughlin River Run', status: 'Booked', startDate: '2026-11-20', endDate: '2026-11-22', city: 'Laughlin', state: 'NV' },
+      { eventNumber: '00300039', name: 'Houston Home Show', status: 'Booked', startDate: '2026-11-20', endDate: '2026-11-22', city: 'Houston', state: 'TX' },
+      { eventNumber: '00300040', name: 'El Paso Winter Expo', status: 'Booked', startDate: '2026-11-20', endDate: '2026-11-22', city: 'El Paso', state: 'TX' },
+      { eventNumber: '00300041', name: 'Las Cruces Craft Fair', status: 'Booked', startDate: '2026-11-20', endDate: '2026-11-21', city: 'Las Cruces', state: 'NM' },
       ...filler];
     const vcFile = path.join(home, 'ec-vc.json'); fs.writeFileSync(vcFile, JSON.stringify({ coordinator: 'Matt Foss', rows }));
     const outd = path.join(home, 'ec-out');
@@ -1276,7 +1281,9 @@ def post(route, text, mention=None, fallback=True, **k):
       'event-check: "Booked - ..." counts, and a show the board has on another weekend is named beside it (a date to fix, not a show to add)');
     ok(!byNum('00300034') && !byNum('00300032') && !byNum('00300033') && !byNum('00300035') && !byNum('00300036') && !byNum('00300020') && !byNum('00300013') && !byNum('00092192'),
       'event-check: never listed: a show the board has unstaffed (by name and date), a Service & Sales event (config vcOnlyOk), a mall kiosk, a past show, a show VC has not booked, Mesa, anything the board claims');
-    ok(vcOnly.length === 2 && latest.flags.bookedNotOnBoard.length === 2 + filler.length, 'event-check: nothing else is listed (the filler rows are booked shows the board does not have)');
+    ok(!byNum('00300037') && !byNum('00300038') && !byNum('00300039') && byNum('00300040') && byNum('00300041'),
+      'event-check: only the division is listed: Arizona, New Mexico and El Paso, not Missouri, Nevada or the rest of Texas (Alan, 2026-10-26)');
+    ok(vcOnly.length === 4 && latest.flags.bookedNotOnBoard.length === 4 + filler.length, 'event-check: nothing else is listed (the filler rows, no state, are booked shows the board does not have)');
     const ecMd2 = fs.readFileSync(path.join(outd, 'reports', 'event-check-2026-10-01.md'), 'utf8');
     ok(/## Booked in VectorConnect, not on the board[^]*Nov 6-8 Zeta Home Show \(00300030, Booked, State Farm Stadium, Glendale, \$11,668\)/.test(ecMd2)
       && /## Booked in VectorConnect, on the board on another weekend[^]*Sigma Art Walk[^]*the board has Sigma Art Walk on 2026-12-18, Prospective/.test(ecMd2), 'event-check: the report has both lists');

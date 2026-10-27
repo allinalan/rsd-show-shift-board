@@ -179,7 +179,9 @@ routines in `.claude/skills/` keep it true.
   staffed or not) is listed in `flags.bookedNotOnBoard`, and one the board has under the same name within 60 days on
   another weekend carries that show (`board`: a date to fix, not a show to add). Never listed: Mesa, the placeholder, a
   mall kiosk (the kiosks table), a record in config `vcOnlyOk` (by number or name pattern; the reps' own Service & Sales
-  events by default). Both lists are in the report and in Alan's Wednesday text. It writes nothing. Writes `out/event-check/latest.json`
+  events by default), anything outside the division (config `division`, Alan 2026-10-26: Arizona, New Mexico and El
+  Paso, by VC's state field; Mecum Kansas City and Laughlin NV are off). Both lists are in the report and in Alan's
+  Wednesday text. It writes nothing. Writes `out/event-check/latest.json`
   (read by rsd-shift-picking's texts), the workbook and a summary under `out/reports/`.
 - `scripts/fill-dates.mjs` — a show with no Start Date gets one (Alan, 2026-10-06), run by rsd-shift-picking's
   `run-event-check.sh` right after the event check (stage 3b). In order: the show's own day columns (the Sheet's weekend
