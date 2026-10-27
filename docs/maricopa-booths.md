@@ -36,7 +36,11 @@ with its installer, REGISTRY.yaml and the Overseer's jobs.json.
 - January 15-17 (Fairgrounds): Ag Building 820-822 (the board agrees), Exhibit Building 125-127 (the board and the
   Sheet say 135/137), South Entrance Tent 3128-3130 (the board says only "South Entrance Tent"). Those names come
   from the Sept-Feb Sheet this season, so the lookup only reports them.
-- March 5-7 (State Farm Stadium): Cutco at 601-603, 637-639 and 419, and no March Maricopa show on the board.
+- March 5-7 (State Farm Stadium): Cutco at 601-603, 637-639 and 419, and no March Maricopa show on the board. Ours
+  (Alan): VC has it Booked as 00096371 "Maricopa County Home & Landscape Show", but it was never on the Jan-May Sheet,
+  so no load brought it over, and the Wednesday event check only looks at shows the board already has staffed. Added
+  by hand the same day (`2027-maricopa-county-home-landscape-show-r598q`, actor `service:maricopa-booths`) with VC's
+  status, number and cost, the January show's promoter details, and the three booths off the plan.
 - April 30-May 2 (WestWorld): North Hall 709, North Hall 1223, Concourse 2049 (2049 was 2026's spot too).
 - July 16-18 (State Farm Stadium): 301-303 and 921-923 (2026's spots again), 221-223 (2026: 421-423).
 - October 8-10 (WestWorld): the link is a 2025 picture, not a plan for 2027.
