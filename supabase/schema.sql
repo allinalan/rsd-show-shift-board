@@ -112,6 +112,77 @@ begin
   return out;
 end $$;
 
+-- ---------- safe saves for a show's shifts (stage 3, 2026-10-27) ----------
+-- The January 13, 2027 meeting is the first one run on the board, with two coordinators typing at once. A slot save used
+-- to copy the show's whole `booths` from the page and write it back, so a pick made a second earlier on another screen
+-- was put back as it was, with no error. Now:
+--   set_slot    one slot, written only if it still holds what the person saw (`p_seen`, its rep and ft); otherwise
+--               nothing changes and the answer says what the slot holds now.
+--   set_booths  a show's whole `booths` (add or remove a booth or a shift row, a booth's name, a date move), written only
+--               if `booths` is still exactly what the page read a moment before (`p_seen`); `p_extra` carries the other
+--               fields such a change sets (dates), never `booths` or a promoter contact (those live in event_contacts).
+-- Both lock the row, answer { ok: true } or { ok: false, why: 'changed' | 'gone' | 'bad' } and never raise for a stale
+-- save; only a non-editor gets an error. Only the service key may name the changelog actor.
+create or replace function set_slot(p_event text, p_booth int, p_shift int, p_day int, p_seen jsonb, p_value jsonb, p_actor text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare d jsonb; b jsonb; sh jsonb; slots jsonb; cur jsonb; nv jsonb; ft jsonb; rep text;
+begin
+  if not (is_editor() or auth.role() = 'service_role') then raise exception 'not an editor' using errcode = '42501'; end if;
+  if p_booth is null or p_shift is null or p_day is null or p_booth < 0 or p_shift < 0 or p_day < 0
+     or jsonb_typeof(p_seen) is distinct from 'object' or jsonb_typeof(p_value) is distinct from 'object' then
+    return jsonb_build_object('ok', false, 'why', 'bad');
+  end if;
+  rep := btrim(coalesce(p_value->>'rep', ''));
+  ft := case when jsonb_typeof(p_value->'ft') = 'array' then p_value->'ft' else '[]'::jsonb end;
+  if length(rep) > 80 or jsonb_array_length(ft) > 6 then return jsonb_build_object('ok', false, 'why', 'bad'); end if;
+  select data into d from events where id = p_event for update;
+  if d is null then return jsonb_build_object('ok', false, 'why', 'gone'); end if;
+  b := d->'booths'->p_booth; sh := b->'shifts'->p_shift;
+  if jsonb_typeof(sh) is distinct from 'object' then return jsonb_build_object('ok', false, 'why', 'gone'); end if;
+  slots := case when jsonb_typeof(sh->'slots') = 'array' then sh->'slots' else '[]'::jsonb end;
+  if p_day >= greatest(coalesce(jsonb_array_length(case when jsonb_typeof(b->'days') = 'array' then b->'days' end), 0), jsonb_array_length(slots)) then
+    return jsonb_build_object('ok', false, 'why', 'gone');
+  end if;
+  cur := case when jsonb_typeof(slots->p_day) = 'object' then slots->p_day else '{}'::jsonb end;
+  if coalesce(cur->>'rep', '') <> coalesce(p_seen->>'rep', '')
+     or (case when jsonb_typeof(cur->'ft') = 'array' then cur->'ft' else '[]'::jsonb end)
+        <> (case when jsonb_typeof(p_seen->'ft') = 'array' then p_seen->'ft' else '[]'::jsonb end) then
+    return jsonb_build_object('ok', false, 'why', 'changed', 'now', jsonb_build_object('rep', coalesce(cur->>'rep', ''),
+      'ft', case when jsonb_typeof(cur->'ft') = 'array' then cur->'ft' else '[]'::jsonb end));
+  end if;
+  nv := cur || jsonb_build_object('rep', rep, 'ft', ft);
+  while jsonb_array_length(slots) < p_day loop slots := slots || jsonb_build_array(jsonb_build_object('rep', '', 'ft', '[]'::jsonb)); end loop;
+  if jsonb_array_length(slots) = p_day then slots := slots || jsonb_build_array(nv); else slots := jsonb_set(slots, array[p_day::text], nv); end if;
+  if p_actor is not null and auth.role() = 'service_role' then perform set_config('board.actor', p_actor, true); end if;
+  update events set data = jsonb_set(data, array['booths', p_booth::text, 'shifts', p_shift::text, 'slots'], slots) where id = p_event;
+  return jsonb_build_object('ok', true, 'slot', nv);
+end $$;
+
+create or replace function set_booths(p_event text, p_seen jsonb, p_booths jsonb, p_extra jsonb default '{}'::jsonb, p_actor text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare d jsonb; x jsonb := coalesce(p_extra, '{}'::jsonb);
+begin
+  if not (is_editor() or auth.role() = 'service_role') then raise exception 'not an editor' using errcode = '42501'; end if;
+  if jsonb_typeof(p_booths) is distinct from 'array' or jsonb_array_length(p_booths) = 0
+     or jsonb_typeof(p_seen) is distinct from 'array' or jsonb_typeof(x) <> 'object'
+     or x ?| array['booths', 'contact', 'phone', 'email'] then
+    return jsonb_build_object('ok', false, 'why', 'bad');
+  end if;
+  select data into d from events where id = p_event for update;
+  if d is null then return jsonb_build_object('ok', false, 'why', 'gone'); end if;
+  if coalesce(d->'booths', '[]'::jsonb) <> p_seen then return jsonb_build_object('ok', false, 'why', 'changed'); end if;
+  if p_actor is not null and auth.role() = 'service_role' then perform set_config('board.actor', p_actor, true); end if;
+  update events set data = data || x || jsonb_build_object('booths', p_booths) where id = p_event;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function set_slot(text, int, int, int, jsonb, jsonb, text) from public;
+revoke all on function set_booths(text, jsonb, jsonb, jsonb, text) from public;
+-- Supabase grants anon execute on every new function in public by default: take it back (the functions refuse anon anyway)
+revoke execute on function set_slot(text, int, int, int, jsonb, jsonb, text) from anon;
+revoke execute on function set_booths(text, jsonb, jsonb, jsonb, text) from anon;
+grant execute on function set_slot(text, int, int, int, jsonb, jsonb, text) to authenticated, service_role;
+grant execute on function set_booths(text, jsonb, jsonb, jsonb, text) to authenticated, service_role;
+
 -- ---------- row-level security ----------
 do $$ declare t text; begin
   foreach t in array array['events','history','settings','seasons','never_work','overrides','kiosks','coverage'] loop

@@ -47,7 +47,9 @@ backgrounds and nothing reads them):
 
 Each item is a must for the first meeting on the board unless it says "later".
 
-1. **A shift saved at a meeting can't erase another one.** Today a slot save (`setSlot` in index.html) copies the show's
+1. **A shift saved at a meeting can't erase another one.** *Done for the page 2026-10-27 (`set_slot` / `set_booths`, live in
+   the database the same day; the board's CLAUDE.md has the rule). Still to do: the coverage agent's slot move through
+   `set_slot`.* Today a slot save (`setSlot` in index.html) copies the show's
    `booths` from the page's own copy, changes one slot and writes all of `booths` back. Two coordinators putting names
    into the same show within a second or two of each other (before realtime reaches the second page) means the later
    save puts the earlier slot back as it was: one pick is gone, with no error. Found in the code, not seen happen (nobody

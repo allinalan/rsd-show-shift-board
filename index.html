@@ -2535,6 +2535,53 @@ async function setField(e,k,v,extra){
   return true;
 }
 function withBooths(e,fn){ const booths=JSON.parse(JSON.stringify(e.booths)); fn(booths); return booths; }
+/* safe-saves:start — a shift, or a show's booths, saved without undoing what another screen saved a moment before
+   (stage 3, Alan 2026-10-27: two coordinators typing at the January 13 meeting). The database does the checking (set_slot
+   and set_booths, supabase/schema.sql); this block only says what this page saw. It uses nothing else from the page, so
+   the tests run it by itself. */
+const slotOf=(e,bi,si,di)=>{ const sh=e&&e.booths&&e.booths[bi]&&e.booths[bi].shifts&&e.booths[bi].shifts[si]; if(!sh) return null;
+  const s=(sh.slots||[])[di]||{}; return {rep:s.rep||'',ft:Array.isArray(s.ft)?s.ft:[]}; };
+/* what a booth or shift-row index points at, names left out: a change made against this can be made again on a fresh copy */
+const boothShape=bs=>JSON.stringify((bs||[]).map(b=>[b.label||'',(b.days||[]).join('|'),(b.shifts||[]).map(x=>x.label||'')]));
+async function saveSlotSafe(rpc,e,bi,si,di,val){
+  const seen=slotOf(e,bi,si,di); if(!seen) return {ok:false,why:'gone'};
+  return (await rpc('set_slot',{p_event:e.id,p_booth:bi,p_shift:si,p_day:di,p_seen:seen,p_value:{rep:val.rep||'',ft:val.ft||[]}}))||{ok:false,why:'bad'};
+}
+/* make(fresh) builds the patch ({booths, ...dates}) from the row as it is now, read a moment before the write. Names someone
+   else just put in are on that copy, so they are kept; a booth or row added or removed elsewhere stops it (the index may
+   point at another one now). The write itself is refused if the row moved between the read and the write: read again. */
+async function saveBoothsSafe(rpc,read,e,make,tries=3){
+  for(let i=0;i<tries;i++){
+    const fresh=await read(e.id); if(!fresh) return {ok:false,why:'gone'};
+    if(boothShape(fresh.booths)!==boothShape(e.booths)) return {ok:false,why:'changed',fresh};
+    const {booths,...extra}=make(fresh);
+    const r=(await rpc('set_booths',{p_event:e.id,p_seen:fresh.booths||[],p_booths:booths,p_extra:extra}))||{ok:false,why:'bad'};
+    if(r.ok) return {ok:true,patch:{booths,...extra}};
+    if(r.why!=='changed') return r;
+  }
+  return {ok:false,why:'busy'};
+}
+const slotTaken=now=>!now?'That spot was just changed on another screen, so nothing was saved.'
+  :now.rep==='__X__'?'That day was just marked no shift on another screen, so nothing was saved.'
+  :now.rep?`${now.rep} was just put in that spot on another screen, so nothing was saved. Tap it again to change it.`
+  :'That spot was just opened up on another screen, so nothing was saved. Tap it again to fill it.';
+const showChanged={changed:'This show just changed on another screen, so nothing was saved. It\'s up to date now: try again.',
+  gone:'This show was just removed or changed on another screen, so nothing was saved.',
+  busy:'This show kept changing on other screens, so nothing was saved. Try again in a moment.',
+  bad:'Couldn\'t save that. Try again.'};
+/* safe-saves:end */
+/* a change to a show's booths (and the dates that go with them), through set_booths; the read-only preview has no rpc and
+   says so itself through patchEvent */
+async function saveShow(e,make){
+  if(!db){toastErr('Shared storage not available');return false;}
+  if(!db.rpc) return patchEvent(e.id,make(e));
+  try{
+    const r=await saveBoothsSafe(db.rpc,id=>db.row('events',id),e,make);
+    if(r.ok){ Object.assign(e,r.patch); return true; }
+    if(r.fresh) Object.assign(e,r.fresh);
+    toastErr(showChanged[r.why]||showChanged.bad); build(); return false;
+  }catch(err){ toastErr(err&&err.code==='invalid_argument'?'You don\'t have edit access to this board':'Couldn\'t save — try again'); return false; }
+}
 function recomputeDates(e,startISO){
   const booths=withBooths(e,bs=>bs.forEach(b=>{b.dates=dayDates(b.days,startISO);}));
   const all=booths.flatMap(b=>b.dates).filter(Boolean).sort();
@@ -2617,22 +2664,20 @@ board.addEventListener('click',async ev=>{
   }
   const so=ev.target.closest('[data-spot-ok]');
   if(so&&e.source==='board'){ const bi=+so.dataset.spotOk, b=e.booths[bi]; if(!b) return;
-    const booths=withBooths(e,bs=>unspot(bs[bi]));
-    if(await patchEvent(id,{booths})) toast(`${b.label||'Booth #'+(bi+1)}: same spot in ${yearOf(e)}`);
+    if(await saveShow(e,f=>({booths:withBooths(f,bs=>unspot(bs[bi]))}))) toast(`${b.label||'Booth #'+(bi+1)}: same spot in ${yearOf(e)}`);
     return; }
   const add=ev.target.closest('[data-add]');
   if(add){ const bi=+add.dataset.add;
-    if(e.source==='board'){ const booths=withBooths(e,bs=>{const b=bs[bi]; b.shifts.push({label:'Shift '+(b.shifts.length+1),slots:b.days.map(()=>({rep:'',ft:[]}))});}); await patchEvent(id,{booths}); }
+    if(e.source==='board'){ await saveShow(e,f=>({booths:withBooths(f,bs=>{const b=bs[bi]; b.shifts.push({label:'Shift '+(b.shifts.length+1),slots:b.days.map(()=>({rep:'',ft:[]}))});})})); }
     else { const k=id+'|'+bi; store.extra[k]=(store.extra[k]||0)+1; save(); build(); }
     return; }
   const ab=ev.target.closest('[data-add-booth]');
   if(ab&&e.source==='board'){
-    const booths=withBooths(e,bs=>{
+    await saveShow(e,f=>({booths:withBooths(f,bs=>{
       if(bs.length===1&&!bs[0].label) bs[0].label='Booth #1';
-      const days=bs[0].days||e.days||[], dates=bs[0].dates||e.dates||[];
+      const days=bs[0].days||f.days||[], dates=bs[0].dates||f.dates||[];
       bs.push({label:'Booth #'+(bs.length+1),status:'',days,dates,shifts:[{label:'Shift 1',slots:days.map(()=>({rep:'',ft:[]}))}]});
-    });
-    await patchEvent(id,{booths}); return;
+    })})); return;
   }
   const db_=ev.target.closest('[data-del-booth]');
   if(db_&&e.source==='board'){
@@ -2640,8 +2685,7 @@ board.addEventListener('click',async ev=>{
     const key=armKey.booth(e,bi);
     if(!isArmed(key)){ arm(key,()=>armRedraw(key,x=>boothDelBtn(x,bi))); return; }
     armed=null;
-    const booths=withBooths(e,bs=>{bs.splice(bi,1); if(bs.length===1&&/^Booth #\d+$/.test(bs[0].label||'')) bs[0].label='';});
-    if(!await patchEvent(id,{booths})) armRedraw(key,x=>boothDelBtn(x,bi)); return;
+    if(!await saveShow(e,f=>({booths:withBooths(f,bs=>{bs.splice(bi,1); if(bs.length===1&&/^Booth #\d+$/.test(bs[0].label||'')) bs[0].label='';})}))) armRedraw(key,x=>boothDelBtn(x,bi)); return;
   }
   const dsh=ev.target.closest('[data-del-shift]');
   if(dsh&&e.source==='board'){
@@ -2651,8 +2695,7 @@ board.addEventListener('click',async ev=>{
     if(!isArmed(key)){ arm(key,()=>armRedraw(key,x=>rowDelBtn(x,bi,si))); return; }
     armed=null;
     /* "Shift 3" after Shift 2 is gone would be a second Shift 3 on the next add: plain numbers close up */
-    const booths=withBooths(e,bs=>{ const sh=bs[bi].shifts; sh.splice(si,1); sh.forEach((x,k)=>{ if(/^Shift \d+$/.test(x.label||'')) x.label='Shift '+(k+1); }); });
-    if(!await patchEvent(id,{booths})) armRedraw(key,x=>rowDelBtn(x,bi,si)); return;
+    if(!await saveShow(e,f=>({booths:withBooths(f,bs=>{ const sh=bs[bi].shifts; sh.splice(si,1); sh.forEach((x,k)=>{ if(/^Shift \d+$/.test(x.label||'')) x.label='Shift '+(k+1); }); })}))) armRedraw(key,x=>rowDelBtn(x,bi,si)); return;
   }
   const ha=ev.target.closest('[data-hist-add]');
   if(ha){ const w=ha.closest('.hist'); const y=w.querySelector('[data-hist-newyear]').value.trim(), c=w.querySelector('[data-hist-newcpo]').value, o=w.querySelector('[data-hist-neworders]').value;
@@ -2753,9 +2796,9 @@ board.addEventListener('change',async ev=>{
     const extra=APP_DATES.some(([f])=>f===k)?{[k+'Source']:v?manualSrc():null}:null;
     await setField(e,k,v,extra); return; }
   const bl=ev.target.closest('input[data-booth-label]');
-  if(bl&&B){ const bi=+bl.dataset.boothLabel; const booths=withBooths(e,bs=>{bs[bi].label=bl.value.trim(); if(!lastYearsSpot(bs[bi])) unspot(bs[bi]);}); await patchEvent(id,{booths}); return; }
+  if(bl&&B){ const bi=+bl.dataset.boothLabel, v=bl.value.trim(); await saveShow(e,f=>({booths:withBooths(f,bs=>{bs[bi].label=v; if(!lastYearsSpot(bs[bi])) unspot(bs[bi]);})})); return; }
   const ds=ev.target.closest('input[data-start]');
-  if(ds&&B){ if(!ds.value)return; await patchEvent(id,recomputeDates(e,ds.value)); return; }
+  if(ds&&B){ if(!ds.value)return; const v=ds.value; await saveShow(e,f=>recomputeDates(f,v)); return; }
   const hc=ev.target.closest('input[data-hist-cpo],input[data-hist-orders]');
   if(hc){ const y=hc.dataset.histCpo||hc.dataset.histOrders; const w=hc.closest('.hist');
     await saveHist(e,y,w.querySelector(`[data-hist-cpo="${y}"]`).value,w.querySelector(`[data-hist-orders="${y}"]`).value); return; }
@@ -2769,7 +2812,18 @@ async function saveHist(e,y,cpo,orders,remove){
   catch(err){ toastErr('Couldn\'t save results — check your edit access'); }
 }
 async function setSlot(e,B,bi,si,di,val){
-  if(B){ const booths=withBooths(e,bs=>{const sl=bs[bi].shifts[si].slots[di]||(bs[bi].shifts[si].slots[di]={}); sl.rep=val.rep; sl.ft=val.ft||[];}); return await patchEvent(e.id,{booths}); }
+  if(B){
+    if(!db){toastErr('Shared storage not available');return false;}
+    if(!db.rpc){ const booths=withBooths(e,bs=>{const sl=bs[bi].shifts[si].slots[di]||(bs[bi].shifts[si].slots[di]={}); sl.rep=val.rep; sl.ft=val.ft||[];}); return await patchEvent(e.id,{booths}); }
+    /* only this slot, and only if it still holds what this page showed (set_slot): two coordinators at once never undo each other */
+    const put=sl=>{ const sh=e.booths[bi]&&e.booths[bi].shifts[si]; if(sh){ const a=sh.slots||(sh.slots=[]); a[di]=Object.assign({},a[di],sl); } };
+    try{ const r=await saveSlotSafe(db.rpc,e,bi,si,di,val);
+      if(r.ok){ put(r.slot||{rep:val.rep,ft:val.ft||[]}); return true; }
+      if(r.why==='changed'&&r.now) put(r.now);
+      toastErr(r.why==='changed'?slotTaken(r.now):r.why==='gone'?'That shift row was just changed on another screen, so nothing was saved.':showChanged.bad);
+      build(); return false;
+    }catch(err){ toastErr(err&&err.code==='invalid_argument'?'You don\'t have edit access to this board':'Couldn\'t save — try again'); return false; }
+  }
   else { store.slots[e.id+'|'+bi+'|'+si+'|'+di]=val.rep+(val.ft&&val.ft.length?' (ft. '+val.ft.join(' & ')+')':''); save(); build(); return true; }
 }
 /* ---- name picker: type to narrow the list, click (or Enter) to pick ----
@@ -3217,6 +3271,8 @@ function makeSupabaseDb(cfg){
     const cm=await contactMap(); return data.map(r=>({id:r.id,data:()=>Object.assign({},r.data,pick(cm[r.id]))})); }
   return {
     kind:'supabase', auth:sb.auth, client:sb,
+    async rpc(name,args){ const {data,error}=await sb.rpc(name,args); if(error) throw mapErr(error); return data; },
+    async row(t,id){ const {data,error}=await sb.from(t).select('data').eq('id',id).maybeSingle(); if(error) throw mapErr(error); return data?data.data:null; },
     refresh(){ reloaders.forEach(f=>f()); },   // after sign-in/out: contacts become readable (or stop being)
     doc(path){ const {t,id}=split(path); return {
       async update(patch){ let pub=patch, priv={}; if(t==='events') ({pub,priv}=splitPriv(patch));

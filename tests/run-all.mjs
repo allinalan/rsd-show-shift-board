@@ -1713,6 +1713,106 @@ def post(route, text, mention=None, fallback=True, **k):
     fs.rmSync(path.join(home, '.rsd'), { recursive: true, force: true });   // as the blocks before left it: the next block checks a missing env
   });
 
+  await section('index.html: safe saves, two coordinators at once (set_slot / set_booths, stage 3)', async () => {
+    // The page's safe-save block, run by itself against a stand-in for the two database functions. The stand-in does
+    // what supabase/schema.sql does (checked live in a rolled-back transaction on 2026-10-27); `between` lets a test
+    // put another screen's save between this page's read and its write.
+    const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    const m = html.match(/\/\* safe-saves:start[\s\S]*?\*\/([\s\S]*?)\/\* safe-saves:end \*\//);
+    ok(!!m, 'index.html: the safe-saves block is marked');
+    const P = new Function(m[1] + '\nreturn { slotOf, boothShape, saveSlotSafe, saveBoothsSafe, slotTaken, showChanged };')();
+    const clone = x => JSON.parse(JSON.stringify(x));
+    const mk = () => ({ id: 'e1', name: 'Test show', booths: [{ label: '', days: ['Friday', 'Saturday'], shifts: [{ label: 'Shift 1', slots: [{ rep: '', ft: [] }, { rep: '', ft: [] }] }] }] });
+    const store = { row: mk() }; let between = null, calls = 0;
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const rpc = async (name, a) => {
+      calls++;
+      if (between) { const f = between; between = null; f(); }
+      const d = store.row; if (!d || d.id !== a.p_event) return { ok: false, why: 'gone' };
+      if (name === 'set_slot') {
+        const sh = d.booths[a.p_booth] && d.booths[a.p_booth].shifts[a.p_shift]; if (!sh) return { ok: false, why: 'gone' };
+        const cur = sh.slots[a.p_day] || {}, now = { rep: cur.rep || '', ft: cur.ft || [] };
+        if (now.rep !== (a.p_seen.rep || '') || !same(now.ft, a.p_seen.ft || [])) return { ok: false, why: 'changed', now };
+        sh.slots[a.p_day] = { ...cur, rep: a.p_value.rep, ft: a.p_value.ft }; return { ok: true, slot: sh.slots[a.p_day] };
+      }
+      if (name === 'set_booths') {
+        if (!same(d.booths, a.p_seen)) return { ok: false, why: 'changed' };
+        Object.assign(d, a.p_extra, { booths: a.p_booths }); return { ok: true };
+      }
+      throw new Error('unknown rpc ' + name);
+    };
+    const read = async () => clone(store.row);
+    const names = () => store.row.booths.flatMap(b => b.shifts.flatMap(s => s.slots.map(x => x.rep)));
+
+    // two pages that loaded the same show; each saves a different day
+    let A = clone(store.row), B = clone(store.row);
+    ok((await P.saveSlotSafe(rpc, A, 0, 0, 0, { rep: 'Ann', ft: [] })).ok, 'page A puts Ann on Friday');
+    ok((await P.saveSlotSafe(rpc, B, 0, 0, 1, { rep: 'Bo', ft: [] })).ok, 'page B, which never saw Ann, puts Bo on Saturday');
+    ok(same(names(), ['Ann', 'Bo']), 'both names are on the show (the old whole-show write put Friday back to empty)');
+    // the old way, for the record: B writing its whole copy back would have lost Ann
+    const old = clone(B.booths); old[0].shifts[0].slots[1] = { rep: 'Bo', ft: [] };
+    ok(old[0].shifts[0].slots[0].rep === '', 'the whole-show copy page B held still had Friday empty: writing it back is what lost picks');
+
+    // the same day from two pages: the second is refused and told who has it
+    const r3 = await P.saveSlotSafe(rpc, B, 0, 0, 0, { rep: 'Cy', ft: [] });
+    ok(!r3.ok && r3.why === 'changed' && r3.now.rep === 'Ann' && names()[0] === 'Ann', 'page B on Friday too: refused, Ann stays, and the answer says Ann has it');
+    ok(/^Ann was just put in that spot on another screen, so nothing was saved/.test(P.slotTaken(r3.now))
+      && /marked no shift/.test(P.slotTaken({ rep: '__X__' })) && /opened up/.test(P.slotTaken({ rep: '' })) && /changed/.test(P.slotTaken(null)),
+      'what the coordinator is told: who has it, no shift, opened up');
+    ok(same(P.slotOf(B, 0, 0, 0), { rep: '', ft: [] }) && P.slotOf(B, 0, 5, 0) === null && P.slotOf(null, 0, 0, 0) === null, 'slotOf: what the page saw, or nothing for a row that is not there');
+    calls = 0; ok((await P.saveSlotSafe(rpc, B, 0, 3, 0, { rep: 'Cy' })).why === 'gone' && calls === 0, 'a slot the page does not have is never sent');
+    ok((await P.saveSlotSafe(rpc, { ...A, booths: [{ ...A.booths[0], shifts: [{ label: 'x', slots: [{ rep: 'Ann', ft: [] }] }] }] }, 0, 0, 0, { rep: 'Ann', ft: ['Dee'] })).ok
+      && same(store.row.booths[0].shifts[0].slots[0].ft, ['Dee']), 'a field-training helper added to a slot that still holds the lead');
+
+    // a shift row added from a page whose names are out of date: made on a fresh copy, so nobody's name is lost
+    A = clone(mk());   // A never saw Ann or Bo
+    let r = await P.saveBoothsSafe(rpc, read, A, f => ({ booths: (bs => (bs[0].shifts.push({ label: 'Shift 2', slots: [{ rep: '', ft: [] }, { rep: '', ft: [] }] }), bs))(clone(f.booths)) }));
+    ok(r.ok && store.row.booths[0].shifts.length === 2 && same(names(), ['Ann', 'Bo', '', '']), 'add a shift row from a page that never saw Ann or Bo: the row is added, both names stay');
+    ok(same(r.patch.booths, store.row.booths), 'the patch handed back is what was written (the page keeps it, so a second tap sees the new row)');
+
+    // someone saved a name between this page's read and its write: read again, and both stay
+    A = clone(store.row);
+    between = () => { store.row.booths[0].shifts[1].slots[0] = { rep: 'Eve', ft: [] }; };
+    r = await P.saveBoothsSafe(rpc, read, A, f => ({ booths: (bs => (bs[0].label = 'Booth #1', bs))(clone(f.booths)), startDate: '2027-01-15' }));
+    ok(r.ok && store.row.booths[0].label === 'Booth #1' && store.row.startDate === '2027-01-15' && names().includes('Eve'), 'a name saved between the read and the write: the write is refused once, read again, and Eve stays');
+
+    // another page added or removed a booth or row: the index may point at another one now, so nothing is written
+    const before = clone(store.row);
+    A = clone(store.row); store.row.booths.push({ label: 'Booth #2', days: ['Friday'], shifts: [{ label: 'Shift 1', slots: [{ rep: '', ft: [] }] }] });
+    const shaped = clone(store.row);
+    r = await P.saveBoothsSafe(rpc, read, A, f => ({ booths: (bs => (bs[0].shifts.splice(1, 1), bs))(clone(f.booths)) }));
+    ok(!r.ok && r.why === 'changed' && r.fresh && same(store.row, shaped), 'a booth added on another page: removing a row from the old copy writes nothing and hands back the show as it is');
+    ok(same(before.booths, A.booths) && P.boothShape(before.booths) !== P.boothShape(shaped.booths) && P.boothShape(before.booths) === P.boothShape(before.booths.map(b => ({ ...b, shifts: b.shifts.map(s => ({ ...s, slots: [] })) }))),
+      'boothShape: booths, days and row labels count, names do not');
+
+    // kept changing: three tries, then it says so and has written nothing of its own
+    A = clone(store.row); let n = 0;
+    const rpc2 = async (name, a) => { n++; store.row.booths[0].shifts[0].slots[1] = { rep: 'R' + n, ft: [] }; return rpc(name, a); };
+    const snap = clone(store.row.booths[0].label);
+    r = await P.saveBoothsSafe(rpc2, read, A, f => ({ booths: (bs => (bs[0].label = 'Never', bs))(clone(f.booths)) }));
+    ok(!r.ok && r.why === 'busy' && n === 3 && store.row.booths[0].label === snap, 'a show that changes between every read and write: 3 tries, then "busy", its own change never written');
+    ok(P.showChanged.changed && P.showChanged.gone && P.showChanged.busy && P.showChanged.bad, 'every refusal has words for the coordinator');
+    store.row = null;
+    ok((await P.saveBoothsSafe(rpc, async () => null, A, f => ({ booths: f.booths }))).why === 'gone', 'a show removed meanwhile: gone, nothing written');
+
+    // the page uses them: no slot or booth change writes a whole show copied from the page any more
+    ok(/const r=await saveSlotSafe\(db\.rpc,e,bi,si,di,val\)/.test(html), 'setSlot saves one slot through set_slot');
+    const whole = html.match(/patchEvent\((?:id|e\.id),\{booths\}\)/g) || [];
+    ok(whole.length === 1 && /if\(!db\.rpc\)\{ const booths=withBooths[^\n]*return await patchEvent\(e\.id,\{booths\}\); \}/.test(html),
+      'the only whole-booths patchEvent left is the read-only preview\'s (no rpc there)');
+    ok((html.match(/await saveShow\(e,f=>/g) || []).length + (html.match(/!await saveShow\(e,f=>/g) || []).length >= 7 && /saveShow\(e,f=>recomputeDates\(f,v\)\)/.test(html),
+      'add / remove a booth or a row, a booth\'s name, the spot tag and a date move all go through saveShow, built on the fresh copy');
+    ok(/async rpc\(name,args\)\{ const \{data,error\}=await sb\.rpc\(name,args\); if\(error\) throw mapErr\(error\)/.test(html), 'the data layer\'s rpc maps a refusal like every other write (edit access)');
+    const sql = fs.readFileSync(path.join(REPO, 'supabase', 'schema.sql'), 'utf8');
+    for (const fn of ['set_slot', 'set_booths']) {
+      const body = (sql.match(new RegExp(`create or replace function ${fn}\\([\\s\\S]*?end \\$\\$;`)) || [''])[0];
+      ok(/if not \(is_editor\(\) or auth\.role\(\) = 'service_role'\) then raise exception 'not an editor' using errcode = '42501'/.test(body)
+        && /for update/.test(body) && /p_actor is not null and auth\.role\(\) = 'service_role' then perform set_config\('board\.actor'/.test(body), `${fn}: editors only, locks the row, only the service key names the actor`);
+      ok(new RegExp(`revoke all on function ${fn}\\(`).test(sql) && new RegExp(`revoke execute on function ${fn}\\([^)]*\\) from anon;`).test(sql) && new RegExp(`grant execute on function ${fn}\\([^)]*\\) to authenticated, service_role;`).test(sql), `${fn}: not callable by anon`);
+    }
+    ok(/x \?\| array\['booths', 'contact', 'phone', 'email'\]/.test(sql), 'set_booths never takes a promoter contact or a second booths into events');
+  });
+
   await section('index.html: coverage asks (read-only marks from the coverage table)', async () => {
     // The page's one piece of coverage logic, run by itself: the block between the markers may use nothing else from the page.
     const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
