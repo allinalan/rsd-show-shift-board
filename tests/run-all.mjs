@@ -1200,6 +1200,10 @@ def post(route, text, mention=None, fallback=True, **k):
     e('2026-p', 'Mesa Market Place Swapmeet', '2026-10-30', ['Foss'], { days: fss, dates: ['2026-10-30', '2026-10-31', '2026-11-01'], endDate: '2026-11-01' });
     e('2026-q', 'Mesa Market Place Swapmeet', '2026-12-11', ['Sean'], { days: fss, dates: ['2026-12-11', '2026-12-12', '2026-12-13'] });
     e('2026-r', 'Mesa Market Place Swapmeet', '2026-11-13', ['Kendall'], { days: fss, dates: ['2026-11-13', '2026-11-14', '2026-11-15'], vcNumber: '00300099', vcMonths: [{ from: 'x' }] });
+    // booked in VC, not on the board (Alan, 2026-10-26): unstaffed board shows count too; a show on another weekend is named
+    e('2026-s', 'Sigma Art Walk', '2026-12-18', [], { status: 'Prospective' });
+    e('2026-t', 'Tau Craft Fair', '2026-11-06', [], { status: 'Prospective' });
+    T('kiosks').set('2026-arrowhead', { name: 'Arrowhead', year: 2026, status: 'Prospective', startDate: '2026-11-27', endDate: '2026-12-28', shifts: {} });
     const filler = Array.from({ length: 22 }, (_, i) => ({ eventNumber: String(310000 + i), name: `Filler Show ${String.fromCharCode(65 + i)}`, status: 'Booked', startDate: '2026-12-0' + (1 + (i % 9)), endDate: '2026-12-0' + (1 + (i % 9)) }));
     const rows = [
       { eventNumber: '00300001', name: 'Alpha Days', status: 'Booked', startDate: '2026-10-09', endDate: '2026-10-11', eventCost: 450.4 },
@@ -1212,6 +1216,13 @@ def post(route, text, mention=None, fallback=True, **k):
       { eventNumber: '00300013', name: 'Omicron Balloon Fest', status: 'Booked', startDate: '2026-10-23', endDate: '2026-10-25' },
       { eventNumber: '00300020', name: 'Mesa Market Place Swapmeet - October', status: 'Booked', startDate: '2026-10-01', endDate: '2026-10-31', eventCost: 2089 },
       { eventNumber: '00300021', name: 'Mesa Market Place Swapmeet - November', status: 'Prospective', startDate: '2026-11-01', endDate: '2026-11-30' },
+      { eventNumber: '00300030', name: 'Zeta Home Show', status: 'Booked', startDate: '2026-11-06', endDate: '2026-11-08', city: 'Glendale', location: 'State Farm Stadium', eventCost: 11668.05 },
+      { eventNumber: '00300031', name: 'Sigma Art Walk', status: 'Booked - Needs Insurance', startDate: '2026-11-27', endDate: '2026-11-29' },
+      { eventNumber: '00300032', name: 'Gilbert Service & Sales Event @ Desert Monks', status: 'Booked', startDate: '2026-11-16', endDate: '2026-11-16' },
+      { eventNumber: '00300033', name: 'Arrowhead Towne Center', status: 'Booked', startDate: '2026-11-24', endDate: '2026-12-28', location: 'Arrowhead Towne Center' },
+      { eventNumber: '00300034', name: 'Tau Craft Fair', status: 'Booked', startDate: '2026-11-06', endDate: '2026-11-07' },
+      { eventNumber: '00300035', name: 'Old Expo', status: 'Booked', startDate: '2026-09-01', endDate: '2026-09-02' },
+      { eventNumber: '00300036', name: 'Upsilon Expo', status: 'Prospective', startDate: '2026-11-13', endDate: '2026-11-14' },
       ...filler];
     const vcFile = path.join(home, 'ec-vc.json'); fs.writeFileSync(vcFile, JSON.stringify({ coordinator: 'Matt Foss', rows }));
     const outd = path.join(home, 'ec-out');
@@ -1258,6 +1269,17 @@ def post(route, text, mention=None, fallback=True, **k):
       'event-check: the report names every row whose Start/End Date cells were set aside, with what they say');
     ok(latest.costs.changed.length === 2 && latest.costs.changed.some(x => x.name === 'Alpha Days' && x.from === '$300' && x.to === '$450') && /Costs set from VectorConnect \(2\)/.test(fs.readFileSync(path.join(outd, 'reports', 'event-check-2026-10-01.md'), 'utf8')), 'event-check: the report lists every cost it set from VC');
     ok(latest.flags.ruledOff.length === 1 && latest.events.find(x => x.id === '2026-k').ruling.reason === "we couldn't get in", 'event-check: the ruling travels to the texts with its reason');
+    const vcOnly = latest.flags.bookedNotOnBoard.filter(x => !/^Filler/.test(x.name)), byNum = n => vcOnly.find(x => x.vcNumber === n);
+    ok(byNum('00300030') && !byNum('00300030').board && byNum('00300030').cost === 11668 && byNum('00300030').location === 'State Farm Stadium',
+      'event-check: an upcoming show VC has Booked that no board show claims is listed, with where and what it costs: ' + JSON.stringify(vcOnly));
+    ok(byNum('00300031') && byNum('00300031').board && byNum('00300031').board.id === '2026-s' && byNum('00300031').board.weekend === '2026-12-18',
+      'event-check: "Booked - ..." counts, and a show the board has on another weekend is named beside it (a date to fix, not a show to add)');
+    ok(!byNum('00300034') && !byNum('00300032') && !byNum('00300033') && !byNum('00300035') && !byNum('00300036') && !byNum('00300020') && !byNum('00300013') && !byNum('00092192'),
+      'event-check: never listed: a show the board has unstaffed (by name and date), a Service & Sales event (config vcOnlyOk), a mall kiosk, a past show, a show VC has not booked, Mesa, anything the board claims');
+    ok(vcOnly.length === 2 && latest.flags.bookedNotOnBoard.length === 2 + filler.length, 'event-check: nothing else is listed (the filler rows are booked shows the board does not have)');
+    const ecMd2 = fs.readFileSync(path.join(outd, 'reports', 'event-check-2026-10-01.md'), 'utf8');
+    ok(/## Booked in VectorConnect, not on the board[^]*Nov 6-8 Zeta Home Show \(00300030, Booked, State Farm Stadium, Glendale, \$11,668\)/.test(ecMd2)
+      && /## Booked in VectorConnect, on the board on another weekend[^]*Sigma Art Walk[^]*the board has Sigma Art Walk on 2026-12-18, Prospective/.test(ecMd2), 'event-check: the report has both lists');
     ok(!JSON.stringify(latest).includes('555-'), 'event-check: the result carries no contact data');
     ok(T('events').get('2026-l').status === 'Booking Request Submitted' && latest.events.find(x => x.id === '2026-l').requestPending === true, 'event-check: a booking request inside 14 days keeps "Booking Request Submitted" (it is with Olean)');
     ok(T('events').get('2026-m').status === 'Booking Request Needed' && latest.flags.staleRequests.some(x => x.id === '2026-m'), 'event-check: a request with no VC record after 14 days goes back to "Booking Request Needed" and is flagged');

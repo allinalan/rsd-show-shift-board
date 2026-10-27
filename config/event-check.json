@@ -46,6 +46,8 @@
   "placeholders": ["00092192"],
   "tierRules": [{ "match": "Maricopa", "except": ["Maricopa County Fair"], "tier": "Elite" }],
   "_tierRules": "Alan, 2026-09-24: 'Maricopa is Elite. always (except for the maricopa county fair)'. A show whose name has the word(s) in match, and none of except, is that tier: the Sheet sync creates new shows with it, and the research runs and the booking sweep treat the show so whatever its tag on the board says.",
+  "vcOnlyOk": [{ "match": "service (&|and) sales event", "why": "reps' own Service & Sales events (Booked Own), not events-team shows; the board never carries them" }],
+  "_vcOnlyOk": "The event check lists every upcoming show VectorConnect has as Booked that no board show claims (flags.bookedNotOnBoard; Alan, 2026-10-26, after the March 5-7 Maricopa show turned up booked in VC and missing from the board). A record matching an entry here is left out of that list: { vcNumber } for one record, { match } a name pattern; say why. The first entry is Claude's default from the first run (seven Service & Sales events), not Alan's ruling: remove it to see them again.",
   "boothSpots": [{ "match": "Maricopa", "except": ["Maricopa County Fair"] }],
   "maricopaMaps": {
     "page": "https://maricopacountyhomeshows.com/exhibit/download-floor-plans/",
