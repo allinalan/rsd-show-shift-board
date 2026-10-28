@@ -1488,6 +1488,21 @@ def post(route, text, mention=None, fallback=True, **k):
     p = planMove(show(['Saturday', 'Sunday'], ['2027-02-27', '2027-02-28'], ['Eli', 'Sarah']), { start: '2027-03-05', end: '2027-03-07' });
     ok(p.patch.booths[0].days.join() === 'Friday,Saturday,Sunday' && p.patch.booths[0].shifts[0].slots.map(x => x.rep).join() === ',Eli,Sarah' && p.added.join() === '2027-03-05', 'planMove: to a longer run the next week, reps keep their weekday and the new day is empty');
     ok(planMove(show(['Saturday'], [null], ['Eli']), { start: '2026-10-10', end: '2026-10-10' }).error, 'planMove: a show with no usable days is not moved');
+    // the whole-show pick (Alan, 2026-10-27): the 2026-09-24 moves kept Adam C on Saturday of a Fri-Sat show that turned
+    // out Sat-Sun and left Sunday open; one person on every day of a run that keeps its length moves whole
+    p = planMove(show(['Friday', 'Saturday'], ['2027-01-29', '2027-01-30'], ['Adam C', 'Adam C']), { start: '2027-01-30', end: '2027-01-31' });
+    ok(p.patch.booths[0].days.join() === 'Saturday,Sunday' && p.patch.booths[0].shifts[0].slots.map(x => x.rep).join() === 'Adam C,Adam C' && p.added.join() === '2027-01-31' && p.removed.join() === '2027-01-29', 'planMove: a whole-show pick moves whole (Havasu Spring, Adam C on Sat and Sun): ' + JSON.stringify(p.patch.booths[0].shifts[0].slots));
+    ok(p.affected.map(a => `${a.rep}:${a.from}>${a.to}`).join() === 'Adam C:2027-01-29>2027-01-31', 'planMove: the day lost is reported with the day gained: ' + JSON.stringify(p.affected));
+    p = planMove(show(['Saturday', 'Sunday', 'Monday SE'], ['2026-10-10', '2026-10-11', '2026-10-12'], ['Adam J', 'Adam J', 'Adam J']), { start: '2026-10-09', end: '2026-10-10' });
+    ok(p.patch.booths[0].days.join() === 'Friday,Saturday,Monday SE' && p.patch.booths[0].shifts[0].slots.map(x => x.rep).join() === 'Adam J,Adam J,Adam J' && p.patch.startDate === '2026-10-09' && p.patch.endDate === '2026-10-10', 'planMove: Heber keeps Adam J on Fri, Sat and the Mon SE, and ends on Saturday, not on the SE day: ' + JSON.stringify([p.patch.booths[0].days, p.patch.startDate, p.patch.endDate]));
+    const trainee = show(['Friday', 'Saturday'], ['2026-11-13', '2026-11-14'], ['Adam C', 'Adam C']);
+    trainee.booths[0].shifts[0].slots[0].ft = ['Jo'];
+    p = planMove(trainee, { start: '2026-11-14', end: '2026-11-15' });
+    ok(p.patch.booths[0].shifts[0].slots.map(x => x.rep).join() === 'Adam C,' && p.affected[0].to === null, 'planMove: a pick that differs by day (a trainee on Friday only) is not whole, so the new day stays open and the loss is reported');
+    p = planMove(show(['Friday', 'Saturday', 'Sunday'], ['2027-01-22', '2027-01-23', '2027-01-24'], ['Matt A.', 'Matt A.', 'Matt A.']), { start: '2027-01-23', end: '2027-01-23' });
+    ok(p.patch.booths[0].shifts[0].slots.map(x => x.rep).join() === 'Matt A.' && p.affected.map(a => `${a.from}>${a.to}`).join() === '2027-01-22>null,2027-01-24>null', 'planMove: a run that gets shorter takes the lost days away and reports them (Buckeye Days)');
+    p = planMove(show(['Saturday', 'Sunday'], ['2027-02-27', '2027-02-28'], ['Zach', 'Zach']), { start: '2027-03-05', end: '2027-03-07' });
+    ok(p.patch.booths[0].shifts[0].slots.map(x => x.rep).join() === ',Zach,Zach', 'planMove: a run that gets longer does not hand the extra day to anyone');
     // Bluegrass on the Beach 2027, moved 2027-02-27..28 -> 03-05..07 on 2026-09-24: its Friday cell held "3/1/2024" (the
     // Sheet shows it as "Friday") with no date, and the Mon SE shifted six days landed on Sunday and was dropped unreported
     const bluegrass = () => show(['3/1/2024', 'Saturday', 'Sunday', 'Mon SE'], [null, '2027-02-27', '2027-02-28', '2027-03-01'], ['Zach', 'Zach', 'Zach', 'Zach']);

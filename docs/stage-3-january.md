@@ -149,9 +149,24 @@ January 15 to May 28 (Jan-May book):
   January 13 they count (default 4: column C is the board's status);
 - Alan's settlements of 2026-10-23 (Gold Canyon keeps J. Parker, Foss on the Arabian shows, Foss off Downtown Chandler
   Saturday; one Lake Havasu Winter Fest day goes with them): board and Sheet differ on purpose;
-- **to settle before January 13**, the board and the Sheet disagree: Buckeye Days (Matt A., Jan 22 and 24) and Southwest AG
+- ~~to settle before January 13~~ **settled 2026-10-27** (below): Buckeye Days (Matt A., Jan 22 and 24) and Southwest AG
   Summit (J. Parker, Feb 16), where the board has no such show on those days, and Lake Havasu Home & Garden Show Spring
-  (Adam C., Jan 29), which the board has without him. The Sheet has them, the board does not.
+  (Adam C., Jan 29), which the board has without him. The Sheet had them, the board did not.
+
+**The three settled (Alan, 2026-10-27).** All three came from the date research of 2026-09-24, which moved six shows to their
+real dates (the texts and the email went out that day, Alan's edits approved), kept a rep only on a day that still
+happened, and left a new day open; the team's rows kept their old day headers, so the picking order still read the old days.
+Alan's rulings: Buckeye Days stays Saturday 1/23 only (VectorConnect 00102783; the online listings disagree, one says Sat-Sun);
+Adam C on both days of both Havasu shows (Home & Garden Spring Sat-Sun Jan 30-31, Christmas Craft & Gift Show Sat-Sun Nov
+14-15); J. Parker on both days of the Southwest AG Summit (Wed-Thu Feb 17-18) and of the Page-Lake Powell Balloon Festival
+(Fri-Sat Nov 6-7); Heber-Overgaard Oktoberfest was Oct 9-10, Adam J on both. The board got the missing days (`set_slot`,
+actor `service:alan-ruling-2026-10-27`; Heber's end date 10/10, not the Monday SE), then the team's rows got the board's day
+headers and names (Sept-Feb rows 146, 261, 296, 500, 517, 591; Jan-May 74, 91, 163; Buckeye's End Date 1/23, Heber's dates
+10/9-10/10), in that order: board first, so the sync reads the two as agreed and moves its baseline on (Sheet first is a
+conflict on every run). A dry sync afterwards: 0 changes and the same 4 conflicts as the 20:04 run. The comparison again:
+none of the three left; new since the 14:00Z pull, the team moved Scottsdale Arabian Horse Show (WK2) to Feb 17-21 on the
+Sept-Feb book, which the Wednesday sync (with a VC pull; VC 00101573 runs Feb 12-21) carries. The date research now moves a
+whole-show pick whole (lib/dates.mjs planMove), so this does not recur.
 
 **When it runs.** From the sync listener (`com.allinalan.rsd-board-sync`, every 30 s) once the board's changelog has a
 show change newer than the last write and nothing has changed for 2 minutes (a meeting is a burst of edits; it writes
