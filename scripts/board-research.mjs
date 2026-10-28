@@ -30,7 +30,9 @@
   apply, dates (every mode):
     - the research found this year's dates (a page states them; a quote is kept) -> they win: if the board's days
       are not inside them, the show moves (lib/dates.mjs planMove: days that still happen keep their reps, a day
-      that moves to the same weekday carries its reps, a day that is gone is reported with its reps; a day with no
+      that moves to the same weekday carries its reps, a day that is gone is reported with its reps, except that a
+      shift row one person held on every day of a run that keeps its length moves whole, and the report says the
+      day they got for the day they lost (Alan, 2026-10-27); start and end are the selling days, never an SE day; a day with no
       date whose label names a weekday moves like the others; a set-up or tear-down day keeps its weekday beside the
       run, or is gone and reported with its reps; a day that names no weekday stays as it was and is listed)
     - not found online, and VC disagrees with the board -> the board moves to VC's dates, noted on the board

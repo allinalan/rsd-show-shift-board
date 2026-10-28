@@ -109,7 +109,10 @@ function placeSE(d, span, target, tDates) {
  * whose weekday occurs once in the new run moves there (its rep with it); anything else is gone (its reps are
  * affected). A day with no date whose label names a weekday (oldDates) is read as that day and moved the same way,
  * after the days that have their own date. New days the booth did not have come in empty, but only for a booth that
- * sold every day of the old run (a Saturday-only booth does not grow a Friday). SE days keep their weekday next to
+ * sold every day of the old run (a Saturday-only booth does not grow a Friday). One exception (Alan, 2026-10-27): when
+ * the run keeps its length, a shift row one person held on every day of it is theirs on every day of the new run, so a
+ * whole-show pick moves whole (Adam C had Fri-Sat of a Havasu show that turned out Sat-Sun; on 2026-09-24 he kept only
+ * Saturday and Sunday came in open), and the day they lost is reported with the day they got. SE days keep their weekday next to
  * the run (placeSE); one with nowhere to go is gone, and its reps are affected. A day whose date can't be read
  * (a column that names no day, "Tucson, AZ") stays as it was, undated, and is listed in `loose` for the report.
  * @returns { patch, affected: [{ rep, from, to|null }], added: [iso], removed: [iso], loose: [{ booth, label, reps }] }
@@ -145,11 +148,21 @@ export function planMove(e, target) {
     const coversRun = sell.length > 0 && [...oldAll].every(d => sell.some(i => when[i] === d));
     const cols = [];                                                   // { date, label, from: old index | null, se }
     for (const i of sell) if (mapTo[i]) cols.push({ date: mapTo[i], from: i, se: false });
-    if (coversRun) for (const d of tDates) if (!used.has(d)) { cols.push({ date: d, from: null, se: false }); added.add(d); }
+    const fresh = coversRun ? tDates.filter(d => !used.has(d)) : [];
+    for (const d of fresh) { cols.push({ date: d, from: null, se: false }); added.add(d); }
+    // a whole-show pick (the exception above): the shift rows one person held on every day of a run that keeps its length
+    const slotId = sl => { const r = String((sl && sl.rep) || '').trim(); return !r || r === '__X__' ? '' : `${r.toLowerCase()}|${JSON.stringify((sl && sl.ft) || [])}`; };
+    const whole = (fresh.length && tDates.length === oldAll.size ? (b.shifts || []) : []).map(s => {
+      const ids = sell.map(i => slotId(s.slots && s.slots[i]));
+      return ids.length && ids[0] && ids.every(x => x === ids[0]) ? s.slots[sell[0]] : null;
+    });
+    const carried = new Set(whole.filter(Boolean).flatMap(sl => String(sl.rep).split(' / ').map(x => x.trim().toLowerCase())));
+    const gone = sell.filter(i => !mapTo[i]).sort((x, y) => String(when[x]).localeCompare(String(when[y])));
+    const takes = new Map(gone.map((i, k) => [i, fresh[k] || null]));    // the lost day -> the new day a carried rep gets
     for (const i of sell) {
-      const gone = !mapTo[i], moved = mapTo[i] && mapTo[i] !== when[i];
-      if (gone) removed.add(when[i]);
-      if (gone || moved) for (const rep of repsOn(b, i)) affected.push({ rep, from: when[i], to: gone ? null : mapTo[i] });
+      const lost = !mapTo[i], moved = mapTo[i] && mapTo[i] !== when[i];
+      if (lost) removed.add(when[i]);
+      if (lost || moved) for (const rep of repsOn(b, i)) affected.push({ rep, from: when[i], to: lost ? (carried.has(rep.toLowerCase()) ? takes.get(i) : null) : mapTo[i] });
     }
     const taken = new Set(cols.map(c => c.date));
     for (const i of se) {
@@ -164,11 +177,17 @@ export function planMove(e, target) {
     cols.sort((a, c) => (a.date === null) - (c.date === null) || String(a.date).localeCompare(String(c.date)));
     const newDays = cols.map(c => (c.loose ? days[c.from] : c.se ? (c.date ? `${weekday(c.date)} SE` : days[c.from]) : weekday(c.date)));
     const newDates = cols.map(c => c.date);
-    const shifts = (b.shifts || []).map(s => ({ ...s, slots: cols.map(c => (c.from !== null && s.slots && s.slots[c.from] ? JSON.parse(JSON.stringify(s.slots[c.from])) : { rep: '', ft: [] })) }));
+    const shifts = (b.shifts || []).map((s, k) => ({ ...s, slots: cols.map(c => {
+      const from = c.from !== null ? s.slots && s.slots[c.from] : !c.se && !c.loose ? whole[k] : null;
+      return from ? JSON.parse(JSON.stringify(from)) : { rep: '', ft: [] };
+    }) }));
     return { ...b, days: newDays, dates: newDates, shifts };
   });
-  const all = booths.flatMap(b => b.dates).filter(d => d && ISO.test(d)).sort();
-  const firstSell = booths.flatMap(b => b.dates.filter((d, i) => d && !isSE(b.days[i]))).sort()[0] || target.start;
+  // start and end are the selling run, as the Sheet's Start and End Date are (a Monday SE after the run is not its end:
+  // Heber's 2026-09-24 move ended it on the SE day, and the sync then read the team's End Date as a conflicting move)
+  const selling = booths.flatMap(b => b.dates.filter((d, i) => d && ISO.test(d) && !isSE(b.days[i]))).sort();
+  const all = selling.length ? selling : booths.flatMap(b => b.dates).filter(d => d && ISO.test(d)).sort();
+  const firstSell = selling[0] || target.start;
   // top-level days/dates mirror the event's full day list (every booth's days, once each, in date order)
   const seen = new Map();
   for (const b of booths) b.dates.forEach((d, i) => { if (d && !seen.has(d)) seen.set(d, b.days[i]); });
