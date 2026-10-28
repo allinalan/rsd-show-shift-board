@@ -1844,6 +1844,72 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(/x \?\| array\['booths', 'contact', 'phone', 'email'\]/.test(sql), 'set_booths never takes a promoter contact or a second booths into events');
   });
 
+  await section('stage 3 board fields: didn\'t work, MF, column C (Alan 2026-10-27, all defaults)', async () => {
+    const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    const sql = fs.readFileSync(path.join(REPO, 'supabase', 'schema.sql'), 'utf8');
+    // didn't work: set_slot takes it, only with a person on the slot, and a new person clears it
+    const fn = (sql.match(/create or replace function set_slot\([\s\S]*?end \$\$;/) || [''])[0];
+    ok(/if p_value \? 'notWorked' then/.test(fn) && /jsonb_typeof\(p_value->'notWorked'\) is distinct from 'boolean'/.test(fn) && /if nw and \(rep = '' or rep = '__X__'\)/.test(fn)
+      && /elsif coalesce\(cur->>'rep', ''\) <> rep then nv := nv - 'notWorked'/.test(fn), 'set_slot: "didn\'t work" is a boolean, only on a person, and a different person in the slot clears it');
+    const m = html.match(/\/\* safe-saves:start[\s\S]*?\*\/([\s\S]*?)\/\* safe-saves:end \*\//);
+    const P = new Function(m[1] + '\nreturn { saveSlotSafe };')();
+    const e = { id: 'e1', booths: [{ days: ['Friday'], shifts: [{ label: 'Shift 1', slots: [{ rep: 'Kendall', ft: [] }] }] }] };
+    let sent = null; const rpc = async (n, a) => { sent = a; return { ok: true }; };
+    await P.saveSlotSafe(rpc, e, 0, 0, 0, { rep: 'Kendall', ft: [], notWorked: true });
+    ok(sent.p_value.notWorked === true && sent.p_seen.rep === 'Kendall', 'the page sends the mark with the slot it saw');
+    await P.saveSlotSafe(rpc, e, 0, 0, 0, { rep: 'Alec', ft: [] });
+    ok(!('notWorked' in sent.p_value), 'a plain pick sends no mark (the database clears it when the person changes)');
+    ok(/past:!!day&&day<=iso\(TODAY\),nw:!!sl\.notWorked/.test(html) && /if\(pickCtx&&pickCtx\.past&&rep&&rep!=='__X__'&&!se\) u\+=pickCtx\.nw\?/.test(html)
+      && /didn't work this day<\/button>/.test(html) && /worked it after all<\/button>/.test(html), 'the picker offers it only on a day that has come, with a person on it, never an SE day, and offers to take it back');
+    ok(/v==='__NOTWORKED__'\|\|v==='__WORKED__'\)\{ const cs=/.test(html) && /val=\{rep:cs\.rep,ft:cs\.ft\|\|\[\],notWorked:v==='__NOTWORKED__'\}/.test(html), 'picking it keeps the person and their helpers, and sets or clears only the mark');
+    ok(/nw=!!sl\.notWorked&&!!v&&v!=='__X__'/.test(html) && /<s>\$\{esc\(v\)\}<\/s>/.test(html) && /, didn\\'t work':''/.test(html) && /\.nwtag\{/.test(html), 'a marked slot: the name struck through, "didn\'t work" under it, and in the label a screen reader reads');
+    // the Sheet sync keeps the mark where the same person still sits when a show's rows are rebuilt
+    const S = await import(path.join(REPO, 'scripts/sheet-sync.mjs'));
+    const PS = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
+    const resolve = PS.makeRepResolver(['Cameron', 'Eli', 'Kendall', 'Sarah']);
+    const kept = S.keepNotWorked([{ shifts: [{ slots: [{ rep: 'Kendall', ft: [] }, { rep: 'Sarah', ft: [] }, { rep: 'Cam', ft: [] }] }] }],
+      [{ shifts: [{ slots: [{ rep: 'Kendall', notWorked: true }, { rep: 'Eli', notWorked: true }, { rep: 'Cameron', notWorked: true }] }] }], resolve)[0].shifts[0].slots;
+    ok(kept[0].notWorked === true && !kept[1].notWorked && kept[2].notWorked === true, 'keepNotWorked: same person (Cam is Cameron) keeps it; a new person does not');
+    const ev = (rows, extra = {}) => ({ name: 'Corn Fest', weekend: '2026-09-04', startDate: '2026-09-05', endDate: '2026-09-06', days: ['Saturday', 'Sunday'], dates: ['2026-09-05', '2026-09-06'],
+      booths: [{ label: '', days: ['Saturday', 'Sunday'], dates: ['2026-09-05', '2026-09-06'], shifts: rows.map((reps, i) => ({ label: 'Shift ' + (i + 1), slots: reps.map(r => typeof r === 'string' ? { rep: r, ft: [] } : r) })) }], ...extra });
+    const p = S.planEvent({ base: ev([['Cameron', 'Sarah']]), sheet: ev([['Cameron', 'Sarah'], ['Eli', '']]), board: ev([[{ rep: 'Cameron', ft: [], notWorked: true }, 'Sarah']]), resolve, vcRow: null, today: '2026-10-01' });
+    ok(p.patch.booths && p.patch.booths[0].shifts.length === 2 && p.patch.booths[0].shifts[0].slots[0].notWorked === true && !p.patch.booths[0].shifts[0].slots[1].notWorked,
+      'sync: the Sheet adds a shift row, the rebuilt show keeps Cameron\'s "didn\'t work"');
+    const p2 = S.planEvent({ base: ev([['Cameron', 'Sarah']]), sheet: ev([['Eli', 'Sarah']]), board: ev([[{ rep: 'Cameron', ft: [], notWorked: true }, 'Sarah']]), resolve, vcRow: null, today: '2026-10-01' });
+    ok(p2.patch.booths && p2.patch.booths[0].shifts[0].slots[0].rep === 'Eli' && !p2.patch.booths[0].shifts[0].slots[0].notWorked, 'sync: the Sheet puts someone else in that slot, and the mark goes with the old person');
+    // MF: a tick in Plan mode, a pill when set
+    ok(/<label class="tagfield mf" title="Column A on the Sheet"><span>MF<\/span><input type="checkbox" data-mf/.test(html) && /patchEvent\(id,\{flag:mf\.checked\?'MF':''\}\); if\(ok\) toast\(mf\.checked\?'Marked MF':'MF taken off'\); else mf\.checked=!mf\.checked;/.test(html)
+      && /if\(e\.flag==='MF'\) h\+=`<span class="acc mini pillish acc-none"/.test(html), 'MF: a tick beside Tier, Access and Booking in Plan mode, saved as flag "MF" or nothing, and a pill on the card');
+    // column C: the decision and the command
+    const N = await import(path.join(REPO, 'scripts/lib/sheet-notes.mjs'));
+    ok(['Booked', ' booked ', 'Prospective', 'Pending', 'Pending Promoter Acceptance', 'In Progress', 'Ok to Book - need contract', 'Show full', 'CANCELLED', 'submitted', 'Booking Request Needed'].every(N.isStatusWord)
+      && !['expensive, maybe 2027, not working', 'no dates 2026', 'vendors not allowed', 'waitlist', 'Highly Prospective?', 'promoter declined', '2027', 'no contract'].some(N.isStatusWord),
+      'column C: a status word is replaced by the board\'s status; anything more is the team\'s words and moves to notes');
+    const evs = [
+      { id: 'a', name: 'A', weekend: '2027-01-15', sheetStatus: 'vendors not allowed', notes: 'call first' },
+      { id: 'b', name: 'B', weekend: '2027-01-22', sheetStatus: 'Booked' },
+      { id: 'c', name: 'C', weekend: '2027-01-08', sheetStatus: 'expensive' },
+      { id: 'd', name: 'D', weekend: '2027-02-05', sheetStatus: 'no dates 2026', notes: 'x\nSheet column C (moved 2027-01-13): no dates 2026' },
+      { id: 'f', name: 'F', weekend: '2027-03-05', sheetStatus: '' }];
+    const plan = N.planSheetNotes(evs, { from: '2027-01-15', on: '2027-01-13' });
+    ok(plan.move.length === 1 && plan.move[0].id === 'a' && plan.move[0].notes === 'call first\nSheet column C (moved 2027-01-13): vendors not allowed' && plan.words === 1 && plan.already === 1,
+      'planSheetNotes: only the mirror\'s weekends, appended under what is there, never twice, status words and blanks left out');
+    T('events').set('sn-1', { name: 'Notes Fair', weekend: '2027-03-12', sheetStatus: 'expensive, maybe 2027, not working', notes: 'Team note' });
+    T('events').set('sn-2', { name: 'Word Fair', weekend: '2027-03-12', sheetStatus: 'Booked' });
+    try {
+      r = await board(['sheet-notes', '--json']); let j = JSON.parse(r.stdout);
+      ok(r.code === 0 && j.move.some(x => x.id === 'sn-1') && !j.move.some(x => x.id === 'sn-2') && T('events').get('sn-1').notes === 'Team note', 'board sheet-notes: dry by default, lists what would move, writes nothing');
+      r = await board(['sheet-notes', '--apply']);
+      ok(r.code === 3 && /REFUSED: column C is still the team's until 2027-01-13/.test(r.stderr) && T('events').get('sn-1').notes === 'Team note', 'board sheet-notes --apply before January 13: refused (exit 3), nothing written');
+      r = await board(['sheet-notes', '--apply', '--force', '--json']); j = JSON.parse(r.stdout);
+      ok(r.code === 0 && j.applied >= 1 && /^Team note\nSheet column C \(moved \d{4}-\d{2}-\d{2}\): expensive, maybe 2027, not working$/.test(T('events').get('sn-1').notes), 'board sheet-notes --apply --force: appended under the team\'s note and read back');
+      r = await board(['sheet-notes', '--json']); j = JSON.parse(r.stdout);
+      ok(!j.move.some(x => x.id === 'sn-1') && j.already >= 1, 'a second run moves nothing again');
+    } finally { T('events').delete('sn-1'); T('events').delete('sn-2'); }
+    const cfg = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8'));
+    ok(cfg.stage3 && cfg.stage3.cutover === '2027-01-13' && cfg.stage3.mirrorFrom === '2027-01-15', 'config: the one cutover date and the first weekend the mirror owns');
+  });
+
   await section('index.html: coverage asks (read-only marks from the coverage table)', async () => {
     // The page's one piece of coverage logic, run by itself: the block between the markers may use nothing else from the page.
     const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');

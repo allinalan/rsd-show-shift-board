@@ -117,7 +117,9 @@ end $$;
 -- to copy the show's whole `booths` from the page and write it back, so a pick made a second earlier on another screen
 -- was put back as it was, with no error. Now:
 --   set_slot    one slot, written only if it still holds what the person saw (`p_seen`, its rep and ft); otherwise
---               nothing changes and the answer says what the slot holds now.
+--               nothing changes and the answer says what the slot holds now. `p_value.notWorked` (true / false) marks or
+--               clears "didn't work" (stage 3: what a red name meant on the Sheet; a past day with a person on it only);
+--               a different person in the slot always clears it.
 --   set_booths  a show's whole `booths` (add or remove a booth or a shift row, a booth's name, a date move), written only
 --               if `booths` is still exactly what the page read a moment before (`p_seen`); `p_extra` carries the other
 --               fields such a change sets (dates), never `booths` or a promoter contact (those live in event_contacts).
@@ -125,7 +127,7 @@ end $$;
 -- save; only a non-editor gets an error. Only the service key may name the changelog actor.
 create or replace function set_slot(p_event text, p_booth int, p_shift int, p_day int, p_seen jsonb, p_value jsonb, p_actor text default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare d jsonb; b jsonb; sh jsonb; slots jsonb; cur jsonb; nv jsonb; ft jsonb; rep text;
+declare d jsonb; b jsonb; sh jsonb; slots jsonb; cur jsonb; nv jsonb; ft jsonb; rep text; nw boolean;
 begin
   if not (is_editor() or auth.role() = 'service_role') then raise exception 'not an editor' using errcode = '42501'; end if;
   if p_booth is null or p_shift is null or p_day is null or p_booth < 0 or p_shift < 0 or p_day < 0
@@ -135,6 +137,11 @@ begin
   rep := btrim(coalesce(p_value->>'rep', ''));
   ft := case when jsonb_typeof(p_value->'ft') = 'array' then p_value->'ft' else '[]'::jsonb end;
   if length(rep) > 80 or jsonb_array_length(ft) > 6 then return jsonb_build_object('ok', false, 'why', 'bad'); end if;
+  if p_value ? 'notWorked' then
+    if jsonb_typeof(p_value->'notWorked') is distinct from 'boolean' then return jsonb_build_object('ok', false, 'why', 'bad'); end if;
+    nw := (p_value->>'notWorked')::boolean;
+    if nw and (rep = '' or rep = '__X__') then return jsonb_build_object('ok', false, 'why', 'bad'); end if;
+  end if;
   select data into d from events where id = p_event for update;
   if d is null then return jsonb_build_object('ok', false, 'why', 'gone'); end if;
   b := d->'booths'->p_booth; sh := b->'shifts'->p_shift;
@@ -151,6 +158,9 @@ begin
       'ft', case when jsonb_typeof(cur->'ft') = 'array' then cur->'ft' else '[]'::jsonb end));
   end if;
   nv := cur || jsonb_build_object('rep', rep, 'ft', ft);
+  if nw is not null then nv := case when nw then nv || '{"notWorked": true}'::jsonb else nv - 'notWorked' end;
+  elsif coalesce(cur->>'rep', '') <> rep then nv := nv - 'notWorked';
+  end if;
   while jsonb_array_length(slots) < p_day loop slots := slots || jsonb_build_array(jsonb_build_object('rep', '', 'ft', '[]'::jsonb)); end loop;
   if jsonb_array_length(slots) = p_day then slots := slots || jsonb_build_array(nv); else slots := jsonb_set(slots, array[p_day::text], nv); end if;
   if p_actor is not null and auth.role() = 'service_role' then perform set_config('board.actor', p_actor, true); end if;

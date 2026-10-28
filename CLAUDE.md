@@ -271,7 +271,17 @@ follows the show. Fields the routines care about: `name, year, weekend (Friday I
 endDate, datesEstimated, datesNote, datesSource, datesMoved, status, vcNumber, vcStatus, tier, access, cityState, location, address,
 setting, promoter, contact, phone, email, website, cost, costBasis, applyUrl, applyOpens, applyBy, applyOpensSource, applyBySource,
 submissionNotes, notes,
-booths[{label,days,dates,shifts[{label,slots[{rep,ft[]}]}],rolledLabel?,rolledLabelYear?}], dead, skipNext, neverWork`.
+booths[{label,days,dates,shifts[{label,slots[{rep,ft[],notWorked?}]}],rolledLabel?,rolledLabelYear?}], dead, skipNext, neverWork, flag`.
+**Stage 3 fields (Alan 2026-10-27, docs/stage-3-january.md item 2).** `notWorked: true` on a slot is "didn't work" (what a red
+name meant on the Sheet; the mirror will paint it red): set in Plan mode from the name picker on a day that has come with a
+person on it, never an SE day ("<name> didn't work this day" / "worked it after all"), always through `set_slot`, which
+refuses it on an empty or no-shift slot and drops it when a different person goes in. The Sheet sync never writes it and
+keeps it on a show it rebuilds where the same person still sits (`keepNotWorked`). Board readers that count shifts worked
+skip it (ALMA Stats, rsd-event-analyzer). `flag` ("MF" or empty, column A on the Sheet, meaning not written down yet) is a
+tick beside Tier / Access / Booking in Plan mode and a pill on the card. `sheetStatus` (column C) stays what the sync carries
+until January 13; that morning `board sheet-notes --apply` moves what is more than a status word into each show's team
+notes, once, appended (`scripts/lib/sheet-notes.mjs`; dry before then, `--apply` refused before `config.stage3.cutover`).
+On 2026-10-27 the dry run listed 24 such notes from January 15 on (and 160 plain status words).
 `source` says what made the row (`board`, `sheet-sync`); the page treats every database row as a board show whatever it
 says (until 2026-10-24 a `sheet-sync` row was read-only there: 166 shows, both 2027 Maricopa home shows among them).
 `event_contacts` — promoter `contact, phone, email` per event id. **Public on purpose, not just to
@@ -489,6 +499,7 @@ is never left unseen. `python3 deploy/tick.py --status` says which it is right n
 com.allinalan.rsd-board-tick; tail logs/tick.log; rm PAUSED`. If how a job starts changes, update
 `install.sh`, this file and `~/ai-system/REGISTRY.yaml` in the same change.
 
+`set_slot` took the didn't-work mark the same day (create or replace, its grants kept; 7 cases rolled back before and after).
 `set_slot` and `set_booths` went into the live database on 2026-10-27 as SQL (the Supabase connector's execute_sql, the
 same statements as `supabase/schema.sql`), after 22 cases ran against them in a transaction that rolled itself back
 (editor, service key and anon; nothing stayed), then again on the deployed functions, and a call over the REST API to an
