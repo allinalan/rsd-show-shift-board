@@ -166,7 +166,8 @@ routines in `.claude/skills/` keep it true.
   exit 3; `state/sheet-mirror.lock`; `MIRROR-PAUSED` in the repo root), `status`. Google: `scripts/lib/sheets-api.mjs` (plain
   fetch, a code allow-list: reads the books and its copies, writes only its copies), key `~/.rsd/sheets-mirror.json` (600, the
   refresh token only) made once by Alan with `node scripts/authorize-sheets.mjs` (scope spreadsheets, the shared OAuth client in
-  csp-autopilot). Not yet: scheduled runs (from December 1, after each hourly sync), the readers' comparison read from the copy,
+  csp-autopilot; the Google Sheets API is on in its project 186079605388 since 2026-10-27). The copies exist and were first
+  written 2026-10-27, read back. Not yet: scheduled runs (from December 1, after each hourly sync), the readers' comparison read from the copy,
   the January 13 switch onto the real books.
 - `scripts/sync-requests.mjs` — the mini's half of the board's **Sync from the Sheet** button (Plan mode, editors
   only; Alan, 2026-09-28: the team re-staffs on the Sheet and wants the board to show it now). launchd

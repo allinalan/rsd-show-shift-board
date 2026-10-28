@@ -129,9 +129,12 @@ mini (600, in REGISTRY.yaml) and a code allow-list of the three file ids. In ord
 
 **Built so far (2026-10-27).** The layout (`scripts/lib/mirror-render.mjs`), the comparison (`scripts/sheet-mirror.mjs compare`,
 `scripts/lib/mirror-compare.mjs`), the copies and the write with its read-back (`setup-copies`, `write`), and the one-time Google
-sign-in (`scripts/authorize-sheets.mjs`). Waiting on Alan: turning the Google Sheets API on for the Cloud project the shared OAuth
-client belongs to (if it is off, the sign-in or the first call says so, with the link) and the one Allow click; then
-`setup-copies` and the first `write`. Still to build: running it after each hourly sync from December 1, the comparison read
+sign-in (`scripts/authorize-sheets.mjs`). Alan signed in and turned the Google Sheets API on for project 186079605388 on
+2026-10-27; the same evening `setup-copies` made "Mirror copy · Sept-Feb Show Shift Schedule · 2026" and "Mirror copy · Jan-May
+Show Shift Schedule · 2027" (one tab each, the size of the real one; ids in `state/mirror-copies.json`), and the first `write`
+wrote 183 rows (57 shows) from row 461 and 450 rows (160 shows) from row 35, every cell and font color read back. Read from Google
+the way the Picking Feed reads a book, the copies give the picking order exactly the shifts the comparison expected (182 and 186,
+no difference), and the team's books were not touched. Still to build: running it after each hourly sync from December 1, the comparison read
 from the copy itself instead of in memory, the daily note in #rsd-board, and the January 13 switch.
 
 **The first comparison (2026-10-27, the Picking Feed's 14:00Z pull against the live board).** Board -> mirror -> this repo's
