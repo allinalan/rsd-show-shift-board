@@ -154,6 +154,20 @@ routines in `.claude/skills/` keep it true.
   show VC has a record for is held for the Wednesday run. `--tag` names the report `sheet-sync-<date>-<tag>`, so
   the Wednesday report the event check reads is never overwritten. `--via button|auto` makes the actor
   `service:sheet-sync:button` / `:auto` in the changelog and the record.
+- **The board -> Sheet mirror** (stage 3, Alan 2026-10-27; `docs/stage-3-january.md` "The mirror"). Being built: until the
+  January 13 cutover it writes only its own copies of the two books, never the team's. `scripts/lib/mirror-render.mjs` lays the
+  board out in the Sheet's grammar over each book's weekends from `config.stage3.mirrorFrom` to `stage3.mirror[].to` (a banner
+  every weekend, "Weekend 01/15" in B; event row, "Booth #N" rows, "Shift N" rows; Mesa back to its A Row / B Row rows; every cell
+  of a show in its tier's color, a "didn't work" name red). `scripts/sheet-mirror.mjs`: `compare` (no Google: renders over each
+  book's tab from the Picking Feed's last pull and reads both with rsd-shift-picking's own parser and this repo's; every
+  difference with its reason, `out/mirror/compare-<date>.md`), `setup-copies` (once: "Mirror copy · <book> · <tab>", ids in
+  `state/mirror-copies.json`), `write` (render, self-check through this repo's parser, one batch from the first owned banner down,
+  every cell and font color read back = success; cells typed in the copy since the last write are named; over 40 shows changed =
+  exit 3; `state/sheet-mirror.lock`; `MIRROR-PAUSED` in the repo root), `status`. Google: `scripts/lib/sheets-api.mjs` (plain
+  fetch, a code allow-list: reads the books and its copies, writes only its copies), key `~/.rsd/sheets-mirror.json` (600, the
+  refresh token only) made once by Alan with `node scripts/authorize-sheets.mjs` (scope spreadsheets, the shared OAuth client in
+  csp-autopilot). Not yet: scheduled runs (from December 1, after each hourly sync), the readers' comparison read from the copy,
+  the January 13 switch onto the real books.
 - `scripts/sync-requests.mjs` — the mini's half of the board's **Sync from the Sheet** button (Plan mode, editors
   only; Alan, 2026-09-28: the team re-staffs on the Sheet and wants the board to show it now). launchd
   `com.allinalan.rsd-board-sync`, every 30 s: reads `sheet_syncs` for pending rows (idle = one read, no output),
@@ -469,8 +483,10 @@ the service key moves them on.
   that file is both books' current part combined, written by every sync, so a show in either book is found there; keep
   it an array of shows with their board `id`). SUNNY is the only caller of `coverage_request()`; nothing in this repo
   texts a rep about it.
-- **Nothing here writes the Sheet** (Alan, 2026-09-23: VC status lives on the board now; the Sheet's
-  Z/AA columns froze "as of 9/9"). The sync only reads it; the team keeps editing it until stage 3.
+- **Nothing here writes the team's Sheet** (Alan, 2026-09-23: VC status lives on the board now; the Sheet's
+  Z/AA columns froze "as of 9/9"). The sync only reads it; the team keeps editing it until stage 3. The mirror
+  (`scripts/sheet-mirror.mjs`) writes only its own copies until the January 13 cutover; `scripts/lib/sheets-api.mjs` refuses any
+  other spreadsheet.
 - `state/` and `out/` hold private data (the baselines can carry promoter contacts; reports and the stale-cell files
   name reps). Both are gitignored. Tests point `BOARD_STATE_DIR` / `BOARD_OUT_DIR` at temp dirs. The sync's files there:
   `sheet-baseline-sept-feb.json`, `sheet-baseline-jan-may.json` (each book's), `sheet-stale-jan-may.json` (last year's

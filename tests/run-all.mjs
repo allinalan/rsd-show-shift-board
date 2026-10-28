@@ -1910,6 +1910,153 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(cfg.stage3 && cfg.stage3.cutover === '2027-01-13' && cfg.stage3.mirrorFrom === '2027-01-15', 'config: the one cutover date and the first weekend the mirror owns');
   });
 
+  await section('sheet mirror (stage 3): the layout, the comparison, the copies and the write', async () => {
+    const R = await import(path.join(REPO, 'scripts/lib/mirror-render.mjs'));
+    const X = await import(path.join(REPO, 'scripts/lib/mirror-compare.mjs'));
+    const PS = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
+    const resolve = PS.makeRepResolver(['Craig', 'Matt A.', 'Foss', 'Jason', 'Jeremy', 'Alec', 'Kendall', 'Eli', 'Braylee']);
+    const show = (id, name, weekend, booths, extra = {}) => ({ id, name, weekend, year: 2027, status: 'Booked', tier: 'Traditional', startDate: weekend, endDate: weekend,
+      days: booths[0] ? booths[0].days : ['Friday'], booths, ...extra });
+    const booth = (label, days, rows) => ({ label, days, dates: [], shifts: rows.map((reps, i) => ({ label: 'Shift ' + (i + 1), slots: reps.map(r => (typeof r === 'string' ? { rep: r, ft: [] } : r)) })) });
+    const evs = [
+      show('a', 'Maricopa County Home & Garden Show', '2027-01-15', [booth('Booth #1 South Tent', ['Friday', 'Saturday', 'Sunday'], [['Foss', 'Foss', 'Foss']]), booth('Booth #2 (Ag Building)', [], [['Jeremy', 'Jeremy', { rep: 'Jeremy', ft: ['Braylee'] }]])],
+        { tier: 'Elite', flag: 'MF', cost: '$10,000', costNum: 10000, startDate: '2027-01-15', endDate: '2027-01-17', cityState: 'Phoenix, AZ', location: 'State Fairgrounds', vcNumber: '00091019', vcStatus: 'Booked', bestCPO: '98k' }),
+      show('m', 'Mesa Market Place Swapmeet', '2027-01-15', [booth('A Row', ['Fri', 'Sat', 'Sun'], [['Craig', 'Craig', 'Craig']]), booth('B Row', ['Fri', 'Sat', 'Sun'], [['Matt A.', '__X__', 'Matt A.']])], { startDate: '2027-01-15', endDate: '2027-01-17' }),
+      show('k', 'Winter Fine Art', '2027-01-22', [booth('', ['Friday', 'Saturday'], [[{ rep: 'Eli', ft: [], notWorked: true }, 'Eli']])], { tier: 'Key', startDate: '2027-01-22', endDate: '2027-01-23' }),
+      show('x', 'Too Early', '2027-01-08', [booth('', ['Friday'], [['Eli']])]),
+    ];
+    const rd = R.renderWeekends(evs, { from: '2027-01-15', to: '2027-01-29' });
+    ok(R.bannerText('2027-01-15') === 'Weekend 01/15' && rd.rows.filter((_, i) => rd.kinds[i] === 'banner').length === 3 && rd.rows[0][1] === 'Weekend 01/15',
+      'a banner for every weekend in range, empty ones too, "Weekend 01/15" in column B (the one form every reader takes)');
+    ok(!rd.rows.some(row => row.includes('Too Early')), 'a show before the first owned weekend is not written');
+    const ev = rd.rows.find(row => row[4] === 'Maricopa County Home & Garden Show');
+    ok(ev[0] === 'MF' && ev[1] === 'Elite' && ev[2] === 'Booked' && ev[3] === '98k' && ev.slice(5, 8).join() === 'Friday,Saturday,Sunday' && ev[12] === 10000 && ev[13] === '2027-01-15' && ev[14] === '2027-01-17' && ev[15] === 'Phoenix, AZ' && ev[25] === 'Booked' && ev[26] === '00091019',
+      'the event row: flag, Elite, the board\'s status, Best CPO, name, days, cost, dates, city, VC status and number in their columns');
+    ok(rd.rows.some(row => row[4] === 'Booth #2 (Ag Building)') && rd.rows.some(row => row[4] === 'Booth #1 South Tent'), 'each booth of a show with several gets its "Booth #N" row');
+    const jer = rd.rows.find(row => row[5] === 'Jeremy');
+    ok(jer && jer.slice(5, 8).join('|') === 'Jeremy|Jeremy|Jeremy (ft. Braylee)', 'a booth with no days of its own is written under the show\'s days; a helper is "(ft. Name)"');
+    ok(rd.rows.some(row => row[4] === 'Mesa Market Place Swapmeet A Row') && rd.rows.some(row => row[4] === 'Mesa Market Place Swapmeet B Row') && rd.rows.some(row => row.slice(5, 8).join('|') === 'Matt A.|X|Matt A.'),
+      'Mesa: one board show back to the Sheet\'s two rows, A Row and B Row; no shift is "X"');
+    const iTitle = rd.rows.findIndex(row => row[4] === 'Maricopa County Home & Garden Show'), iK = rd.rows.findIndex(row => row[4] === 'Winter Fine Art');
+    ok(rd.colors[iTitle][4] === '#9900ff' && rd.colors[iK][4] === '#46bdc6' && rd.colors[rd.rows.findIndex(row => row[4] === 'Mesa Market Place Swapmeet A Row')][4] === '#000000', 'title color by tier: purple Elite, teal Key, black Traditional');
+    const iEli = iK + 1;
+    ok(rd.colors[iEli][5] === R.NOT_WORKED && rd.colors[iEli][6] === '#46bdc6', '"didn\'t work" is a red name; the next day\'s name keeps the show\'s color');
+    // the picking order's own parser (rsd-shift-picking lib/schedule.js, when that checkout is here): what the colors mean to it
+    const spPath = path.join(os.homedir(), 'automations', 'rsd-shift-picking', 'lib', 'schedule.js');
+    if (fs.existsSync(spPath)) {
+      const { parseSchedule } = (await import('module')).createRequire(import.meta.url)(spPath);
+      const grid = { values: [new Array(27).fill(''), ...rd.rows], fontColors: [[], ...rd.colors] };
+      const ps = parseSchedule(grid, { sourceName: 'mirror test', fontColors: grid.fontColors }).shifts;
+      const at = (name, date) => ps.filter(s => s.date === date && String(s.repName || '').toLowerCase().startsWith(name.toLowerCase()));
+      ok(at('Eli', '2027-01-22')[0] && at('Eli', '2027-01-22')[0].dead === true && at('Eli', '2027-01-23')[0] && at('Eli', '2027-01-23')[0].dead === false,
+        'picking order: the red name is a shift not worked, the next day is worked');
+      ok(at('Eli', '2027-01-23')[0].scheduledType === 'Key' && at('Matt F', '2027-01-15').concat(at('Foss', '2027-01-15'))[0].scheduledType === 'Key', 'picking order: teal is Key, purple (Elite) is Key');
+      ok(['2027-01-15', '2027-01-16', '2027-01-17'].every(d => at('Craig', d).length === 1) && ['2027-01-15', '2027-01-17'].every(d => at('Matt', d).some(s => /aragon|matt a/i.test(s.repName))) && !at('Matt A', '2027-01-16').length,
+        'picking order: Mesa\'s A and B rows both count, every day dated, and "X" is no shift');
+      ok(ps.filter(s => /jeremy/i.test(s.repName)).length === 3 && ps.filter(s => /jeremy/i.test(s.repName)).every(s => /maricopa/i.test(s.event)), 'picking order: shifts under a "Booth #2" row count for the show above');
+    } else console.log('  (picking order\'s parser not on this machine: its checks were not run)');
+    // the board's own parser reads it back as the board
+    ok(X.compareBoard(evs, rd, { from: '2027-01-15', to: '2027-01-29', resolve }).length === 0, 'round trip: the board\'s parser reads the rendered rows back as the board (Mesa merged, booths, helpers, dates)');
+    // the comparison: paired by rep and day, then by show words
+    ok(X.sameShow('Maricopa County Home & Garden Show\n(South Entrance Tent) (3134/3136)', 'Maricopa County Home & Garden Show') && X.sameShow('Maricopa Booth #2 (Ag Building)', 'Maricopa County Home & Garden Show')
+      && !X.sameShow('4th Ave Street Fair Spring', 'Prescott Off Street Festival'), 'sameShow: Maricopa\'s booth rows are the show; two street festivals are not');
+    ok(X.bannerFriday('Weekend 1/15', { seasonYear: 2026 }) === '2027-01-15' && X.bannerFriday('weekend 10-09', { seasonYear: 2026 }) === '2026-10-09' && X.bannerFriday('Weekend 05/29', { seasonYear: 2026 }) === '2027-05-28',
+      'bannerFriday: a January header is the next year in a fall-start book; a Saturday header is its Friday');
+    const sh = (date, repId, event, extra = {}) => ({ date, repId, repName: repId, event, dead: false, tentative: false, scheduledType: 'Traditional', nonSelling: false, ...extra });
+    const cmp = X.comparePicking(
+      [sh('2027-01-15', 'foss', 'Maricopa County Home & Garden Show\n(South Tent)'), sh('2027-01-16', 'eli', 'Winter Fine Art', { dead: true, status: 'Prospective' }), sh('2027-01-22', 'kendall', 'Buckeye Days'), sh('2027-02-20', 'eli', 'Out Of Range')],
+      [sh('2027-01-15', 'foss', 'Maricopa County Home & Garden Show'), sh('2027-01-16', 'eli', 'Winter Fine Art', { status: 'Booked' }), sh('2027-01-29', 'craig', 'Mesa Market Place Swapmeet A Row')],
+      { from: '2027-01-15', to: '2027-01-29', explain: (k) => k });
+    ok(cmp.same === 1 && cmp.renamed === 1 && cmp.changed.length === 1 && cmp.changed[0].fields.dead.real === true && cmp.onlyReal.length === 1 && cmp.onlyReal[0].why === 'real' && cmp.onlyMirror.length === 1 && cmp.onlyMirror[0].why === 'mirror',
+      'comparePicking: the same rep and day at the same show pairs (renamed counted), a dead flag that differs is listed, one-sided shifts carry the reason, out-of-range days are left out');
+
+    // the copies and the write, against a stand-in for Google
+    const cfg = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8'));
+    const jm = cfg.sheets.find(b => b.key === 'jan-may'), sf = cfg.sheets.find(b => b.key === 'sept-feb');
+    const G = new Map(); let nextId = 1, calls = [];
+    const cell = v => (v === '' ? {} : typeof v === 'number' ? { userEnteredValue: { numberValue: v } } : { userEnteredValue: { stringValue: String(v) } });
+    const book = (title, tab, rows) => ({ title, tabs: [{ sheetId: 7, title: tab, rowCount: rows.length, columnCount: 27, cells: rows.map(r => r.map(cell)) }] });
+    const realRows = tab => [['', '', 'Status', 'BEST CPO', 'Event Description'], ['', 'Weekend 1/1'], ['', '', 'Booked', '', 'New Year Show', 'Friday'], ['', '', '', '', 'Shift 1', 'Eli'],
+      ['', 'Weekend 1/15'], ['', '', 'Prospective', '', 'Old Row', 'Friday'], ['', '', '', '', 'Shift 1', 'Kendall'], ['', 'Weekend 1/22'], ['', '', '', '', 'Stray']];
+    G.set(jm.fileId, book('Jan-May Show Shift Schedule', '2027', realRows('2027')));
+    G.set(sf.fileId, book('Sept-Feb Show Shift Schedule', '2026', realRows('2026')));
+    const gsrv = http.createServer((req, res) => { let body = ''; req.on('data', c => body += c); req.on('end', () => {
+      const u = new URL(req.url, 'http://g'), send = (code, v) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(v)); };
+      calls.push(req.method + ' ' + u.pathname);
+      if (u.pathname === '/token') return send(200, { access_token: 'at', expires_in: 3600 });
+      if (req.headers.authorization !== 'Bearer at') return send(401, { error: { message: 'no' } });
+      const m = u.pathname.match(/^\/v4\/spreadsheets(?:\/([^/:]+))?(?:\/sheets\/(\d+):copyTo|:(batchUpdate))?$/);
+      if (!m) return send(404, { error: { message: 'unknown ' + u.pathname } });
+      const [, id, copySheet, bu] = m, s = id && G.get(id);
+      const props = t => ({ sheetId: t.sheetId, title: t.title, index: s.tabs.indexOf(t), gridProperties: { rowCount: t.rowCount, columnCount: t.columnCount } });
+      if (!id && req.method === 'POST') { const nid = 'COPY' + (nextId++); G.set(nid, { title: JSON.parse(body).properties.title, tabs: [{ sheetId: 0, title: 'Sheet1', rowCount: 1000, columnCount: 26, cells: [] }] }); const n = G.get(nid);
+        return send(200, { spreadsheetId: nid, properties: { title: n.title }, sheets: [{ properties: { sheetId: 0, title: 'Sheet1' } }] }); }
+      if (!s) return send(404, { error: { message: 'no spreadsheet ' + id } });
+      if (copySheet) { const t = s.tabs.find(x => x.sheetId === +copySheet), d = G.get(JSON.parse(body).destinationSpreadsheetId);
+        const nt = { ...JSON.parse(JSON.stringify(t)), sheetId: 100 + d.tabs.length, title: 'Copy of ' + t.title }; d.tabs.push(nt); return send(200, { sheetId: nt.sheetId, title: nt.title }); }
+      if (bu) { for (const q of JSON.parse(body).requests) {
+          if (q.updateSheetProperties) { const p = q.updateSheetProperties.properties, t = s.tabs.find(x => x.sheetId === p.sheetId);
+            if (p.title) t.title = p.title; if (p.gridProperties) { if (p.gridProperties.rowCount) { t.rowCount = p.gridProperties.rowCount; t.cells.length = Math.min(t.cells.length, t.rowCount); } if (p.gridProperties.columnCount) t.columnCount = p.gridProperties.columnCount; } }
+          if (q.deleteSheet) s.tabs = s.tabs.filter(x => x.sheetId !== q.deleteSheet.sheetId);
+          if (q.updateCells) { const g = q.updateCells.range, t = s.tabs.find(x => x.sheetId === g.sheetId);
+            if (g.endRowIndex > t.rowCount) return send(400, { error: { message: 'range past the grid' } });
+            for (let i = g.startRowIndex; i < g.endRowIndex; i++) { t.cells[i] = []; const src = (q.updateCells.rows || [])[i - g.startRowIndex] || { values: [] }; for (let c = 0; c < 27; c++) t.cells[i][c] = JSON.parse(JSON.stringify((src.values || [])[c] || {})); } } }
+        return send(200, { spreadsheetId: id }); }
+      if (u.searchParams.get('includeGridData') === 'true') { const rg = u.searchParams.get('ranges').match(/^'(.+)'!A(\d+):AA(\d+)$/), t = s.tabs.find(x => x.title === rg[1].replace(/''/g, "'"));
+        const rows = []; for (let i = +rg[2] - 1; i < Math.min(+rg[3], t.rowCount); i++) rows.push({ values: (t.cells[i] || []).map(c => ({ effectiveValue: c.userEnteredValue, userEnteredFormat: c.userEnteredFormat })) });
+        return send(200, { sheets: [{ properties: props(t), data: [{ startRow: +rg[2] - 1, rowData: rows }] }] }); }
+      return send(200, { spreadsheetId: id, properties: { title: s.title }, sheets: s.tabs.map(t => ({ properties: props(t) })) });
+    }); });
+    await new Promise(ok2 => gsrv.listen(0, '127.0.0.1', ok2)); const gbase = 'http://127.0.0.1:' + gsrv.address().port;
+    const mstate = fs.mkdtempSync(path.join(os.tmpdir(), 'mirror-state-')), mout = fs.mkdtempSync(path.join(os.tmpdir(), 'mirror-out-'));
+    const tok = path.join(mstate, 'tok.json'), cli = path.join(mstate, 'client.json');
+    fs.writeFileSync(cli, JSON.stringify({ installed: { client_id: 'c', client_secret: 's' } }));
+    const mirror = (a, extra = {}) => new Promise(res2 => execFile(process.execPath, [path.join(REPO, 'scripts/sheet-mirror.mjs'), ...a], { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test',
+      BOARD_STATE_DIR: mstate, BOARD_OUT_DIR: mout, BOARD_SHEETS_TOKEN: tok, BOARD_SHEETS_CLIENT: cli, BOARD_SHEETS_BASE: gbase + '/v4/spreadsheets', BOARD_OAUTH_TOKEN_URL: gbase + '/token', ...extra } },
+      (err, stdout, stderr) => res2({ code: err ? err.code : 0, stdout, stderr })));
+    const added = [];
+    try {
+      for (const e of evs) { T('events').set('mt-' + e.id, { ...e, id: undefined }); added.push('mt-' + e.id); }
+      for (let i = 0; i < 50; i++) { T('events').set('mt-fill-' + i, { name: 'Filler ' + i, weekend: '2026-03-06', booths: [] }); added.push('mt-fill-' + i); }
+      r = await mirror(['setup-copies']);
+      ok(r.code === 1 && /no Google key for the mirror/.test(r.stderr) && /authorize-sheets\.mjs/.test(r.stderr), 'no key yet: setup-copies stops and says who runs authorize-sheets.mjs');
+      fs.writeFileSync(tok, JSON.stringify({ refresh_token: 'rt' }), { mode: 0o600 });
+      r = await mirror(['setup-copies']);
+      const copies = JSON.parse(fs.readFileSync(path.join(mstate, 'mirror-copies.json'), 'utf8'));
+      const cj = G.get(copies['jan-may'].id);
+      ok(r.code === 0 && copies['jan-may'] && copies['sept-feb'] && cj && cj.tabs.length === 1 && cj.tabs[0].title === '2027' && /^Mirror copy · Jan-May Show Shift Schedule · 2027$/.test(cj.title)
+        && JSON.stringify(G.get(jm.fileId).tabs[0].cells) === JSON.stringify(book('', '', realRows('2027')).tabs[0].cells), 'setup-copies: one new spreadsheet per book holding only its tab, named as a copy; the team\'s book untouched');
+      r = await mirror(['setup-copies']);
+      ok(r.code === 0 && /copy already there/.test(r.stdout) && [...G.keys()].filter(k => /^COPY/.test(k)).length === 2, 'a second setup-copies makes nothing new');
+      r = await mirror(['write']);
+      const t = G.get(copies['jan-may'].id).tabs[0], val = (i, c) => ((t.cells[i] || [])[c] || {}).userEnteredValue;
+      ok(r.code === 0 && /wrote \d+ rows .* read back/.test(r.stdout), 'write: renders, writes the copy, reads every cell back');
+      ok(val(1, 1).stringValue === 'Weekend 1/1' && val(2, 4).stringValue === 'New Year Show' && val(4, 1).stringValue === 'Weekend 01/15' && !t.cells.some(row => (row || []).some(c => c.userEnteredValue && c.userEnteredValue.stringValue === 'Old Row')),
+        'the team\'s rows above the first owned weekend stay; from it down the board\'s rows replace theirs');
+      const iM = t.cells.findIndex(row => row && row[4] && row[4].userEnteredValue && row[4].userEnteredValue.stringValue === 'Maricopa County Home & Garden Show');
+      ok(iM > 0 && t.cells[iM][13].userEnteredValue.numberValue === 46402 && /DATE/.test(t.cells[iM][13].userEnteredFormat.numberFormat.type) && t.cells[iM][12].userEnteredValue.numberValue === 10000
+        && Math.round(t.cells[iM][4].userEnteredFormat.textFormat.foregroundColor.red * 255) === 0x99, 'dates go in as real dates, cost as a number, the title in the tier\'s color');
+      ok(JSON.stringify(G.get(jm.fileId).tabs[0].cells) === JSON.stringify(book('', '', realRows('2027')).tabs[0].cells) && !calls.some(c => c.includes(jm.fileId + ':batchUpdate') || c.includes(sf.fileId + ':batchUpdate')), 'the team\'s books are never written');
+      // somebody typed in the copy: listed, then written over
+      t.cells[iM][2] = { userEnteredValue: { stringValue: 'Typed by hand' } };
+      r = await mirror(['write', '--book', 'jan-may']);
+      ok(r.code === 0 && /1 cell\(s\) had been changed in the copy since the last write, written over: C\d+: "Booked" -> "Typed by hand"/.test(r.stdout) && t.cells[iM][2].userEnteredValue.stringValue === 'Booked', 'a cell typed in the copy since the last write is named, and the board wins');
+      fs.writeFileSync(path.join(REPO, 'MIRROR-PAUSED'), '');
+      try { r = await mirror(['write']); } finally { fs.rmSync(path.join(REPO, 'MIRROR-PAUSED')); }
+      ok(r.code === 0 && /MIRROR-PAUSED is present: nothing written/.test(r.stdout), 'MIRROR-PAUSED: nothing written');
+      // a copy that does not keep what was written: exit 2, said
+      const keep = gsrv.listeners('request')[0]; gsrv.removeAllListeners('request');
+      gsrv.on('request', (req, res) => { if (/batchUpdate/.test(req.url)) { let b2 = ''; req.on('data', c => b2 += c); req.on('end', () => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{}'); }); return; } keep(req, res); });
+      T('events').get('mt-k').booths[0].shifts[0].slots[1] = { rep: 'Kendall', ft: [] };
+      r = await mirror(['write', '--book', 'jan-may']);
+      gsrv.removeAllListeners('request'); gsrv.on('request', keep);
+      ok(r.code === 2 && /did not read back as written/.test(r.stderr), 'a write Google did not keep: exit 2, the cells named (success is the read-back)');
+      ok(!fs.existsSync(path.join(mstate, 'sheet-mirror.lock')), 'the lock is let go on every path');
+      r = await mirror(['status']);
+      ok(r.code === 0 && /copy COPY\d/.test(r.stdout) && /last written/.test(r.stdout), 'status: the key, the copies, when each was last written');
+    } finally { for (const id of added) T('events').delete(id); gsrv.close(); }
+  });
+
   await section('index.html: coverage asks (read-only marks from the coverage table)', async () => {
     // The page's one piece of coverage logic, run by itself: the block between the markers may use nothing else from the page.
     const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
