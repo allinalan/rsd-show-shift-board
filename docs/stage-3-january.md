@@ -127,6 +127,29 @@ mini (600, in REGISTRY.yaml) and a code allow-list of the three file ids. In ord
    hand on the mini), a lock so two runs never overlap, a `MIRROR-PAUSED` file in the repo root, every run recorded for the
    page's sync line.
 
+**Built so far (2026-10-27).** The layout (`scripts/lib/mirror-render.mjs`), the comparison (`scripts/sheet-mirror.mjs compare`,
+`scripts/lib/mirror-compare.mjs`), the copies and the write with its read-back (`setup-copies`, `write`), and the one-time Google
+sign-in (`scripts/authorize-sheets.mjs`). Waiting on Alan: turning the Google Sheets API on for the Cloud project the shared OAuth
+client belongs to (if it is off, the sign-in or the first call says so, with the link) and the one Allow click; then
+`setup-copies` and the first `write`. Still to build: running it after each hourly sync from December 1, the comparison read
+from the copy itself instead of in memory, the daily note in #rsd-board, and the January 13 switch.
+
+**The first comparison (2026-10-27, the Picking Feed's 14:00Z pull against the live board).** Board -> mirror -> this repo's
+parser: no difference in either book. The picking order's own reading, weekends January 15 to February 26 (Sept-Feb book) and
+January 15 to May 28 (Jan-May book):
+- the same: 166 and 104 shifts;
+- the mirror right where the team's rows are not: 27 Mesa shifts in the Jan-May book whose rows carry no usable Start Date, so
+  the picking order skips them today; 4 Bluegrass on the Beach shifts the board has on the March 5 weekend (the date research
+  moved it); 12 names in March-May that are last year's (the board left them out on the first load);
+- column C: 61 shifts on shows whose column C says "Prospective" (the picking order reads that as not worked) where the board's
+  status, VectorConnect's, says Booked, Show Full, OK to Book, Pending Promoter Acceptance or Booking Request Needed. From
+  January 13 they count (default 4: column C is the board's status);
+- Alan's settlements of 2026-10-23 (Gold Canyon keeps J. Parker, Foss on the Arabian shows, Foss off Downtown Chandler
+  Saturday; one Lake Havasu Winter Fest day goes with them): board and Sheet differ on purpose;
+- **to settle before January 13**, the board and the Sheet disagree: Buckeye Days (Matt A., Jan 22 and 24) and Southwest AG
+  Summit (J. Parker, Feb 16), where the board has no such show on those days, and Lake Havasu Home & Garden Show Spring
+  (Adam C., Jan 29), which the board has without him. The Sheet has them, the board does not.
+
 **When it runs.** From the sync listener (`com.allinalan.rsd-board-sync`, every 30 s) once the board's changelog has a
 show change newer than the last write and nothing has changed for 2 minutes (a meeting is a burst of edits; it writes
 when they pause), and at 06:45 and 18:45, ahead of the picking order's 07:00 and 19:00 pulls, changed or not.

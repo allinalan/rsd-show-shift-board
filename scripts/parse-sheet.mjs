@@ -225,7 +225,7 @@ const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', '
 const NOT_A_SHOW = /^(service\s+events?|event\s+description)$/i;
 
 // ---------- the walk ----------------------------------------------------------------------
-export function parseSheet(grid, { seasonYear = 2026, seasonStartMonth = 8, dateLabels = 'keep' } = {}) {
+export function parseSheet(grid, { seasonYear = 2026, seasonStartMonth = 8, dateLabels = 'keep', repairs: useRepairs = true } = {}) {
   const events = [], warnings = [];
   let weekend = null, ev = null, booth = null, boothFromHeader = false, repairs = 0;
 
@@ -284,7 +284,7 @@ export function parseSheet(grid, { seasonYear = 2026, seasonStartMonth = 8, date
       const weekendDate = weekend ? new Date(`${weekend}T00:00:00Z`) : null;
       const name = desc ? desc.replace(/\s+/g, ' ').trim()
                         : `Unnamed event (${str(row[C.LOC]) || str(row[C.CITY]) || `row ${r}`})`;
-      const repair = SHEET_REPAIRS[`${normName(name)}|${weekend || ''}`] || {};
+      const repair = (useRepairs && SHEET_REPAIRS[`${normName(name)}|${weekend || ''}`]) || {};   // never on rows the mirror wrote
       if (Object.keys(repair).length) repairs++;
       const at = k => row[repair[k] !== undefined ? repair[k] : C[k]];
       const { cost, costNum } = fmtCost(at('COST'));

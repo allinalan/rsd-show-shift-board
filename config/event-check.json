@@ -106,5 +106,6 @@
   ],
   "_vcStatusesSource": "VectorConnect > My Events > Status Definitions, read 2026-09-23. The definitions text itself lives in rsd-shift-picking (private).",
   "_stage3": "Stage 3 (Alan 2026-10-27): the January 13, 2027 meeting is the first one run on the board. `cutover` is the morning the board becomes the truth and the Sheet a mirror; `mirrorFrom` is the first weekend the mirror owns. What changes that day keys off these two (docs/stage-3-january.md). `board sheet-notes --apply` refuses before `cutover`.",
-  "stage3": { "cutover": "2027-01-13", "mirrorFrom": "2027-01-15" }
+  "stage3": { "cutover": "2027-01-13", "mirrorFrom": "2027-01-15",
+    "mirror": [ { "book": "sept-feb", "to": "2027-02-26" }, { "book": "jan-may", "to": "2027-05-28" } ] }
 }
