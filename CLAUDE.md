@@ -76,7 +76,12 @@ routines in `.claude/skills/` keep it true.
   ("Booked") are not shows. Also since 2026-10-24: a "Booth ..." typed in column B of a shift row, with no booth row
   above it, starts a named booth (Maricopa Summer Home & Landscape writes "Booth #301-303" beside Shift 1; its six rows
   had fallen into one unnamed booth). Under a booth row of its own, column B only repeats it. No other show in the
-  three books changed (checked by parsing each before and after).
+  three books changed (checked by parsing each before and after). Since 2026-10-28: a booth written as its own show row
+  with no day labels ("Maricopa Booth #2 (Ag Building)" and "#3" under the January Home & Garden Show, Sept-Feb book)
+  works the show's days. Until then it kept no days and seven slots; the 2026-09-30 sync wrote that onto the board, and
+  the page, which lays a booth's slots out over its days, showed none of its four reps (and "+ shift row" on it made an
+  empty Shift 3). A booth left with names and no days, or a name past the show's last day, is now a parser warning.
+  The only show in the three books it changed.
 - **The May-Sept 2026 roll-in** (Alan, 2026-10-24: "upload also events from this link without names to 2027"; config
   `rollIns`). The May-Sept book's newest tab is last summer's (May 1 - Sept 25, 2026), so it was rolled into 2027
   **once** and is **not synced** (the 2027 summer schedule goes on the board at the May 2027 meeting, stage 3):

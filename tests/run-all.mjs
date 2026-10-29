@@ -471,6 +471,32 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(lab(plain) === '=Eli', 'a show with no booth names still has its one unnamed booth');
   });
 
+  await section('parse-sheet: a booth written as its own row with no days works the show\'s (January Maricopa, Sept-Feb book)', async () => {
+    const { parseAll } = await import(path.join(REPO, 'scripts/parse-sheet.mjs'));
+    const G = [], row = o => { const r = new Array(27).fill(null); for (const [i, v] of Object.entries(o)) r[+i] = v; G.push(r); };
+    row({ 4: 'HEADER' });
+    row({ 1: 'Weekend 1/15' });
+    row({ 0: 'MF', 2: 'Booked', 4: 'Maricopa County Home & Garden Show (South Entrance Tent)', 5: 'Friday', 6: 'Saturday', 7: 'Sunday', 12: '10000', 13: 46402 });
+    row({ 4: 'Shift 1', 5: 'Foss', 6: 'Foss', 7: 'Foss' });
+    row({ 4: 'Shift 2', 5: 'Jason', 6: 'Jason', 7: 'Jason' });
+    row({ 2: 'Booked', 4: 'Maricopa Booth #2 (Ag Building) (820/822)' });     // no day labels of its own
+    row({ 4: 'Shift 1', 5: 'Jeremy', 6: 'Jeremy', 7: 'Jeremy' });
+    row({ 4: 'Shift 2', 5: 'Alec', 6: 'Alec', 7: 'Alec', 8: 'Eli' });          // Eli sits past Sunday
+    row({ 2: 'Booked', 4: 'Maricopa Booth #3 (Exhibit Building)' });
+    row({ 4: 'Shift 1', 5: 'Alan', 6: 'Alan', 7: 'Alan' });
+    row({ 1: 'Weekend 1/22' });
+    row({ 2: 'Booked', 4: 'Bare Fair' });                                     // a show with no day labels at all
+    row({ 4: 'Shift 1', 5: 'Luke' });
+    const { events, warnings } = parseAll(G, { seasonYear: 2026, dateLabels: 'weekday' });
+    const [mc, bare] = events, shape = b => `${b.days.join('/')}:${b.dates.length}:${b.shifts.map(s => s.slots.map(x => x.rep || '·').join(',')).join(' ')}`;
+    ok(events.length === 2 && mc.booths.length === 3 && mc.booths.map(b => b.label).join(' | ') === 'Booth #1 South Entrance Tent | Booth #2 (Ag Building) (820/822) | Booth #3 (Exhibit Building)',
+      'the booth rows fold into the show as its booths: ' + mc.booths.map(b => b.label).join(' | '));
+    ok(shape(mc.booths[1]) === 'Friday/Saturday/Sunday:3:Jeremy,Jeremy,Jeremy Alec,Alec,Alec' && shape(mc.booths[2]) === 'Friday/Saturday/Sunday:3:Alan,Alan,Alan',
+      'a booth row with no days takes the show\'s days and dates, names under them, three slots (not seven with no days): ' + shape(mc.booths[1]) + ' / ' + shape(mc.booths[2]));
+    ok(warnings.some(w => /"Eli" sits in a column Maricopa County Home & Garden Show has no day for/.test(w)), 'a name past the show\'s last day is a warning, not dropped quietly: ' + warnings.join(' | '));
+    ok(warnings.some(w => /Bare Fair has names but no day labels; the board cannot place them/.test(w)) && !bare.booths[0].days.length, 'a show whose names have no days at all is a warning');
+  });
+
   await section('lib/booth-spots.mjs, and the page\'s copy of it', async () => {
     const S = await import(path.join(REPO, 'scripts/lib/booth-spots.mjs'));
     const cfg = JSON.parse(fs.readFileSync(path.join(REPO, 'config/event-check.json'), 'utf8')).boothSpots;

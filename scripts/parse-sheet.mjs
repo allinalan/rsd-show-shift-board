@@ -351,8 +351,14 @@ const newBoothOn = (e, label) => e.booths.push({ label, status: '', days: e.days
  * as "Booth #N" sub-headers. They carry no dates, cost, promoter or VC number of their own and sit
  * under the same weekend as the event above; the migration folded them in as booths, and split the
  * parent's own booth description out of its name.
+ *
+ * A booth row with no day labels of its own works the show's days (the January Maricopa Home & Garden Show's
+ * "Maricopa Booth #2" and "#3" rows, the Sept-Feb book). Its shift rows were read across every day column, so their
+ * names are taken from the show's day columns. Until 2026-10-28 those booths kept no days and seven slots: the Sheet
+ * sync wrote that onto the board on 2026-09-30, and the page, which lays a booth's slots out over its days, showed
+ * none of their four reps. A name in a column the show has no day for is a warning, never dropped quietly.
  */
-export function mergeBoothSiblings(events) {
+export function mergeBoothSiblings(events, warnings = []) {
   const firstWord = n => String(n).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ')[0] || '';
   const acc = [];
   for (const e of events) {
@@ -374,7 +380,19 @@ export function mergeBoothSiblings(events) {
     }
     const label = e.name.replace(new RegExp(`^${firstWord(e.name)}\\s*`, 'i'), '').trim();
     const src = e.booths.length ? e.booths : [{ label: '', status: '', days: e.days.slice(), dates: e.dates.slice(), shifts: [] }];
-    for (const b of src) prev.booths.push({ ...b, label: b.label || label, status: b.status || e.sheetStatus || '' });
+    const showsDays = !e.dayCols.length && prev.dayCols.length;
+    for (const b of src) {
+      const nb = { ...b, label: b.label || label, status: b.status || e.sheetStatus || '' };
+      if (showsDays) {
+        nb.days = prev.days.slice(); nb.dates = prev.dates.slice();
+        nb.shifts = b.shifts.map(s => {
+          s.slots.forEach((x, i) => { if (!prev.dayCols.includes(C.DAY0 + i) && String(x.rep || '').trim())
+            warnings.push(`row ${e.row}: "${x.rep}" sits in a column ${prev.name} has no day for (booth ${nb.label})`); });
+          return { ...s, slots: prev.dayCols.map(c => s.slots[c - C.DAY0] || { rep: '', ft: [] }) };
+        });
+      }
+      prev.booths.push(nb);
+    }
     prev.mergedBoothRows.push(e.row);
   }
   for (const e of acc) delete e._split;
@@ -407,8 +425,13 @@ export function mergeMesa(events) {
 
 export const parseAll = (grid, opts) => {
   const { events, warnings, repairs } = parseSheet(grid, opts);
-  const merged = mergeMesa(mergeBoothSiblings(events));
-  for (const e of merged) delete e.dayCols;
+  const merged = mergeMesa(mergeBoothSiblings(events, warnings));
+  for (const e of merged) {
+    delete e.dayCols;
+    // the page lays a booth's slots out over its days: names in a booth with none are on the board and seen by nobody
+    for (const b of e.booths) if (!b.days.length && b.shifts.some(s => s.slots.some(x => String(x.rep || '').trim())))
+      warnings.push(`row ${e.row}: ${e.name}${b.label ? ` (${b.label})` : ''} has names but no day labels; the board cannot place them`);
+  }
   return { events: merged, warnings, repairs };
 };
 
