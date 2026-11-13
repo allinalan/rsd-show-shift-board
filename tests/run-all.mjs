@@ -1696,6 +1696,38 @@ def post(route, text, mention=None, fallback=True, **k):
     const ru = JSON.parse(fs.readFileSync(path.join(outd, 'research', 'latest.json'), 'utf8'));
     ok(r.code === 0 && ru.counts.reused === 1 && ru.meeting === '2027-01-13' && ru.perMeeting === 60 && ru.spentBefore === 12.5 && ru.model === 'claude-sonnet-5' && /1 already known from earlier runs/.test(r.stdout), 'board-research: findings reused from earlier runs are counted, and the meeting\'s budget travels with the result');
 
+    // a date MOVE needs the show's own page (2026-11-13): until then any confidence but "none" moved a show, so a
+    // third-party listing could. A listing's dates are a question in the report; nothing is written from them.
+    const listing = (s, e2) => { const f = found(s, e2, 'https://azfairs.example/listing'); f.result.dates.confidence = 'secondary'; return f; };
+    const onBoard = { start: '2026-09-25', end: '2026-09-26' };
+    const own = decideDates({ vc: null }, found('2026-10-02', '2026-10-03', 'https://chilitest.org/'), onBoard);
+    ok(own.kind === 'move' && own.basis === 'researched' && own.truth.start === '2026-10-02' && own.source === 'https://chilitest.org/', 'board-research: the show\'s own page still moves a date');
+    const q1 = decideDates({ vc: null }, listing('2026-10-02', '2026-10-03'), onBoard);
+    ok(q1.kind === 'question' && q1.why === "azfairs.example (a third-party listing, not the show's own page) gives Oct 2-3; the board has Sep 25-26. Only the show's own page moves a date, so nothing was changed; if Oct 2-3 is right, change it on the board",
+      'board-research: dates found only on a third-party listing never move a show; they are a question that says what the listing gives: ' + JSON.stringify(q1));
+    const q2 = decideDates({ vc: { number: '1', start: '2026-09-25', end: '2026-09-26' } }, listing('2026-10-02', '2026-10-03'), onBoard);
+    ok(q2.kind === 'question' && /the board has Sep 25-26 and VC Sep 25-26\./.test(q2.why), 'board-research: a listing against a board that VC agrees with is a question, and the question says what VC has');
+    const q3 = decideDates({ vc: { number: '1', start: '2026-10-09', end: '2026-10-10' } }, listing('2026-10-02', '2026-10-03'), onBoard);
+    ok(q3.kind === 'question' && /and VC Oct 9-10\./.test(q3.why), 'board-research: a listing that disagrees with the board and with VC moves nothing, not even to VC\'s dates (three answers: ask)');
+    const v1 = decideDates({ vc: { number: '1', start: '2026-10-01', end: '2026-10-03' } }, listing('2026-10-02', '2026-10-03'), onBoard);
+    ok(v1.kind === 'move' && v1.basis === 'vc' && v1.truth.start === '2026-10-01' && v1.truth.end === '2026-10-03' && !v1.source, 'board-research: a listing inside VC\'s run leaves it to the VC rule, as if nothing had been found online (VC\'s dates, never the listing\'s)');
+    ok(decideDates({ vc: null }, listing('2026-09-25', '2026-09-26'), onBoard).kind === 'confirmed', 'board-research: a listing that agrees with the board moves nothing (as before)');
+    const odd = found('2026-10-02', '2026-10-03', 'https://chilitest.org/'); odd.result.dates.confidence = 'high';
+    ok(decideDates({ vc: null }, odd, onBoard).kind === 'question' && decideDates({ vc: null }, listing('2026-10-02', '2026-10-03'), null).kind === 'question', 'board-research: only "official" moves a date: any other label, or a show with no dates on the board, is a question');
+    // end to end: m1 (board Oct 10-11, VC Oct 9-10) and c1 (no VC) each get a listing nobody else backs; m2's listing sits in VC's run
+    const m1Before = JSON.stringify(T('events').get('2026-m1')), c1Before = JSON.stringify(T('events').get('2026-c1'));
+    fs.writeFileSync(rfile, JSON.stringify({ results: { '2026-m1': listing('2026-10-16', '2026-10-17'), '2026-m2': listing('2026-11-14', '2026-11-15'), '2026-c1': listing('2026-12-12', '2026-12-13') } }));
+    r = await node('scripts/board-research.mjs', 'apply', '--targets', tfile, '--research', rfile, '--mode', 'dates', '--label', 'date-research', '--date', '2026-10-01', '--apply');
+    const lo = JSON.parse(fs.readFileSync(path.join(outd, 'research', 'latest.json'), 'utf8'));
+    ok(r.code === 0 && JSON.stringify(T('events').get('2026-m1')) === m1Before && JSON.stringify(T('events').get('2026-c1')) === c1Before, 'board-research apply: a third-party listing writes nothing to the show: ' + r.stderr.slice(0, 200));
+    ok(lo.questions.map(x => x.id).sort().join() === '2026-c1,2026-m1' && lo.questions.every(x => /azfairs\.example \(a third-party listing/.test(x.why) && x.source === 'https://azfairs.example/listing') && lo.counts.questions === 2,
+      'board-research apply: each one is a question in the result (rsd-shift-picking puts the questions in the text and the email): ' + JSON.stringify(lo.questions.map(x => x.id)));
+    const L2 = T('events').get('2026-m2');
+    ok(lo.changes.map(x => x.id).join() === '2026-m2' && lo.changes[0].basis === 'vc' && lo.changes[0].applied && !lo.changes[0].source && L2.booths[0].dates.join() === '2026-11-14,2026-11-15' && L2.datesSource.basis === 'vc' && !L2.datesSource.url
+      && /Dates per VectorConnect 00500002; not confirmed online/.test(L2.datesNote), 'board-research apply: the only move is the VC rule\'s, noted as VC\'s dates and not confirmed online; the listing is not its source');
+    const lmd = fs.readFileSync(path.join(outd, 'reports', 'date-research-2026-10-01.md'), 'utf8');
+    ok(/## Questions \(nothing changed\)\n- (Heber Test Oktoberfest|Estimated Test Fair): azfairs\.example \(a third-party listing/.test(lmd) && !/Heber Test Oktoberfest: Oct 10-11 ->/.test(lmd), 'board-research apply: the report lists them under Questions, not under Dates moved');
+
     // multi-week: one VC record over two board weeks is never moved, so the sweep's research leaves it out
     for (const t of Object.keys(db)) db[t].clear();
     ev('2026-w1', 'Quartz Test Show', '2027-01-15', 2, ['Eli'], { vcNumber: '00500009' });
