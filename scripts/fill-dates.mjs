@@ -6,7 +6,10 @@
   Most blank Start Dates need no search at all: the date is already in our own data. So, in this order:
     1. the show's own days: the Sheet's weekend header and day columns, already on the board as each booth's dates
     2. VectorConnect's dates for the show's record (--vc, the My Events pull)
-    3. a page online (--research, research-events.js results): only a date a page states, with its URL
+    3. a page online (--research, research-events.js results): only a date the show's own page states, with its URL
+       (confidence "official": the event's, the promoter's or the host city's page). A date found only on a
+       third-party listing is never written (2026-11-13, the rule board-research.mjs holds a date move to): the show
+       stays blank and the listing is a question in the report and in the weekly note to Alan.
   A show none of these answers is listed, and goes to the search unless it is skipped: --skip-names (Alan: no money
   on golf tournaments or builder expos), --skip-tiers (Elite: the team handles those), Mesa, a junk row name, a show
   rolled forward for next year that nobody has touched and starts more than config research.rolledLaterDays out.
@@ -49,7 +52,10 @@ const writeJson = (f, obj) => { fs.mkdirSync(path.dirname(f), { recursive: true,
 const junkName = n => t(n).length < 3 || /^(x+|tbd|test|\?+)$/i.test(t(n));
 const staffedOf = e => (e.booths || []).some(b => (b.shifts || []).some(s => (s.slots || []).some(sl => t(sl && sl.rep) && t(sl.rep) !== '__X__')));
 
-/** A date a page states for this show, or null. The same bar board-research.mjs holds a researched date to. */
+/**
+ * A date a page states for this show, or null. The same bar board-research.mjs holds a researched date to.
+ * `official`: the page is the show's own (confidence "official"). Only that fills a blank date (decide below).
+ */
 export function webRun(res, weekend) {
   const d = res && res.ok && res.result && res.result.dates;
   if (!d || !d.found || !ISO.test(d.start || '') || !ISO.test(d.end || '') || d.start > d.end || dayDiff(d.end, d.start) > 21) return null;
@@ -58,12 +64,13 @@ export function webRun(res, weekend) {
   // online at its NEXT date, which is another row's: the Tucson Expo Gun Show row for Feb 19 2027 was given the
   // October 2026 show's dates on the first run (2026-10-06). A date more than a week from the weekend is not this row's.
   if (weekend && Math.abs(dayDiff(d.start, weekend)) > 7) return { otherEdition: true, start: d.start, end: d.end, source: d.sourceUrl };
-  return { start: d.start, end: d.end, source: d.sourceUrl };
+  return { start: d.start, end: d.end, source: d.sourceUrl, official: d.confidence === 'official' };
 }
 
 /**
  * What to do about one show's blank date. Pure.
- * @returns { kind: 'fill', start, end, source: 'sheet-days'|'vc'|'web', url? } | { kind: 'search' } | { kind: 'skip', why } | { kind: 'unfound', why }
+ * @returns { kind: 'fill', start, end, source: 'sheet-days'|'vc'|'web', url? } | { kind: 'search' } | { kind: 'skip', why } | { kind: 'unfound', why, listing? }
+ *          listing { start, end, url }: a third-party listing dates it. Not written; the why is the question for Alan.
  */
 export function decide(e, { vcRow, res, skipNames = [], skipTiers = [], researched = false, today = null }) {
   const run = sellingRun(e);
@@ -72,7 +79,13 @@ export function decide(e, { vcRow, res, skipNames = [], skipTiers = [], research
   if (own.length) return { kind: 'skip', why: `its day columns (${[...new Set(own)].sort().join(', ')}) do not sit with its weekend ${t(e.weekend) || '(none)'}; fix the row` };
   if (vcRow && ISO.test(vcRow.startDate || '')) return { kind: 'fill', start: vcRow.startDate, end: ISO.test(vcRow.endDate || '') ? vcRow.endDate : vcRow.startDate, source: 'vc' };
   const web = webRun(res, e.weekend);
-  if (web && !web.otherEdition) return { kind: 'fill', start: web.start, end: web.end, source: 'web', url: web.source };
+  if (web && !web.otherEdition && web.official) return { kind: 'fill', start: web.start, end: web.end, source: 'web', url: web.source };
+  // Only the show's own page fills a blank date (2026-11-13; board-research.mjs decideDates holds a date move to the
+  // same rule). Until then any confidence but "none" was written, so a date found only on a third-party calendar or
+  // listing went on the board as the show's dates, marked "checked". Now it is not written: the show stays blank and
+  // the listing is a question, in the report and in the weekly note (it reads `unfound` and prints each `why`).
+  if (web && !web.otherEdition) return { kind: 'unfound', listing: { start: web.start, end: web.end, url: web.source },
+    why: `${host(web.source)} (a third-party listing, not the show's own page) gives ${fmt(web.start, web.end)}, ${web.start.slice(0, 4)}. Only the show's own page fills a date, so it was left blank; if ${fmt(web.start, web.end)} is right, fill in the row's Start Date` };
   if (web && web.otherEdition) return { kind: 'unfound', why: `the page found (${host(web.source)}) dates it ${fmt(web.start, web.end)}, ${web.start.slice(0, 4)}, which is not this row's weekend; is the row on the right weekend, or is this date not announced yet?` };
   if (junkName(e.name)) return { kind: 'skip', why: 'not a real show name (clean the row up)' };
   if (MESA.test(t(e.name))) return { kind: 'skip', why: 'Mesa has no days on this row' };
@@ -102,10 +115,12 @@ export function recentFills(events, today, days = 7) {
 export function summaryMd(r) {
   const L = [`# Blank Start Dates, ${r.date} (${r.mode}${r.written ? ', board updated' : ', board not written'})`, ''];
   if (r.stopped) L.push(`**STOPPED:** ${r.stopped}`, '');
-  L.push(`${r.blank} live show(s) had no Start Date. Filled ${r.filled.length}; ${r.search.length} need a search; ${r.unfound.length} not found; ${r.skipped.length} left alone.`);
+  const asked = r.unfound.filter(x => x.listing), none = r.unfound.filter(x => !x.listing);
+  L.push(`${r.blank} live show(s) had no Start Date. Filled ${r.filled.length}; ${r.search.length} need a search; ${none.length} not found${asked.length ? `; ${asked.length} dated only by a third-party listing, not written` : ''}; ${r.skipped.length} left alone.`);
   if (r.filled.length) { L.push('', '## Filled'); for (const x of r.filled) L.push(`- ${x.name} (${x.weekend || 'no weekend'}): ${fmt(x.start, x.end)}, from ${FROM[x.source]}${x.url ? ` (${host(x.url)})` : ''}`); }
   if (r.search.length) { L.push('', '## To search'); for (const x of r.search) L.push(`- ${x.name} (${x.weekend || 'no weekend'})`); }
-  if (r.unfound.length) { L.push('', '## Not found (still blank)'); for (const x of r.unfound) L.push(`- ${x.name} (${x.weekend || 'no weekend'}): ${x.why}`); }
+  if (asked.length) { L.push('', '## Questions (nothing written, still blank)'); for (const x of asked) L.push(`- ${x.name} (${x.weekend || 'no weekend'}): ${x.why}`); }
+  if (none.length) { L.push('', '## Not found (still blank)'); for (const x of none) L.push(`- ${x.name} (${x.weekend || 'no weekend'}): ${x.why}`); }
   if (r.skipped.length) { L.push('', '## Left alone'); for (const x of r.skipped) L.push(`- ${x.name} (${x.weekend || 'no weekend'}): ${x.why}`); }
   return L.join('\n');
 }
@@ -128,7 +143,7 @@ async function main() {
     const row = { id: e.id, name: t(e.name), weekend: t(e.weekend) };
     const d = decide(e, { vcRow: vcByNumber.get(t(e.vcNumber)) || null, res: results[e.id], skipNames, skipTiers, researched: !!RS && e.id in results, today: TODAY });
     if (d.kind === 'skip') { r.skipped.push({ ...row, why: d.why }); continue; }
-    if (d.kind === 'unfound') { r.unfound.push({ ...row, why: d.why }); continue; }
+    if (d.kind === 'unfound') { r.unfound.push({ ...row, why: d.why, ...(d.listing ? { listing: d.listing } : {}) }); continue; }
     if (d.kind === 'search') { r.search.push({ ...row, e }); continue; }
     // a Start Date that is already there is kept; only the blank side is filled
     const start = t(e.startDate) || d.start, end = t(e.endDate) || d.end;

@@ -223,7 +223,11 @@ routines in `.claude/skills/` keep it true.
 - `scripts/fill-dates.mjs` — a show with no Start Date gets one (Alan, 2026-10-06), run by rsd-shift-picking's
   `run-event-check.sh` right after the event check (stage 3b). In order: the show's own day columns (the Sheet's weekend
   header, already on the board as booth dates), then VectorConnect's dates for its record, then a page online
-  (`--research`, rsd-shift-picking's research-events.js; at most $3 a week there, each show looked up once). Writes
+  (`--research`, rsd-shift-picking's research-events.js; at most $3 a week there, each show looked up once). Since
+  2026-11-13 only the show's own page fills a blank date (`confidence: "official"`, the rule `decideDates` holds a date
+  move to): a date found only on a third-party listing is not written. The show stays blank and is listed in `unfound`
+  with a `listing` and the question as its `why` (which listing, what it gives, that only the show's own page fills a
+  date), so it is under "Questions" in the report and in the weekly note to Alan, which prints each `why`. Writes
   `startDate` / `endDate` with `startDateSource` (sheet-days | vc | web); a VC or web date also gets the usual `datesNote` /
   `datesSource` ("VC dates" / "checked" on the page). Never searched: golf and builder shows (`--skip-names`), Elite
   (`--skip-tiers`), a junk row name, an untouched rolled show more than 183 days out (below); those stay blank and are
