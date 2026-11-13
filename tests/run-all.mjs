@@ -1658,7 +1658,32 @@ def post(route, text, mention=None, fallback=True, **k):
     fs.writeFileSync(resFile, JSON.stringify({ results: { '2026-web': { ok: true, result: { dates: { found: true, start: '2027-02-20', end: '2027-02-21', confidence: 'official', sourceUrl: 'https://searchmefest.example/next', evidence: 'February 20-21, 2027' } } } } }));
     r = await fd('--apply', '--research', resFile);
     ok(D('2026-web').startDate === '' && /not this row's weekend/.test(JSON.parse(fs.readFileSync(path.join(outd, 'fill-dates', 'latest.json'), 'utf8')).unfound[0].why), 'fill-dates: a page that dates ANOTHER edition of the show (months from the row\'s weekend) is never written');
+    // only the show's own page fills a blank date (2026-11-13): a date found only on a third-party listing is a question
+    fs.writeFileSync(resFile, JSON.stringify({ results: { '2026-web': { ok: true, result: { dates: { found: true, start: '2026-10-24', end: '2026-10-25', confidence: 'secondary', sourceUrl: 'https://www.festlistings.example/search-me', evidence: 'Oct 24-25, 2026' } } } } }));
+    const webBefore = JSON.stringify(D('2026-web'));
+    r = await fd('--apply', '--research', resFile);
+    const asked = JSON.parse(fs.readFileSync(path.join(outd, 'fill-dates', 'latest.json'), 'utf8'));
+    ok(r.code === 0 && D('2026-web').startDate === '' && D('2026-web').endDate === '' && JSON.stringify(D('2026-web')) === webBefore && !asked.filled.length && asked.written === false,
+      'fill-dates: a date found only on a third-party listing is NOT written: the show stays blank and nothing on it changes');
+    const q = asked.unfound.find(x => x.id === '2026-web');
+    ok(asked.unfound.length === 1 && q && q.listing && q.listing.start === '2026-10-24' && q.listing.end === '2026-10-25' && /festlistings\.example/.test(q.listing.url)
+      && q.why === "festlistings.example (a third-party listing, not the show's own page) gives Oct 24-25, 2026. Only the show's own page fills a date, so it was left blank; if Oct 24-25 is right, fill in the row's Start Date",
+      'fill-dates: ...it is a question in `unfound`, which the weekly note to Alan reads: which listing, what it gives, and that only the show\'s own page fills a date');
+    const fdMd = fs.readFileSync(path.join(outd, 'reports', 'fill-dates-2026-10-06.md'), 'utf8');
+    ok(/Filled 0; 0 need a search; 0 not found; 1 dated only by a third-party listing, not written; 3 left alone\./.test(fdMd) && /## Questions \(nothing written, still blank\)\n- Search Me Harvest Fest \(2026-10-23\): festlistings\.example \(a third-party listing/.test(fdMd)
+      && !/## Not found/.test(fdMd) && !/## Filled/.test(fdMd), 'fill-dates: ...and the report lists it under Questions, apart from the shows nothing dates');
     const FDm = await import(path.join(REPO, 'scripts/fill-dates.mjs'));
+    { const page = (confidence, extra = {}) => ({ ok: true, result: { dates: { found: true, start: '2026-10-24', end: '2026-10-25', confidence, sourceUrl: 'https://festlistings.example/x', evidence: 'Oct 24-25, 2026', ...extra } } });
+      const blankRow = { id: 'b', name: 'Blank Row Fest', weekend: '2026-10-23', startDate: '', endDate: '', booths: [] };
+      const kinds = ['official', 'secondary', 'high', ''].map(c => FDm.decide(blankRow, { res: page(c), researched: true }).kind);
+      ok(JSON.stringify(kinds) === JSON.stringify(['fill', 'unfound', 'unfound', 'unfound']), 'fill-dates: only confidence "official" fills; "secondary", or anything else that is not "official", never does: ' + kinds.join());
+      ok(FDm.webRun(page('official'), '2026-10-23').official === true && FDm.webRun(page('secondary'), '2026-10-23').official === false, 'fill-dates: webRun says whether the page is the show\'s own');
+      const fromVc = FDm.decide({ ...blankRow, vcNumber: '00400009' }, { vcRow: { startDate: '2026-10-23', endDate: '2026-10-25' }, res: page('secondary'), researched: true });
+      const fromDays = FDm.decide({ ...blankRow, booths: [{ label: '', days: ['Saturday', 'Sunday'], dates: ['2026-10-24', '2026-10-25'], shifts: [] }] }, { res: page('secondary'), researched: true });
+      ok(fromVc.kind === 'fill' && fromVc.source === 'vc' && fromVc.start === '2026-10-23' && fromDays.kind === 'fill' && fromDays.source === 'sheet-days', 'fill-dates: a date VectorConnect supplies, and the row\'s own day columns, still fill as before, whatever a listing says');
+      ok(/not this row's weekend/.test(FDm.decide(blankRow, { res: page('secondary', { start: '2027-02-20', end: '2027-02-21' }), researched: true }).why), 'fill-dates: a listing that dates another edition is still the "not this row\'s weekend" line, as before');
+      const capped = FDm.decide(blankRow, { res: { ok: false, error: 'not researched: the run reached its $3 cap', notResearched: true }, researched: true });
+      ok(capped.kind === 'unfound' && !capped.listing && /the run reached its \$3 cap/.test(capped.why) && FDm.decide(blankRow, {}).kind === 'search', 'fill-dates: a show the week\'s search money did not reach is reported as before, and one never looked up still goes to the search'); }
     const rec = FDm.recentFills([{ id: 'a', name: 'New', weekend: '2026-10-09', startDate: '2026-10-09', endDate: '2026-10-10', startDateSource: 'sheet-days', startDateFilledAt: '2026-10-06' },
       { id: 'b', name: 'Old', startDate: '2026-09-01', endDate: '2026-09-02', startDateSource: 'vc', startDateFilledAt: '2026-09-20' }, { id: 'c', name: 'Typed by hand', startDate: '2026-10-12', endDate: '2026-10-12' }], '2026-10-07');
     ok(rec.length === 1 && rec[0].id === 'a' && rec[0].source === 'sheet-days', 'fill-dates: the weekly list is the fills of the last 7 days, read from the board; a date typed in the Sheet is not a fill');
