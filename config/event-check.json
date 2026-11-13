@@ -77,6 +77,8 @@
     "maxSlotChanges": 250,
     "structuralDriftShare": 0.1,
     "auto": { "from": "2026-10-15", "everyMinutes": 60, "hours": [7, 21] },
+    "watch": { "quietHours": 3, "retrySeconds": 5, "failuresBeforeExit": 4, "alertRetryMinutes": 10 },
+    "_watch": "What the sync listener (scripts/sync-requests.mjs) says to Alan in #rsd-alerts, each once: a sync that stopped, and why; no sync through for quietHours inside auto.hours while the hourly sync is on (keep it well above auto.everyMinutes); a sync through again. retrySeconds: a board read that fails is tried once more after this long. failuresBeforeExit: only this many failed runs in a row (30 seconds apart) end non-zero, so a blip is one log line and an outage is an incident. alertRetryMinutes: an alert Slack could not take is offered again this often.",
     "_auto": "Alan, 2026-09-28: the board syncs itself from the Sheet every hour, 7am-9pm Phoenix, starting the day after the third clean Wednesday (9/30, 10/7, 10/14). If one of those is not clean, move `from` past the next clean one; null turns it off. The Sync button works either way. A run that stops (parser drift, over the limits) pauses it until a sync gets through (the button or Wednesday's)."
   },
   "checkWrite": {
