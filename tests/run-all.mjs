@@ -19,6 +19,7 @@ const db = {};                                   // table -> Map(id -> data)
 const T = t => (db[t] = db[t] || new Map());
 const FLAT = new Set(['sheet_syncs']); let flatId = 0, flatReads = 0;   // flatReads: GETs on a plain table (did the listener ask at all?)
 const actors = new Set();                        // who merge_doc was told did the write (the changelog's actor)
+let failMerge = null;                            // a doc id whose merge_doc write fails with a 500 (a run that dies mid-write)
 const pgMatch = (row, u) => {
   for (const [k, v] of u.searchParams) {
     if (['select', 'order', 'limit', 'on_conflict'].includes(k)) continue;
@@ -50,6 +51,7 @@ const server = http.createServer((req, res) => {
       if (now.rep !== (a.p_seen.rep || '') || JSON.stringify(now.ft) !== JSON.stringify(a.p_seen.ft || [])) return send(200, { ok: false, why: 'changed', now });
       sh.slots[a.p_day] = { ...cur, rep: a.p_value.rep || '', ft: a.p_value.ft || [] }; return send(200, { ok: true, slot: sh.slots[a.p_day] });
     }
+    if (p === 'rpc/merge_doc' && failMerge && JSON.parse(body).doc_id === failMerge) return send(500, { message: 'test: this write fails' });
     if (p === 'rpc/merge_doc') { const { tbl, doc_id, patch, actor } = JSON.parse(body); actors.add(actor); const cur = T(tbl).get(doc_id) || {}; const next = { ...cur, ...patch }; T(tbl).set(doc_id, next); return send(200, next); }
     const eq = u.searchParams.get('id'); const id = eq && eq.startsWith('eq.') ? decodeURIComponent(eq.slice(3)) : null;
     if (req.method === 'GET') { let r = [...T(p)].map(([i, data]) => ({ id: i, data, updated_at: 'now' })); if (id !== null) r = r.filter(x => x.id === id); r.sort((a, b) => a.id.localeCompare(b.id)); const lim = +u.searchParams.get('limit'); return send(200, lim ? r.slice(0, lim) : r); }
@@ -73,8 +75,15 @@ const section = async (name, fn) => {
 let r;                                           // the last command's result; every block reuses it
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'board-test-'));
 let base = '';
+// The tick reads which research runs already reached the board from <out>/research/done/ (scripts/board-research.mjs
+// apply leaves a file per run there; only the names are read). board() gets a temp out dir, never this checkout's own
+// out/, so no run of these tests depends on what the machine's real research runs have left behind.
+const tickOut = path.join(home, 'tick-out');
+const ranIn = (dir, routine, meeting, on) => { const d = path.join(dir, 'research', 'done'); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, `${routine}-${meeting}-on-${on}.json`), '{}'); };
+const ran = (routine, meeting, on) => ranIn(tickOut, routine, meeting, on);      // that run reached the board on that day
+const noRuns = () => fs.rmSync(path.join(tickOut, 'research'), { recursive: true, force: true });
 const board = (args, env = {}) => new Promise(r => execFile(process.execPath, [path.join(REPO, 'scripts/board.mjs'), ...args],
-  { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', ...env } }, (err, stdout, stderr) => r({ code: err ? err.code : 0, stdout, stderr })));
+  { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_OUT_DIR: tickOut, ...env } }, (err, stdout, stderr) => r({ code: err ? err.code : 0, stdout, stderr })));
 const run = (bin, args) => new Promise(r => execFile(bin, args, { env: { PATH: process.env.PATH, HOME: home } }, (err, stdout, stderr) => r({ code: err ? err.code : 0, stdout, stderr })));
 const stage = path.join(home, 'stage'), tickLog = path.join(stage, 'logs', 'tick.log');   // tick.py's staged copy: two blocks run it
 const PRIV = ['contact', 'phone', 'email'];
@@ -152,6 +161,41 @@ try {
     ok((await due('2027-01-08')).join() === 'date-research', 'tick: the date research 7 days before a meeting');
     ok((await due('2027-01-13')).join() === 'preflight', 'tick: the preflight 2 days before a meeting');
     ok((await dueFullEarly('2027-01-08'))[0].auto === true && (await dueFullEarly('2027-01-13'))[0].auto === true, 'tick: both run themselves (auto)');
+    // Each research run is a window with a done mark (2026-11-13), not one day: due from its first day until it has
+    // reached the board for that meeting, or its window ends. The meeting is Jan 15: day 7 is Jan 8, day 3 Jan 12, day 2
+    // Jan 13. ran() is the mark scripts/board-research.mjs apply leaves (the end-to-end check is in its own block).
+    const research = async d => (await due(d)).filter(x => x === 'date-research' || x === 'preflight').join();
+    const each = async (days, want) => { for (const d of days) if ((await research(d)) !== want) return `${d}: ${await research(d)}`; return true; };
+    noRuns();
+    ok((await research('2027-01-07')) === '', 'window: the date research is never due before day 7');
+    ok((await each(['2027-01-09', '2027-01-10', '2027-01-11', '2027-01-12'], 'date-research')) === true, 'window: a date research that failed on day 7 (it left no mark) is due again on day 6, and on days 5, 4 and 3');
+    const d7 = (await dueFullEarly('2027-01-08'))[0], d6 = (await dueFullEarly('2027-01-09'))[0];
+    ok(d7.retry === false && d7.daysBefore === 7 && d6.retry === true && d6.daysBefore === 6 && d6.auto === true && d6.meeting === '2027-01-15' && /has not reached the board for this meeting yet/.test(d6.note), 'window: a later day says it is a second try, and how many days before the meeting it is');
+    ok((await research('2027-01-13')) === 'preflight', 'window: the date research is never due after day 3, even when it never ran (the preflight takes over on day 2)');
+    ran('date-research', '2027-01-15', '2027-01-08');
+    ok((await each(['2027-01-08', '2027-01-09', '2027-01-10', '2027-01-11', '2027-01-12'], '')) === true, 'window: a date research that reached the board on day 7 is not due again that day, or on days 6, 5, 4 and 3');
+    noRuns(); ran('date-research', '2027-01-15', '2027-01-10');
+    ok((await each(['2027-01-11', '2027-01-12'], '')) === true, 'window: one that failed on days 7 and 6 and reached the board on day 5 is not due on days 4 and 3');
+    noRuns(); ran('date-research', '2027-01-15', '2026-12-10'); ran('date-research', '2027-04-28', '2027-01-08'); ran('preflight', '2027-01-15', '2027-01-08');
+    fs.writeFileSync(path.join(tickOut, 'research', 'done', 'date-research-2027-01-15.json'), '{}'); fs.writeFileSync(path.join(tickOut, 'research', 'done', 'notes.txt'), 'x');
+    ok((await research('2027-01-08')) === 'date-research' && (await research('2027-01-09')) === 'date-research', 'window: a run forced by hand weeks early, another meeting\'s run, the other routine\'s run or a stray file is not this window\'s run');
+    noRuns();
+    ok((await research('2027-01-12')) === 'date-research', 'window: the preflight is never due before day 2');
+    ok((await each(['2027-01-13', '2027-01-14', '2027-01-15'], 'preflight')) === true, 'window: a preflight that failed on day 2 is due again the day before the meeting, and on the meeting day');
+    const p1 = (await dueFullEarly('2027-01-14'))[0], p0 = (await dueFullEarly('2027-01-15'))[0];
+    ok(p1.routine === 'preflight' && p1.retry === true && p1.daysBefore === 1 && p0.daysBefore === 0 && /meeting day/.test(p0.note), 'window: the preflight\'s later days say so too');
+    ok((await research('2027-01-16')) === '', 'window: the preflight is never due after the meeting day');
+    ran('preflight', '2027-01-15', '2027-01-13');
+    ok((await each(['2027-01-13', '2027-01-14', '2027-01-15'], '')) === true, 'window: a preflight that reached the board on day 2 is not due again that day, the next day or the meeting day');
+    noRuns(); ran('preflight', '2027-01-15', '2027-01-14');
+    ok((await research('2027-01-15')) === '', 'window: one that failed on day 2 and reached the board the day before the meeting is not due on the meeting day');
+    noRuns(); ran('date-research', '2027-01-15', '2027-01-08');
+    ok((await research('2027-01-13')) === 'preflight', 'window: the date research having run does not stop the preflight');
+    noRuns(); fs.mkdirSync(path.join(tickOut, 'research'), { recursive: true }); fs.writeFileSync(path.join(tickOut, 'research', 'done'), 'not a folder');
+    r = await board(['tick', '--json', '--date', '2027-01-09']);
+    ok(r.code === 1 && /ENOTDIR|not a directory/.test(r.stderr) && r.stdout === '', 'window: marks that cannot be read stop the tick with the reason (never a guess that could repeat a run or skip one): ' + r.stderr.slice(0, 120));
+    // the rest of this block asks about ordinary days: both runs reached the board on their first morning
+    noRuns(); ran('date-research', '2027-01-15', '2027-01-08'); ran('preflight', '2027-01-15', '2027-01-13');
     ok((await due('2027-01-16')).length === 0, 'tick: nothing the day after a meeting (the sweep waits a day for the picks to reach the board)');
     const dueFull = async d => JSON.parse((await board(['tick', '--json', '--date', d])).stdout).due;
     let bs = (await dueFull('2027-01-17')).find(x => x.routine === 'booking-sweep');
@@ -171,6 +215,7 @@ try {
     ok((await due('2027-01-12')).join() === 'handover-preview' && (await due('2027-01-11')).length === 0, 'tick: the day before the books hand over (config sheets handover.on), preview that sync');
     T('settings').set('division', { meetings: ['2027-01-15'] });
 
+    noRuns();                                    // the seed checks below start with no research run on record
     // ---- seed: refuses a public seed that carries contacts; the real seed is clean
     const real = JSON.parse(fs.readFileSync(path.join(REPO, 'seed/events.json'), 'utf8'));
     ok(real.filter(e => PRIV.some(k => e[k] && String(e[k]).trim())).length === 0, 'seed/events.json carries no contact fields');
@@ -234,6 +279,9 @@ try {
     T('settings').set('division', { meetings: ['2027-01-15'] });
     for (const f of ['deploy/tick.py', 'scripts/board.mjs', 'scripts/lib/roster-sync.mjs', 'config/event-check.json', '.gitignore']) { fs.mkdirSync(path.dirname(path.join(stage, f)), { recursive: true }); fs.copyFileSync(path.join(REPO, f), path.join(stage, f)); }
     fs.writeFileSync(path.join(stage, 'ROSTER-PAUSED'), '');     // these blocks are about the due list; the roster step has its own block
+    // Jan 14 is the "nothing due" day of these blocks. It is the day before the meeting, so it is an ordinary day only
+    // once the preflight has reached the board (the window, 2026-11-13): the stage's own out/ says it did, on day 2.
+    ranIn(path.join(stage, 'out'), 'preflight', '2027-01-15', '2027-01-13');
     const tickpy = (...a) => run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', ...a]);
     r = await tickpy('--date', '2027-01-17');
     ok(r.code === 0 && /WOULD POST TO SLACK/.test(r.stdout) && /WOULD iMESSAGE ALAN/.test(r.stdout) && /training sign-in sheet/.test(r.stdout), 'tick.py --dry: a due routine produces one Slack + one iMessage notice: ' + r.stderr);
@@ -241,6 +289,8 @@ try {
     ok(r.code === 0 && /due, runs itself: date-research/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: the date research runs itself, no notice: ' + r.stdout);
     r = await tickpy('--date', '2027-01-14');
     ok(r.code === 0 && /nothing due/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: nothing due means no notices');
+    r = await tickpy('--date', '2027-01-09');
+    ok(r.code === 0 && /due, runs itself: date-research/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: a date research that has not reached the board is logged as due again the next day, still no notice: ' + r.stdout);
     r = await tickpy('--date', '2027-01-20');
     ok(r.code === 0 && /due, runs itself: booking-sweep/.test(r.stdout) && !/WOULD/.test(r.stdout), 'tick.py --dry: a routine that runs itself (the booking sweep) is logged, never a "go run it" notice: ' + r.stdout);
     r = await tickpy('--date', '2027-01-17');
@@ -1709,6 +1759,53 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(mw.count === 0 && dw.targets.filter(x => x.multiWeek).length === 2 && dw.targets.find(x => x.id === '2026-w1').mismatch, 'board-research targets: a multi-week show is researched by the date runs but left out of the sweep\'s mismatches: ' + JSON.stringify({ mm: mw.count, mw: dw.targets.map(x => [x.id, x.multiWeek, x.mismatch]) }));
   });
 
+  await section('research runs: the done mark, from board-research apply to the tick (2026-11-13)', async () => {
+    // apply --apply leaves out/research/done/<label>-<meeting>-on-<date>.json when it starts writing the board, and
+    // board.mjs tick reads the names: a run that reached the board is never due again in its window.
+    for (const t of Object.keys(db)) db[t].clear();
+    const show = (id, name, first, extra = {}) => { const dates = [first, new Date(Date.parse(first + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10)], days = ['Saturday', 'Sunday'];
+      T('events').set(id, { year: 2027, name, weekend: first, startDate: dates[0], endDate: dates[1], days, dates, booths: [{ label: '', days, dates, shifts: [{ label: 'Shift 1', slots: [{ rep: '', ft: [] }, { rep: '', ft: [] }] }] }], status: 'Prospective', ...extra }); };
+    show('2027-wa', 'Window Test Fair', '2027-03-06'); show('2027-wb', 'Window Test Market', '2027-03-13');
+    const outd = path.join(home, 'rw-out'), tfile = path.join(home, 'rw-targets.json'), rfile = path.join(home, 'rw-research.json');
+    const node = (...a) => new Promise(res => execFile(process.execPath, [path.join(REPO, 'scripts/board-research.mjs'), ...a], { env: { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_OUT_DIR: outd } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    const tgt = (id, name, start, end) => ({ id, name, run: { start, end }, vc: null, mismatch: false, staffed: false, reps: [], datesEstimated: false });
+    fs.writeFileSync(tfile, JSON.stringify({ targets: [tgt('2027-wa', 'Window Test Fair', '2027-03-06', '2027-03-07'), tgt('2027-wb', 'Window Test Market', '2027-03-13', '2027-03-14')] }));
+    const dates = (s, e2) => ({ found: true, start: s, end: e2, confidence: 'official', sourceUrl: 'https://windowtest.example/', evidence: `the show runs ${s} to ${e2}`, cancelled: false, notYetAnnounced: false, note: '' });
+    const research = meeting => ({ ...(meeting ? { meeting } : {}), results: { '2027-wa': { ok: true, result: { dates: dates('2027-03-13', '2027-03-14'), summary: '' } },
+      '2027-wb': { ok: true, result: { dates: dates('2027-03-13', '2027-03-14'), venue: { value: 'Window Test Hall', confidence: 'official', sourceUrl: 'https://windowtest.example/' }, summary: '' } } } });
+    const apply = (label, date, ...more) => node('apply', '--targets', tfile, '--research', rfile, '--mode', 'full', '--label', label, '--date', date, ...more);
+    const doneDir = path.join(outd, 'research', 'done'), marks = () => (fs.existsSync(doneDir) ? fs.readdirSync(doneDir).sort() : []);
+    const tickHere = async (d, dir = outd) => JSON.parse((await board(['tick', '--json', '--date', d], { BOARD_OUT_DIR: dir })).stdout).due.map(x => x.routine).filter(x => x === 'date-research' || x === 'preflight').join();
+    T('settings').set('division', { meetings: ['2027-01-13'] });
+    ok((await tickHere('2027-01-06')) === 'date-research' && (await tickHere('2027-01-07')) === 'date-research' && (await tickHere('2027-01-11')) === 'preflight', 'run mark: before any run reaches the board, each is due in its window');
+    const waBefore = JSON.stringify(T('events').get('2027-wa'));
+    fs.writeFileSync(rfile, JSON.stringify(research('2027-01-13')));
+    r = await apply('date-research', '2027-01-06');
+    ok(r.code === 0 && marks().length === 0 && JSON.stringify(T('events').get('2027-wa')) === waBefore && (await tickHere('2027-01-07')) === 'date-research', 'run mark: a dry run for the meeting leaves no mark, so the real run is still due: ' + r.stderr.slice(0, 200));
+    fs.writeFileSync(rfile, JSON.stringify(research(null)));
+    r = await apply('date-research', '2027-01-06', '--apply');
+    ok(r.code === 0 && marks().length === 0 && T('events').get('2027-wa').startDate === '2027-03-13', 'run mark: a run that names no meeting (by hand) writes the board and leaves no mark: ' + r.stderr.slice(0, 200));
+    T('events').set('2027-wa', JSON.parse(waBefore)); { const wb = T('events').get('2027-wb'); delete wb.location; T('events').set('2027-wb', wb); }
+    fs.writeFileSync(rfile, JSON.stringify(research('2027-01-13')));
+    failMerge = '2027-wb';                                       // the second show's write fails: the run dies while it is writing the board
+    r = await apply('date-research', '2027-01-06', '--apply');
+    failMerge = null;
+    const half = marks().length === 1 ? JSON.parse(fs.readFileSync(path.join(doneDir, marks()[0]), 'utf8')) : {};
+    ok(r.code === 1 && /this write fails/.test(r.stderr) && T('events').get('2027-wa').startDate === '2027-03-13' && marks().join() === 'date-research-2027-01-13-on-2027-01-06.json' && half.state === 'writing' && half.meeting === '2027-01-13',
+      'run mark: a run that dies while writing the board (one show moved, the next write failed) has already left its mark, state "writing": ' + r.code + ' ' + marks().join());
+    ok((await tickHere('2027-01-07')) === '' && (await tickHere('2027-01-10')) === '' && (await tickHere('2027-01-07', path.join(home, 'no-such-out'))) === 'date-research',
+      'run mark: so it is not started again by itself the next day or any day of its window (it may have moved dates); without the mark it would be');
+    r = await apply('preflight', '2027-01-11', '--apply');
+    const full = marks().includes('preflight-2027-01-13-on-2027-01-11.json') ? JSON.parse(fs.readFileSync(path.join(doneDir, 'preflight-2027-01-13-on-2027-01-11.json'), 'utf8')) : {};
+    ok(r.code === 0 && marks().join() === 'date-research-2027-01-13-on-2027-01-06.json,preflight-2027-01-13-on-2027-01-11.json' && full.state === 'done' && full.label === 'preflight' && full.date === '2027-01-11'
+      && T('events').get('2027-wb').location === 'Window Test Hall' && (fs.statSync(path.join(doneDir, 'preflight-2027-01-13-on-2027-01-11.json')).mode & 0o777) === 0o600, 'run mark: a run that finishes stamps its mark "done": ' + marks().join() + r.stderr.slice(0, 200));
+    ok((await tickHere('2027-01-11')) === '' && (await tickHere('2027-01-12')) === '' && (await tickHere('2027-01-13')) === '' && (await tickHere('2027-01-12', path.join(home, 'no-such-out'))) === 'preflight',
+      'run mark: a preflight that reached the board on day 2 is not due again that day, the day before the meeting or the meeting day');
+    r = await apply('booking-sweep', '2027-01-15', '--apply');
+    ok(r.code === 0 && marks().length === 2, 'run mark: the booking sweep\'s research leaves none (it has its own days): ' + marks().join());
+    for (const t of Object.keys(db)) db[t].clear();
+  });
+
   await section('board roster sync (settings.roster follows the rep master list)', async () => {
     // fictional people only: this repo is public
     const rep = (id, name, tier, status = 'active', aliases = []) => ({ id, name, tier, status, aliases });
@@ -1766,6 +1863,7 @@ def post(route, text, mention=None, fallback=True, **k):
     fs.writeFileSync(mfile, JSON.stringify({ reps: master }));
     T('settings').set('division', { meetings: ['2027-01-15'], roster: boardRoster });
     fs.rmSync(path.join(stage, 'ROSTER-PAUSED'), { force: true });
+    ranIn(path.join(stage, 'out'), 'preflight', '2027-01-15', '2027-01-13');   // Jan 14 below is an ordinary day: the preflight ran on day 2
     const tickpy = (...a) => run('/usr/bin/python3', ['-B', path.join(stage, 'deploy/tick.py'), '--dry', ...a]);
     r = await tickpy('--date', '2027-01-14');
     ok(r.code === 0 && /WOULD UPDATE THE ROSTER/.test(r.stdout) && /Off \(left the team\): Drew \(Drew Park\), Emery \(Emery Cole\)/.test(r.stdout) && /nothing due/.test(r.stdout) && JSON.stringify(T('settings').get('division').roster) === JSON.stringify(boardRoster), 'tick.py --dry: the roster change is printed, nothing written, the due list still decided: ' + r.stdout + r.stderr);

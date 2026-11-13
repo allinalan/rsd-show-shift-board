@@ -52,6 +52,11 @@
     and the day checked. A date a person typed (Manual) is never changed while --manual-wins is on (the default): a
     different finding is flagged on the show (shown on the board) and listed. No page states it = left as it is and
     listed as not found. A failed lookup changes nothing.
+  The run's mark (2026-11-13): with --apply, for the date research and the preflight of a meeting (the research
+    results carry the meeting), apply leaves out/research/done/<label>-<meeting>-on-<date>.json the moment it starts
+    writing the board, and stamps it "done" at the end. board.mjs tick reads those names: a run that reached the board
+    is not due again in its window, so it is never repeated by itself; a run that failed before this step is. A dry
+    apply leaves no mark. To let the scheduled run go again, delete that one file.
   Output: out/research/latest.json (+ dated copy, 600), out/reports/<label>-<date>.md (no contacts).
   Exit: 0 ok · 1 error · 4 no trustworthy event check · 5 refused (too many date changes; nothing written)
 */
@@ -224,6 +229,17 @@ export function decideAppDates(e, R, run, { today, manualWins = true } = {}) {
   return out;
 }
 
+/**
+ * The mark board.mjs tick reads (its researchRanOn): this pre-meeting run reached the board on TODAY, for that meeting.
+ * Only the date research and the preflight of a known meeting get one. @returns the file, or null when none is due
+ */
+function markRun(label, meeting, state) {
+  if (!['date-research', 'preflight'].includes(label) || !/^\d{4}-\d{2}-\d{2}$/.test(meeting || '')) return null;
+  const f = path.join(OUT_BASE, 'research', 'done', `${label}-${meeting}-on-${TODAY}.json`);
+  writeJson(f, { label, meeting, date: TODAY, state, at: new Date().toISOString() });
+  return f;
+}
+
 async function apply() {
   const mode = opt('--mode'), label = opt('--label', mode === 'full' ? 'preflight' : 'date-research');
   if (!['dates', 'full'].includes(mode)) throw new Error('--mode dates|full');
@@ -282,6 +298,9 @@ async function apply() {
     for (const m of moves) out.questions.push({ id: m.tgt.id, name: m.tgt.name, run: sellingRun(m.e), why: `would move to ${fmt(m.d.truth)} (${m.d.basis === 'vc' ? 'VC' : host(m.d.source)}), held: too many changes at once` });
     moves.length = 0; code = 5;
   }
+  // from here on the board may change: the run is marked first, so the tick never starts it again by itself (a second
+  // run costs money and can move dates). If the mark cannot be written, this stops before anything is written.
+  if (flag('--apply')) markRun(label, RS.meeting, 'writing');
   for (const m of moves) {
     const p = m.plan.patch;
     const change = { id: m.tgt.id, name: m.tgt.name, from: sellingRun(m.e), to: m.d.truth, basis: m.d.basis, source: m.d.source || null, host: m.d.source ? host(m.d.source) : null,
@@ -312,6 +331,7 @@ async function apply() {
   writeJson(path.join(dir, 'latest.json'), out); writeJson(path.join(dir, `${label}-${TODAY}.json`), out);
   fs.mkdirSync(path.join(OUT_BASE, 'reports'), { recursive: true });
   fs.writeFileSync(path.join(OUT_BASE, 'reports', `${label}-${TODAY}.md`), summaryMd(out) + '\n');
+  if (flag('--apply')) markRun(label, RS.meeting, 'done');
   console.log(summaryMd(out));
   return code;
 }
