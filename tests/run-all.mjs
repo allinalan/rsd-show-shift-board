@@ -18,6 +18,7 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const db = {};                                   // table -> Map(id -> data)
 const T = t => (db[t] = db[t] || new Map());
 const FLAT = new Set(['sheet_syncs']); let flatId = 0, flatReads = 0;   // flatReads: GETs on a plain table (did the listener ask at all?)
+let flatDrop = 0;                                // answer this many reads of a plain table with a 503 (a blip), then recover
 const actors = new Set();                        // who merge_doc was told did the write (the changelog's actor)
 const pgMatch = (row, u) => {
   for (const [k, v] of u.searchParams) {
@@ -34,6 +35,7 @@ const server = http.createServer((req, res) => {
     if (FLAT.has(p)) {                           // a plain table (sheet_syncs): numbered rows, eq./in. filters, PATCH
       const rows = [...T(p).values()];
       if (req.method === 'GET') {
+        if (flatDrop > 0) { flatDrop--; return send(503, { message: 'a blip' }); }
         flatReads++;
         const [col, dir] = (u.searchParams.get('order') || 'id').split('.'), lim = +u.searchParams.get('limit');
         const key = r => r[col] == null ? null : r[col], cmp = (a, b) => key(a) === key(b) ? 0 : key(a) === null ? 1 : key(b) === null ? -1 : (key(a) < key(b) ? -1 : 1) * (dir === 'desc' ? -1 : 1);
@@ -1152,6 +1154,9 @@ def post(route, text, mention=None, fallback=True, **k):
     const stageCfg = path.join(stage2, 'config', 'event-check.json');
     const setAuto = auto => { const c = JSON.parse(fs.readFileSync(stageCfg, 'utf8')); c.sync.auto = auto; fs.writeFileSync(stageCfg, JSON.stringify(c)); };
     setAuto(null);                                                  // the button first; the hourly sync has its own tests below
+    const setSync = patch => { const c = JSON.parse(fs.readFileSync(stageCfg, 'utf8')); Object.assign(c.sync, patch); fs.writeFileSync(stageCfg, JSON.stringify(c)); };
+    const setWatch = patch => setSync({ watch: { ...JSON.parse(fs.readFileSync(stageCfg, 'utf8')).sync.watch, ...patch } });
+    setWatch({ retrySeconds: 0 });                                  // a failed read is tried again at once here; the real wait is in config
     const env = { PATH: process.env.PATH, HOME: home, BOARD_SUPABASE_URL: base, BOARD_SERVICE_KEY: 'test', BOARD_STATE_DIR: state, BOARD_OUT_DIR: outd, BOARD_SYNC_LOCK_WAIT_MS: '0' };
     const listen = (grid = gridFile) => new Promise(res => execFile(process.execPath, [path.join(stage2, 'scripts/sync-requests.mjs'), '--', '--grid', grid, '--date', '2026-08-01'],
       { env }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
@@ -1199,11 +1204,31 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(r.code === 0 && rowOf(e2).status === 'pending', 'listener: while a sync is under way, a new press waits for the next look');
     T('sheet_syncs').delete(e1);
 
-    r = await new Promise(res => execFile(process.execPath, [path.join(stage2, 'scripts/sync-requests.mjs')], { env: { ...env, BOARD_SUPABASE_URL: 'http://127.0.0.1:9' } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
-    const r2 = await new Promise(res => execFile(process.execPath, [path.join(stage2, 'scripts/sync-requests.mjs')], { env: { ...env, BOARD_SUPABASE_URL: 'http://127.0.0.1:9' } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
-    ok(r.code === 1 && /sync-requests:/.test(r.stderr) && r2.code === 1 && r2.stderr === '', 'listener: the board unreachable is said once, not every 30 seconds: ' + r.stderr + '|' + r2.stderr);
+    // Until 2026-11-13 every run that could not read the board exited 1, so a one-run blip was an incident for the mini's job watcher.
+    // Now the first failed runs exit 0 (still logged once) and only failuresBeforeExit (4) in a row exit 1.
+    const down = () => new Promise(res => execFile(process.execPath, [path.join(stage2, 'scripts/sync-requests.mjs')], { env: { ...env, BOARD_SUPABASE_URL: 'http://127.0.0.1:9' } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    r = await down();
+    const r2 = await down();
+    ok(/sync-requests:/.test(r.stderr) && r2.stderr === '', 'listener: the board unreachable is said once, not every 30 seconds: ' + r.stderr + '|' + r2.stderr);
+    ok(r.code === 0 && r2.code === 0, `listener: one or two runs that cannot read the board are a blip, not a failed run (exit ${r.code}, ${r2.code})`);
+    const r3 = await down(), r4 = await down(), r5 = await down();
+    ok(r3.code === 0 && r4.code === 1 && /4 runs in a row could not read the board \(fetch failed\)/.test(r4.stderr) && r5.code === 1 && r5.stderr === '',
+      `listener: the fourth run in a row that cannot read the board, and each one after, exits non-zero, and says so once: ${[r3.code, r4.code, r5.code]} ${r4.stderr}|${r5.stderr}`);
     r = await listen();
     ok(r.code === 0 && /reachable again/.test(r.stdout), 'listener: and it says when the board is back');
+    r = await down();
+    ok(r.code === 0 && /sync-requests:/.test(r.stderr), 'listener: once the board has been read again the count starts over: ' + r.code + r.stderr);
+    r = await listen();
+    ok(r.code === 0 && /reachable again/.test(r.stdout), 'listener: back again');
+    // a read that fails once is tried once more (a write never is); a read that fails twice is the failure above
+    flatDrop = 1;
+    r = await listen();
+    ok(r.code === 0 && r.stdout === '' && r.stderr === '' && flatDrop === 0 && !fs.existsSync(path.join(state, 'sync-requests.error')), 'listener: one dropped read is tried again and nothing is said: ' + r.stdout + r.stderr);
+    flatDrop = 2;
+    r = await listen();
+    ok(r.code === 0 && /sync-requests: GET sheet_syncs -> 503/.test(r.stderr) && flatDrop === 0, 'listener: a read that fails twice in one run is given up on, said once, and is still only a blip: ' + r.code + r.stderr);
+    r = await listen();
+    ok(r.code === 0 && /reachable again/.test(r.stdout), 'listener: and the next run is fine');
 
     // ---- the hourly sync (Alan, 2026-09-28): on from config sync.auto.from, 7am-9pm Phoenix, an hour after the last run
     const SR = await import(path.join(REPO, 'scripts/sync-requests.mjs'));
@@ -1242,6 +1267,180 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(r.code === 0 && rowOf(p1).status === 'done' && T('sheet_syncs').size === 3, 'hourly sync: a press still goes through while it is paused, and that sync is the only run');
     r = await listen();
     ok(r.code === 0 && T('sheet_syncs').size === 3, 'hourly sync: the press counts as the latest sync, so the hour starts over');
+
+    // ---- what the listener says to Alan (2026-11-13). slackroom's node door is stood in for at the path the
+    // listener loads it from (HOME is the tests' temp folder): it records every post, and refuses them while a
+    // `node-down` file sits beside it. Nothing here can reach Slack.
+    const roomJs = path.join(home, 'ai-system', 'lib', 'slackroom'), roomLog = path.join(roomJs, 'node-posts.jsonl'), roomDown = path.join(roomJs, 'node-down');
+    fs.mkdirSync(roomJs, { recursive: true });
+    fs.writeFileSync(path.join(roomJs, 'slackroom.js'), [
+      "const fs = require('fs'), path = require('path');",
+      "exports.post = (route, text) => { const ok = !fs.existsSync(path.join(__dirname, 'node-down'));",
+      "  fs.appendFileSync(path.join(__dirname, 'node-posts.jsonl'), JSON.stringify({ route, text, ok }) + '\\n');",
+      "  return ok ? { ok: true, via: 'route' } : { ok: false, via: null, error: 'channel_not_found' }; };", ''].join('\n'));
+    const posts = () => (fs.existsSync(roomLog) ? fs.readFileSync(roomLog, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) : []);
+    const memFile = path.join(state, 'sync-requests.watch.json'), memory = () => JSON.parse(fs.readFileSync(memFile, 'utf8'));
+    const later = () => { const m = memory(); m.unsent.forEach(u => { u.next = 0; }); fs.writeFileSync(memFile, JSON.stringify(m), { mode: 0o600 }); };   // "ten minutes on": an unsent alert is due again
+    const sheet = sat => { G[3][5] = sat; fs.writeFileSync(gridFile, JSON.stringify(G)); };
+
+    // a guard stops a sync: one alert, once
+    sheet('Cameron'); setSync({ maxEventsTouched: 0 });            // one show would change and the limit is none: over the limits
+    const s1 = ring();
+    r = await listen();
+    let got = posts();
+    ok(r.code === 0 && rowOf(s1).status === 'stopped' && got.length === 1 && got[0].route === 'rsd.alerts', 'listener: a sync that stops is one alert in #rsd-alerts through slackroom: ' + JSON.stringify(got).slice(0, 300) + r.stdout + r.stderr);
+    ok(got.length === 1 && /sync stopped and changed nothing \(the Sync button\)/.test(got[0].text) && /over the limits: .*1 events would change \(limit 0\)/.test(got[0].text) && /hourly sync is now paused until a sync gets through/.test(got[0].text)
+      && got[0].text.includes(`out/reports/sheet-sync-2026-08-01-req${s1}.md`), 'listener: the alert says it stopped, why in the guard\'s own words, that the hourly sync is paused, and where the refused plan is: ' + (got[0] || {}).text);
+    ok(got.length === 1 && !/matt@example\.com/.test(got[0].text) && /alert sent: /.test(r.stdout), 'listener: the alert names nobody who pressed the button, and the log says it went: ' + r.stdout);
+    ok((fs.statSync(memFile).mode & 0o777) === 0o600 && memory().stop.kind === 'over the limits' && memory().unsent.length === 0, 'listener: what it has said is kept in state, mode 600: ' + JSON.stringify(memory()));
+    const s2 = ring();
+    r = await listen();
+    ok(r.code === 0 && rowOf(s2).status === 'stopped' && posts().length === 1, 'listener: pressing Sync into the same stop is not a second alert');
+    r = await listen();
+    ok(r.code === 0 && r.stdout === '' && posts().length === 1 && T('sheet_syncs').size === 5, 'listener: with the hourly sync paused by the stop, the next looks say nothing more: ' + r.stdout);
+
+    // a sync gets through again: said once
+    setSync({ maxEventsTouched: 40 });
+    const s3 = ring();
+    r = await listen();
+    got = posts();
+    ok(r.code === 0 && rowOf(s3).status === 'done' && got.length === 2 && /syncing from the Sheet again/.test(got[1].text) && /The stop is cleared and the hourly sync is running again/.test(got[1].text) && !/AUTOMATION FAILURE/.test(got[1].text),
+      'listener: when a sync gets through after a stop, it says so once: ' + JSON.stringify(got.slice(1)));
+    r = await listen();
+    ok(r.code === 0 && r.stdout === '' && posts().length === 2 && memory().stop === null, 'listener: and then it is quiet again: ' + r.stdout);
+
+    // an alert Slack will not take: kept, offered again later (not every 30 seconds), and a failed run after four tries
+    fs.writeFileSync(roomDown, '');
+    sheet(''); setSync({ maxEventsTouched: 0 });
+    const s4 = ring();
+    r = await listen();
+    ok(r.code === 0 && rowOf(s4).status === 'stopped' && /ALERT NOT SENT \(channel_not_found\); kept/.test(r.stdout) && memory().unsent.length === 1 && posts().length === 3, 'listener: an alert Slack refuses is kept, and the log says so: ' + r.stdout);
+    r = await listen();
+    ok(r.code === 0 && r.stdout === '' && posts().length === 3, 'listener: it is not offered again 30 seconds later: ' + r.stdout);
+    later(); r = await listen(); later(); const t3 = await listen(); later(); const t4 = await listen(); const t5 = await listen();
+    ok(r.code === 0 && t3.code === 0 && t4.code === 1 && t5.code === 1 && posts().length === 6 && memory().unsent[0].tries === 4 && (r.stdout + t3.stdout + t4.stdout + t5.stdout) === '',
+      `listener: offered again each time it is due, and still unsent after four tries the run ends non-zero (not a silent miss): ${[r.code, t3.code, t4.code, t5.code]} ${posts().length} ${JSON.stringify(memory().unsent.map(u => u.tries))}`);
+    fs.rmSync(roomDown); later();
+    r = await listen();
+    got = posts();
+    ok(r.code === 0 && /alert sent: /.test(r.stdout) && memory().unsent.length === 0 && got.length === 7 && got[6].ok && /over the limits/.test(got[6].text), 'listener: and it goes out, once, when Slack takes it: ' + r.stdout);
+
+    // nothing through for too long while the board cannot be read (quietHours is 0 here: a test cannot wait three hours)
+    setWatch({ quietHours: 0 });
+    r = await down();
+    const q2 = await down();
+    got = posts();
+    ok(r.code === 0 && q2.code === 0 && got.length === 8 && /no Sheet -> board sync has got through/.test(got[7].text) && /The mini cannot read the board \(fetch failed\)/.test(got[7].text) && /AUTOMATION FAILURE/.test(got[7].text),
+      'listener: no sync through for too long is said once, with why: ' + JSON.stringify(got.slice(7)));
+    // PAUSED is the kill switch for this too: with it down nothing is counted and nothing is said
+    setSync({ maxEventsTouched: 40 }); setWatch({ quietHours: 3 });
+    fs.writeFileSync(path.join(stage2, 'PAUSED'), '');
+    const frozen = JSON.stringify(memory());
+    r = await down();
+    ok(r.code === 0 && r.stdout === '' && r.stderr === '' && posts().length === 8 && JSON.stringify(memory()) === frozen, 'listener: PAUSED silences the alerts and the counting too: ' + r.stdout + r.stderr);
+    fs.rmSync(path.join(stage2, 'PAUSED'));
+    const s5 = ring();
+    r = await listen();
+    got = posts();
+    ok(r.code === 0 && rowOf(s5).status === 'done' && got.length === 9 && /syncing from the Sheet again/.test(got[8].text) && /, the first since \d/.test(got[8].text) && /The stop is cleared/.test(got[8].text)
+      && memory().quiet === null && memory().stop === null && memory().fails === 0, 'listener: and when a sync gets through again it says so, once, and starts clean: ' + JSON.stringify(got.slice(8)) + r.stdout);
+    r = await listen();
+    ok(r.code === 0 && posts().length === 9, 'listener: nothing more after that');
+  });
+
+  // ---- the listener's rules for what it says, with the clock in the tests' hands (2026-11-13)
+  await section('Sync listener: when it speaks (a stop, three quiet hours, back again), and when it does not', async () => {
+    const SR = await import(path.join(REPO, 'scripts/sync-requests.mjs'));
+    const SYNC = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8')).sync;
+    ok(JSON.stringify(SYNC.watch) === '{"quietHours":3,"retrySeconds":5,"failuresBeforeExit":4,"alertRetryMinutes":10}' && typeof SYNC._watch === 'string', 'watch: its numbers sit beside the other sync settings: ' + JSON.stringify(SYNC.watch));
+    ok(JSON.stringify(SR.watchSettings({})) === JSON.stringify(SYNC.watch) && SR.watchSettings({ watch: { quietHours: 5 } }).quietHours === 5 && SR.watchSettings({ watch: { quietHours: 5 } }).retrySeconds === 5, 'watch: without a setting the code uses the same numbers; a setting wins');
+    const at = iso => Date.parse(iso);                             // Phoenix is UTC-7: 16:00Z is 9:00 AM
+    const step = (st, seen, now) => SR.watch({ st, seen: { sync: null, last: undefined, error: null, ...seen }, now: at(now), sync: SYNC });
+    const DRIFT = 'parser drift: the header row is not where it was. Nothing written. Fix parse-sheet.mjs (or the column map) first.';
+    const stopped = (via, reason) => ({ sync: { status: 'stopped', via, reason, report: 'out/reports/sheet-sync-2026-11-16-auto.md' } });
+    ok(SR.stopKind(DRIFT) === 'parser drift' && SR.stopKind('over the limits: 57 events would change (limit 40). Nothing written.') === 'over the limits' && SR.stopKind('') === 'stopped', 'watch: a stop is known by its guard, not by its numbers');
+    ok(SR.clock(at('2026-11-16T16:02:00Z'), at('2026-11-16T19:00:00Z')) === '9:02 AM' && SR.clock(at('2026-11-17T03:30:00Z'), at('2026-11-17T17:00:00Z')) === 'Nov 16, 8:30 PM', 'watch: times are said in Phoenix, with the day when it is not today');
+    ok(SR.windowStart(at('2026-11-17T03:30:00Z'), SYNC.auto) === at('2026-11-16T14:00:00Z') && SR.windowStart(at('2026-11-17T17:00:00Z'), SYNC.auto) === at('2026-11-17T14:00:00Z'), 'watch: the hourly window opens at 7am Phoenix');
+
+    // a morning: synced at 8:00, the 9:00 hourly sync is stopped by a guard
+    let m = { since: at('2026-11-10T14:00:00Z'), done: at('2026-11-16T15:00:03Z') };
+    let x = step(m, { last: { status: 'done', finished_at: '2026-11-16T15:00:03Z' } }, '2026-11-16T15:30:00Z');
+    ok(x.say.length === 0 && x.st.unsent.length === 0, 'watch: an ordinary look says nothing');
+    x = step(x.st, stopped('auto', DRIFT), '2026-11-16T16:00:05Z');
+    ok(x.say.length === 1 && /AUTOMATION FAILURE — rsd-show-shift-board sync: a Sheet -> board sync stopped and changed nothing \(the hourly sync\)/.test(x.say[0]) && x.say[0].includes(DRIFT) && /paused until a sync gets through, so a person has to look first/.test(x.say[0])
+      && x.say[0].includes('out/reports/sheet-sync-2026-11-16-auto.md') && x.st.stop.kind === 'parser drift' && x.st.unsent.length === 1, 'watch: a stop is one alert: that it stopped, why, that the hourly sync is paused, where the plan is: ' + x.say[0]);
+    ok(!/logs\/sync-requests\.log|rsd-show-shift-board tick/.test(x.say[0]), 'watch: the alert names neither the job\'s log nor the tick, so the mini\'s job watcher does not take a guard\'s stop for a broken job');
+    let y = step(x.st, { last: { status: 'stopped', finished_at: '2026-11-16T16:00:04Z' } }, '2026-11-16T16:00:35Z');
+    ok(y.say.length === 0, 'watch: 30 seconds later, and every look after, it is not said again');
+    y = step(y.st, stopped('button', 'parser drift: two columns moved this time. Nothing written. Fix parse-sheet.mjs (or the column map) first.'), '2026-11-16T16:10:00Z');
+    ok(y.say.length === 0, 'watch: pressing Sync into the same stop is the same stop');
+    y = step(y.st, stopped('button', 'over the limits: 57 events would change (limit 40). Nothing written. Read the plan; re-run with --force if it is right.'), '2026-11-16T16:20:00Z');
+    ok(y.say.length === 1 && /\(the Sync button\)/.test(y.say[0]) && /over the limits: 57 events/.test(y.say[0]) && y.st.stop.kind === 'over the limits', 'watch: a different guard stopping it is news');
+    // three hours with nothing through, counted inside the window
+    let z = step(y.st, { last: { status: 'stopped', finished_at: '2026-11-16T16:20:00Z' } }, '2026-11-16T18:00:02Z');
+    ok(z.say.length === 0, 'watch: a second short of three hours, nothing yet');
+    z = step(z.st, { last: { status: 'stopped', finished_at: '2026-11-16T16:20:00Z' } }, '2026-11-16T18:00:03Z');
+    ok(z.say.length === 1 && /no Sheet -> board sync has got through for 3 hours inside the hourly window \(the last one through: 8:00 AM\)/.test(z.say[0]) && /The last sync stopped, and the hourly sync stays paused/.test(z.say[0]) && /Changes made on the Sheet are not reaching the board/.test(z.say[0]),
+      'watch: three hours with no sync through is said once, with the last one through and why: ' + z.say[0]);
+    z = step(z.st, { last: { status: 'stopped', finished_at: '2026-11-16T16:20:00Z' } }, '2026-11-16T18:00:33Z');
+    let z2 = step(z.st, { last: { status: 'stopped', finished_at: '2026-11-16T16:20:00Z' } }, '2026-11-17T17:30:00Z');
+    ok(z.say.length === 0 && z2.say.length === 0, 'watch: not again 30 seconds later, and not again the next morning while it is the same quiet spell');
+    // a sync gets through: one line, and the slate is clean
+    let b = step(z2.st, { sync: { status: 'done', via: 'button' } }, '2026-11-17T20:14:00Z');
+    ok(b.say.length === 1 && /^rsd-show-shift-board sync: the board is syncing from the Sheet again\. A sync got through at 1:14 PM, the first since Nov 16, 8:00 AM\. The stop is cleared and the hourly sync is running again\.$/.test(b.say[0])
+      && b.st.stop === null && b.st.quiet === null && b.st.done === at('2026-11-17T20:14:00Z'), 'watch: when a sync gets through it says so once, and the stop and the quiet spell are over: ' + b.say[0]);
+    ok(b.st.unsent.length === 1 && b.st.unsent[0].text === b.say[0], 'watch: alerts Slack never took are overtaken by the line that it is back');
+    ok(step(b.st, { last: { status: 'done', finished_at: '2026-11-17T20:14:00Z' } }, '2026-11-17T20:14:30Z').say.length === 0, 'watch: and nothing more after that');
+    // a stop that is cleared inside the hour: one line back, no quiet alert in between
+    let c = step({ since: at('2026-11-10T14:00:00Z'), done: at('2026-11-16T15:00:03Z') }, stopped('auto', DRIFT), '2026-11-16T16:00:05Z');
+    c = step(c.st, { last: { status: 'done', finished_at: '2026-11-16T16:40:00Z' } }, '2026-11-16T16:40:20Z');
+    ok(c.say.length === 1 && /A sync got through at 9:40 AM, the first since 8:00 AM\. The stop is cleared/.test(c.say[0]), 'watch: a stop someone cleared within the hour gets its one line back (seen on the board\'s record): ' + c.say[0]);
+
+    // an outage across a night: the board cannot be read from 8:40pm
+    m = { since: at('2026-11-10T14:00:00Z'), done: at('2026-11-17T03:30:00Z') };       // last through: Nov 16, 8:30 PM
+    const dark = { error: 'fetch failed' };
+    ok(step(m, dark, '2026-11-17T03:59:00Z').say.length === 0, 'watch, outage: 29 minutes in, before the window closes, nothing');
+    ok(step(m, dark, '2026-11-17T10:00:00Z').say.length === 0, 'watch, outage: nothing is counted outside the hourly window (3am)');
+    ok(step(m, dark, '2026-11-17T16:59:59Z').say.length === 0, 'watch, outage: the window reopened at 7am, so 9:59am is not three hours yet');
+    let o = step(m, dark, '2026-11-17T17:00:00Z');
+    ok(o.say.length === 1 && /got through for 3 hours inside the hourly window \(the last one through: Nov 16, 8:30 PM\)/.test(o.say[0]) && /The mini cannot read the board \(fetch failed\)/.test(o.say[0]), 'watch, outage: at 10am it is said once, with the last sync through and why: ' + o.say[0]);
+    ok(step(o.st, dark, '2026-11-17T17:00:30Z').say.length === 0 && step(o.st, dark, '2026-11-18T01:00:00Z').say.length === 0, 'watch, outage: once, however long it lasts');
+    o = step(o.st, { last: { status: 'done', finished_at: '2026-11-17T17:20:00Z' } }, '2026-11-17T17:20:30Z');
+    ok(o.say.length === 1 && /A sync got through at 10:20 AM, the first since Nov 16, 8:30 PM\.$/.test(o.say[0]) && !/stop is cleared/.test(o.say[0]) && o.st.quiet === null, 'watch, outage: and once more when it recovers: ' + o.say[0]);
+    // when the hourly sync is off, nobody expects a sync, so quiet is never an alert; a fresh memory starts counting from now
+    const off = (sync, now) => SR.watch({ st: m, seen: { sync: null, error: 'fetch failed' }, now: at(now), sync }).say.length;
+    ok(off({ ...SYNC, auto: null }, '2026-11-17T20:00:00Z') === 0 && off({ ...SYNC, auto: { ...SYNC.auto, from: null } }, '2026-11-17T20:00:00Z') === 0 && off({ ...SYNC, auto: { ...SYNC.auto, from: '2026-12-01' } }, '2026-11-17T20:00:00Z') === 0,
+      'watch: with the hourly sync off or not started, a quiet board is not an alert');
+    let f = SR.watch({ st: null, seen: { sync: null, error: 'fetch failed' }, now: at('2026-11-17T16:00:00Z'), sync: SYNC });
+    ok(f.say.length === 0 && f.st.since === at('2026-11-17T16:00:00Z') && f.st.done === null, 'watch: a listener with no memory starts its count now, not from nothing');
+    f = SR.watch({ st: f.st, seen: { sync: null, error: 'fetch failed' }, now: at('2026-11-17T19:00:00Z'), sync: SYNC });
+    ok(f.say.length === 1 && /the last one through: none seen yet/.test(f.say[0]), 'watch: and three hours later says what it knows: ' + f.say[0]);
+    ok(step(m, { sync: { status: 'failed', via: 'auto' } }, '2026-11-17T15:00:00Z').say.length === 0, 'watch: one failed sync is not an alert by itself (three quiet hours are)');
+
+    // offering alerts to Slack
+    const W = SR.watchSettings(SYNC), lines = [], took = [];
+    let slackUp = false;
+    const alert = text => { took.push(text); return slackUp ? { ok: true, via: 'route' } : { ok: false, error: 'channel_not_found' }; };
+    const give = (st, now) => SR.deliver({ st, now: at(now), alert, W, log: l => lines.push(l) });
+    const box = { unsent: [{ text: 'one', at: 0, tries: 0, next: 0 }] };
+    ok(give(box, '2026-11-17T17:00:00Z') === false && box.unsent.length === 1 && box.unsent[0].tries === 1 && lines.length === 1 && /^ALERT NOT SENT \(channel_not_found\); kept, and offered again every 10 minutes: one$/.test(lines[0]), 'deliver: an alert Slack refuses is kept and the log says so: ' + lines[0]);
+    ok(give(box, '2026-11-17T17:09:59Z') === false && took.length === 1, 'deliver: not offered again before alertRetryMinutes are up');
+    give(box, '2026-11-17T17:10:00Z'); give(box, '2026-11-17T17:20:00Z');
+    ok(took.length === 3 && lines.length === 1 && box.unsent[0].tries === 3, 'deliver: offered again every ten minutes, logged the first time only');
+    ok(give(box, '2026-11-17T17:30:00Z') === true && box.unsent[0].tries === 4 && give(box, '2026-11-17T17:30:30Z') === true, 'deliver: after failuresBeforeExit tries it reports the run as failed, until it is sent');
+    slackUp = true;
+    ok(give(box, '2026-11-17T17:40:00Z') === false && box.unsent.length === 0 && /^alert sent: one$/.test(lines[1]), 'deliver: sent once Slack takes it, and the run is fine again: ' + lines[1]);
+    ok(give(box, '2026-11-17T17:50:00Z') === false && took.length === 5, 'deliver: nothing to offer, nothing asked of Slack');
+
+    // one more try for a read
+    const waits = []; let calls = 0;
+    const wait = ms => { waits.push(ms); return Promise.resolve(); };
+    ok(await SR.readTwice(async () => { calls++; return 'rows'; }, 5000, wait) === 'rows' && calls === 1 && waits.length === 0, 'readTwice: a read that works is asked once, with no wait');
+    calls = 0;
+    ok(await SR.readTwice(async () => { if (++calls === 1) throw new Error('fetch failed'); return 'rows'; }, 5000, wait) === 'rows' && calls === 2 && JSON.stringify(waits) === '[5000]', 'readTwice: a read that fails once is tried once more after the wait');
+    calls = 0; let threw = '';
+    try { await SR.readTwice(async () => { calls++; throw new Error('fetch failed ' + calls); }, 5000, wait); } catch (e) { threw = e.message; }
+    ok(calls === 2 && threw === 'fetch failed 2', 'readTwice: a read that fails twice is given up on, with the second error: ' + threw);
   });
 
   // ---- event-check end to end: write-back rules, Mesa, the past, the placeholder, the safety refusal

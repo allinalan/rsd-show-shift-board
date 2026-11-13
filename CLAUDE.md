@@ -183,7 +183,18 @@ routines in `.claude/skills/` keep it true.
   `sync.auto.hours` (7am-9pm Phoenix), when the last finished run of any kind is over `everyMinutes` (60) old. A
   run that stopped pauses it until a sync gets through; `from: null` turns it off. Kill switch: `PAUSED`
   (requests wait, not lost). Log: `logs/sync-requests.log`, one line per sync; an outage is logged once, and
-  again when it clears.
+  again when it clears. **What it says to Alan** (2026-11-13; before this a stopped sync told nobody while the
+  page said "Alan has the report"): three alerts in `#rsd-alerts` through slackroom's node door
+  (`~/ai-system/lib/slackroom/slackroom.js`, route `rsd.alerts`), each once: a sync it ran was stopped by a guard
+  (why, in the guard's words, and that the hourly sync is paused; pressing Sync into the same stop is not a second
+  alert); no sync has got through for `sync.watch.quietHours` (3) inside the hourly window while the hourly sync
+  is on; a sync got through again. They carry no log path on purpose, so the mini's job watcher does not read a guard's
+  stop as a broken job. Its memory is `state/sync-requests.watch.json` (600): what was said, and any alert Slack has
+  not taken yet (offered again every `alertRetryMinutes`; still unsent after `failuresBeforeExit` tries, the run
+  exits 1). **A blip is not an outage:** a board read that fails is tried once more after `retrySeconds`, and a
+  run that cannot read the board exits 0 with its one log line until `failuresBeforeExit` (4) runs in a row have
+  failed; from then on each exits 1 until it clears. The rules are pure functions (`watch`, `deliver`,
+  `readTwice`) the tests drive with their own clock. `PAUSED` silences all of it.
 - `scripts/event-check.mjs` — the Wednesday Event Check against the board, unattended: matches every
   staffed non-Mesa event to a VectorConnect My Events pull (`scripts/lib/match.mjs`: VC number first, then
   name + shared distinctive word + date gate, aliases/rejects in `config/event-check.json`, Queen Creek by
@@ -517,7 +528,8 @@ press at once, as a real Sheet -> board sync. `logs/sync-requests.log` is stampe
 Kill switch for both: a `PAUSED` file in the repo root, or `./install.sh --disarm`. Tick failures post to
 `#rsd-alerts` through slackroom (`~/ai-system/lib/slackroom`, route `rsd.alerts`), which itself falls back to the
 shared Slack alert webhook (Keychain `csp-slack-webhook`); the sync listener's go to its log and onto the
-request, which the page shows. **A due routine is one message in `#rsd-board` that names Alan** (route
+request, which the page shows, and since 2026-11-13 a stop, three quiet hours and the recovery are each one
+alert in `#rsd-alerts` too (`scripts/sync-requests.mjs` above). **A due routine is one message in `#rsd-board` that names Alan** (route
 `rsd.board`; Alan, 2026-10-07: channels, not texts to him). Only while that route is not live, or when Slack
 refuses the post, it is the old pair: the alert channel and an iMessage to `BOARD_ALAN_IMESSAGE`, so a due routine
 is never left unseen. `python3 deploy/tick.py --status` says which it is right now. After changing `deploy/tick.py` or a plist: run
