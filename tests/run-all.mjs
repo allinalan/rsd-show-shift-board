@@ -537,6 +537,8 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(accOf({ name: 'Mesa Market Place Swapmeet', source: 'board', access: 'JV' }) === 'JV', 'accOf: an access someone picked still wins');
     ok(accOf({ name: 'Mesa Fall Fest', source: 'board', tier: 'Traditional' }) === 'JV' && accOf({ name: 'Crossroads of the West - Mesa', source: 'board', tier: 'Traditional' }) === 'JV',
       'accOf: other shows in Mesa keep their tier\'s level');
+    ok(/const LVL_SHOWS=\{JV:\['JV','Freshmen'\]\};/.test(html) && /if\(F\.lvl&&!\(LVL_SHOWS\[F\.lvl\]\|\|\[F\.lvl\]\)\.includes\(accOf\(e\)\)\)return false;/.test(html),
+      'index.html: the JV filter shows the Freshmen (Mesa) shows too (Alan, 2026-11-12)');
   });
 
   await section('application dates: lib/app-dates.mjs, the page\'s copy, board set, the roll, the research', async () => {
