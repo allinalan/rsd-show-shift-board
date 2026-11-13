@@ -1430,10 +1430,15 @@ const ALIAS={'cam':'Cameron','cameron couts':'Cameron','matt foss':'Foss','foss'
  'jp':'J. Parker','j parker':'J. Parker','parker':'J. Parker','jonathan parker':'J. Parker','johnathan parker':'J. Parker','gerardo':'Jerry','gerardo ramirez':'Jerry','jerry ramirez':'Jerry',
  'adam jeffrey':'Adam J','adam conroy':'Adam C','alan hernandez':'Alan','nate':'Nathaniel','nathaniel chua':'Nathaniel','eli camacho':'Eli','sean potter':'Sean','jason jeffrey':'Jason','alec luyendyk':'Alec'};
 const TIER_ACCESS={Elite:'Elite',Key:'Varsity',Traditional:'JV'};
+/* Freshmen work Mesa Market Place and nothing else (Alan, 2026-11-12), so a Mesa show with no access set is Freshmen,
+   not its tier's JV, and "Freshmen" shows up in the access-level drop-down. Same pattern as config mesaPattern (the tests
+   hold the two together). Tier stays Traditional: the picking system counts Mesa shifts as Traditional. */
+const MESA_RE=/mesa\s*market|swap\s*meet|swapmeet/i;
 const accOf=e=>{
   let v=e.access;
   if(!v&&e.source!=='board') v=e.level==='Varsity'?'Varsity':e.level==='JV'?'JV':e.level==='Trade/Industry'?'Trade/Industry':'';
   if(v&&v!=='Unassigned') return v;
+  if(MESA_RE.test(e.name||'')) return 'Freshmen';
   return TIER_ACCESS[tierOf(e)]||'Unassigned';   // Key → Varsity, Traditional → JV, Elite → Elite
 };
 

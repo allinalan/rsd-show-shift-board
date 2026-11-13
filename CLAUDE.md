@@ -419,6 +419,10 @@ the service key moves them on.
   Maricopa County Fair. The Sheet sync creates new shows with the rule's tier, and the research runs and the booking
   sweep use `tierOf()` (lib/match.mjs), so the rule wins even over a wrong tag. Elite shows are never researched and
   never sent to Olean (rsd-shift-picking skipTiers / excludeTiers).
+- **Freshmen work Mesa Market Place and nothing else** (Alan, 2026-11-12). A show matching `mesaPattern` with no access set
+  is Freshmen access on the page (`MESA_RE` / `accOf` in index.html, held to config by the tests), so "Freshmen" is in the
+  access-level drop-down; an access someone picked still wins. Tier stays Traditional: rsd-shift-picking counts Mesa shifts
+  as Traditional. Roll forward writes the computed access, so a rolled Mesa row carries Freshmen.
 - Same-year series (Queen Creek, Mesa) share name/promoter/cost/notes; shifts and status are per date.
 - `notes` (the team's notes) and `submissionNotes` roll forward; only `submissionNotes` is read into VC booking-request
   Comments (since 2026-10-26). Don't overwrite either; append.

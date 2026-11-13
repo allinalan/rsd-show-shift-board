@@ -523,6 +523,22 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(/source:'board',madeBy:/.test(html), 'index.html: every database row is editable as a board show, whatever made it (the 166 Sheet-sync shows were read-only)');
   });
 
+  await section('index.html: Mesa Market Place is the Freshmen show (Alan, 2026-11-12)', async () => {
+    const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    const m = html.match(/const MESA_RE=\/(.+?)\/i;/);
+    ok(!!m, 'index.html: MESA_RE is there');
+    const cfgPat = JSON.parse(fs.readFileSync(path.join(REPO, 'config/event-check.json'), 'utf8')).mesaPattern;
+    ok(m && new RegExp(m[1]).source === new RegExp(cfgPat).source, `index.html MESA_RE is config mesaPattern (${m && m[1]} vs ${cfgPat})`);
+    const a = html.match(/const TIER_ACCESS=[^\n]*\n[\s\S]*?const accOf=e=>\{[\s\S]*?\n\};/);
+    ok(!!a, 'index.html: accOf found');
+    const accOf = new Function('tierOf', a[0] + '\nreturn accOf;')(e => e.tier || 'Traditional');
+    ok(accOf({ name: 'Mesa Market Place Swapmeet', source: 'board', tier: 'Traditional', access: 'Unassigned' }) === 'Freshmen'
+      && accOf({ name: 'Mesa Market Place Swapmeet', source: 'board', tier: 'Traditional' }) === 'Freshmen', 'accOf: a Mesa show with no access set is Freshmen');
+    ok(accOf({ name: 'Mesa Market Place Swapmeet', source: 'board', access: 'JV' }) === 'JV', 'accOf: an access someone picked still wins');
+    ok(accOf({ name: 'Mesa Fall Fest', source: 'board', tier: 'Traditional' }) === 'JV' && accOf({ name: 'Crossroads of the West - Mesa', source: 'board', tier: 'Traditional' }) === 'JV',
+      'accOf: other shows in Mesa keep their tier\'s level');
+  });
+
   await section('application dates: lib/app-dates.mjs, the page\'s copy, board set, the roll, the research', async () => {
     const A = await import(path.join(REPO, 'scripts/lib/app-dates.mjs'));
     const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
