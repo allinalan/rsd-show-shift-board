@@ -2562,6 +2562,180 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(/neverKeys\(\)\.has\(seriesKey\(e\)\|\|e\.id\)/.test(html), 'index.html: a show already on the Never list says so on its card instead of offering the button again');
   });
 
+  // ---- another coordinator's yearly workbook into board shape (scripts/import-workbook.mjs). Every name, place and
+  // figure below is invented: this repo is public and the real books never come near it.
+  const SERIAL = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 86400000);
+  const KEYROW = [null, { v: 'Sent Email', fill: 'FF3C78D8' }, null, { v: 'Key Events', fill: 'FFC9DAF8' }, { v: 'Prospective/Pending', fill: 'FFFFFF00' },
+    { v: 'Not Booked', fill: 'FFFF9900' }, { v: 'Booked' }, { v: 'Canceled/Missed', fill: 'FFFF0000' }, { v: 'Booth in Use', fill: 'FF00FFFF' },
+    { v: 'Field Training', fill: 'FF00FF00' }, { v: 'Event Charges and Orders Match Complete', fill: 'FFD9EAD3' }];
+  await section('import-workbook: the layout parser on an invented month tab', async () => {
+    const W = await import(path.join(REPO, 'scripts/import-workbook.mjs'));
+    const G = [], put = (r, c, v) => { (G[r - 1] = G[r - 1] || [])[c] = v; };
+    const col = s => s.split('').reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+    const set = (ref, v) => { const m = ref.match(/^([A-Z]+)(\d+)$/); put(+m[2], col(m[1]), v); };
+    const OR = 'FFFF9900', GREEN = 'FF00FF00';
+    KEYROW.forEach((v, c) => v && put(1, c, v));
+    set('A2', 'WEEK 1 (Dec 29 - Jan 4)');
+    set('A3', 'Personal Booths'); set('B3', { v: 'KEY EVENTS', fill: 'FFC9DAF8' }); set('G3', { v: 'VARSITY / JV', fill: 'FFC9DAF8' }); set('O3', { v: 'WEEKLY MALL LEASES', fill: 'FFC9DAF8' });
+    set('A4', { v: 'Rep One', fill: 'FF00FFFF' }); set('B4', { v: 'Invented Home Show', link: 'https://example.com/home-show' }); set('G4', { v: 'Invented Gun Show', fill: OR }); set('K4', { v: 'Invented Market', fill: 'FFFF0000' }); set('O4', { v: 'Mall A', fill: OR });
+    set('A5', 'Rep Two'); set('B5', 'Jan 2-3'); set('G5', { v: 'TBD', fill: 'FFFFFF00' }); set('K5', '*No Jan Market*'); set('O5', 'Jan 1-3');
+    set('B6', 'Springfield'); set('D6', { v: 'Booth #12', link: 'https://example.com/floor-plan' }); set('G6', 'Shelbyville'); set('K6', '$'); set('L6', '? Booth'); set('O6', 'Capital City');
+    set('B7', 1745.4); set('C7', 'Helper A & Helper B'); set('G7', '$100 (Chargeback to a rep)'); set('H7', '? Booth'); set('K7', 'New Event'); set('O7', 500); set('P7', '? Booth');
+    set('B8', 'Best Ever (Jan): $12,345 (2025)'); set('G8', 'Best Ever: $917 (2025)'); set('K8', SERIAL('2027-01-01')); set('L8', 'Fri (1/2 Shift)'); set('M8', '____'); set('O8', 'Fri'); set('P8', '____');
+    set('B9', SERIAL('2026-01-02')); set('C9', 'Sat'); set('D9', 'Ann'); set('E9', { v: 'Bea', fill: GREEN }); set('H9', 'Sat'); set('I9', '_____'); set('K9', { v: 'EVENT NOTES', comment: 'Read before the show' }); set('O9', 'Sat'); set('P9', '____');
+    set('B10', SERIAL('2026-01-03')); set('C10', 'Sun'); set('D10', 'Ann'); set('E10', 'Cal'); set('H10', 'Sun (1/2)'); set('I10', 'Dee'); set('K10', '*Priority: Ann A. (found)');
+    set('B11', 'EVENT NOTES'); set('G11', '*Show Full*');
+    set('B12', 'MARKETING STANDARDS');
+    set('A13', 'Team Booths'); set('B13', { v: 'PROJECT SHOW', fill: 'FFC9DAF8' }); set('G13', { v: 'Second Fair', fill: OR });
+    set('A14', { v: 'Team Booth 1', fill: 'FF00FFFF' }); set('B14', { v: 'Invented County Fair', fill: OR }); set('G14', 'Jan 3');
+    set('B15', 'TBD'); set('G15', 'Smallville');
+    set('B16', 'Ogdenville'); set('G16', 50);
+    set('B17', 700); set('C17', '? Booth'); set('G17', 'New Event');
+    set('B18', 'Booth #1 (Main St.)'); set('H18', 'Sun'); set('I18', 'Eve');
+    set('C19', 'Thu'); set('D19', '____');
+    set('C20', 'Fri'); set('D20', 'Fay');
+    set('B21', 'Booth #2 (Lot B)');
+    set('C22', 'Fri'); set('D22', 'Gus'); set('E22', 'SET UP');
+    set('A23', 'WEEK 2 (Jan 5 - 11)');
+    set('B24', { v: 'KEY EVENTS', fill: 'FFC9DAF8' }); set('G24', { v: 'VARSITY/JV', fill: 'FFC9DAF8' }); set('O24', { v: 'WEEKLY MALL LEASES', fill: 'FFC9DAF8' });
+    set('G25', 'Jan Fair'); set('K25', { v: 'Odd Market', fill: 'FFF4CCCC' });
+    set('G26', SERIAL('2026-01-09')); set('K26', 'Jan 9');
+    set('G27', 'Town'); set('K27', 'Village');
+    set('G28', 'Free'); set('K28', 45);
+    set('G29', 'New Event'); set('K29', 'Sat'); set('L29', '____');
+    set('G30', '01/09 (1/2 Shift)'); set('H30', '____');
+    set('B32', 'Stray text');
+    const merges = [['B3', 'F3'], ['G3', 'N3'], ['O3', 'R3'], ['B13', 'F13'], ['B24', 'F24'], ['G24', 'N24'], ['O24', 'R24']].map(([a, b]) => {
+      const p = x => { const m = x.match(/^([A-Z]+)(\d+)$/); return { r: +m[2] - 1, c: col(m[1]) }; };
+      return { r0: p(a).r, c0: p(a).c, r1: p(b).r, c1: p(b).c, ref: `${a}:${b}` };
+    });
+    const sheet = W.gridSheet('January', G, merges);
+    const t = W.parseMonthTab(sheet, { year: 2027, division: 'abc', tabMonth: 0 });
+    const by = n => t.events.find(e => e.name === n) || {};
+    ok(t.events.length === 7 && t.skipped.mall === 1, `import-workbook: seven events, the mall lease skipped (got ${t.events.map(e => e.name).join(', ')}; mall ${t.skipped.mall})`);
+    const hs = by('Invented Home Show'), b0 = (hs.booths || [])[0] || { shifts: [] };
+    ok(hs.section === 'key' && hs.tier === 'Key' && hs.status === 'Booked' && hs.sheetStatus === 'Booked' && hs.website === 'https://example.com/home-show',
+      'import-workbook: a plain name under KEY EVENTS is a Booked Key show, its link is the website: ' + JSON.stringify([hs.section, hs.tier, hs.status, hs.website]));
+    ok(hs.weekend === '2027-01-01' && hs.startDate === '2027-01-02' && hs.endDate === '2027-01-03' && hs.datesStale === true && String(hs.staleCells) === 'B9,B10',
+      'import-workbook: the week (Tuesday to Monday) gives the weekend; 2026 serials in a 2027 book are stale and the days come from the labels: ' + JSON.stringify([hs.weekend, hs.startDate, hs.endDate, hs.staleCells]));
+    ok(b0.label === 'Booth #12' && hs.boothLink === 'https://example.com/floor-plan' && b0.days.join('|') === 'Sat|Sun' && b0.dates.join('|') === '2027-01-02|2027-01-03',
+      'import-workbook: the booth written beside the city names the booth; days and dates: ' + JSON.stringify([b0.label, b0.days, b0.dates]));
+    const s1 = (b0.shifts[0] || { slots: [] }).slots, s2 = (b0.shifts[1] || { slots: [] }).slots;
+    ok(s1[0] && s1[0].rep === 'Ann' && s1[0].ft.join() === 'Bea' && s1[1].rep === 'Ann' && s2[0].rep === '__X__' && s2[1].rep === 'Cal',
+      'import-workbook: shift k is the k-th person each day; a green name is a field trainee on the rep beside them; a day with no k-th person is no shift: ' + JSON.stringify(b0.shifts));
+    ok(hs.cost === '$1,745' && hs.costNum === 1745 && hs.boothNote === 'Helper A & Helper B' && JSON.stringify(hs.bestEver) === '{"cpo":12345,"year":2025,"month":"Jan"}',
+      'import-workbook: cost, the text beside it, best ever: ' + JSON.stringify([hs.cost, hs.costNum, hs.boothNote, hs.bestEver]));
+    const gun = by('Invented Gun Show'), gb = (gun.booths || [])[0] || { shifts: [{ slots: [] }] };
+    ok(gun.section === 'vjv' && gun.tier === 'Traditional' && gun.status === 'Prospective' && gun.sheetStatus === 'Not Booked' && gun.datesText === 'TBD' && gun.datesEstimated === true,
+      'import-workbook: an orange name under VARSITY / JV is Not Booked (Prospective); TBD dates are placed from the week and marked estimated: ' + JSON.stringify([gun.status, gun.sheetStatus, gun.datesEstimated]));
+    ok(gun.costNum === 100 && gun.costNote === 'Chargeback to a rep' && gb.days.join('|') === 'Sat|Sun (1/2)' && gb.halfDays.join() === 'false,true' && gb.shifts[0].slots.map(x => x.rep).join('|') === '|Dee' && gun.flags.showFull,
+      'import-workbook: "$100 (note)", day label in the second column, a half shift, an open slot, *Show Full*: ' + JSON.stringify([gun.costNum, gun.costNote, gb.days, gb.shifts, gun.flags]));
+    const mkt = by('Invented Market'), mb = (mkt.booths || [])[0] || { dates: [] };
+    ok(mkt.status === 'Cancelled' && mkt.dead === true && mkt.flags.notHappening && mkt.flags.costUnknown && !mkt.cityState && mb.dates[0] === '2027-01-01' && !mkt.datesStale,
+      'import-workbook: red is Canceled/Missed; "*No Jan Market*" is not happening; "$" is an unknown cost; no city row; an in-year serial dates the day: ' + JSON.stringify([mkt.status, mkt.flags, mkt.cityState, mb.dates]));
+    ok(JSON.stringify(mkt.priority) === '[{"who":"Ann A.","kind":"found"}]' && /Priority/.test(mkt.notes) && (mkt.comments || []).some(x => x.cell === 'K9'),
+      'import-workbook: the priority line and the notes, and the comment on EVENT NOTES: ' + JSON.stringify([mkt.priority, mkt.comments]));
+    const second = by('Second Fair');
+    ok(second.section === 'vjv' && second.startDate === '2027-01-03' && second.cityState === 'Smallville' && second.costNum === 50 && second.booths[0].shifts[0].slots[0].rep === 'Eve',
+      'import-workbook: a VARSITY / JV show on the PROJECT SHOW row stays VARSITY / JV: ' + JSON.stringify([second.section, second.startDate]));
+    const fair = by('Invented County Fair');
+    ok(fair.section === 'project' && fair.booths.length === 2 && fair.booths.map(b => b.label).join('|') === 'Booth #1 (Main St.)|Booth #2 (Lot B)' && fair.booths[0].dates.join('|') === '2026-12-31|2027-01-01'
+      && fair.booths[1].shifts.map(s => s.slots[0].rep + (s.slots[0].note ? `{${s.slots[0].note}}` : '')).join('|') === 'Gus|__X__{SET UP}',
+      'import-workbook: a project show with two booths, each its own days; Thu in the Dec 29 week is Dec 31; SET UP is no shift: ' + JSON.stringify(fair.booths));
+    const jan = by('Jan Fair'), odd = by('Odd Market');
+    ok(jan.status === 'Booked' && jan.datesStale && jan.cost === 'FREE' && jan.costNum === 0 && jan.booths[0].dates[0] === '2027-01-09' && jan.booths[0].halfDays[0] === true,
+      'import-workbook: a plain name with a date under it starts a show; "01/09 (1/2 Shift)" is a dated half day: ' + JSON.stringify([jan.status, jan.booths]));
+    ok(odd.status === '' && odd.sheetStatus === 'unknown fill FFF4CCCC' && t.unknownFills.some(u => u.cell === 'January!K25' && u.what === 'event name'),
+      'import-workbook: a fill the key does not name is reported, never guessed: ' + JSON.stringify([odd.status, t.unknownFills]));
+    ok(t.unparsed.some(u => u.range === 'B32'), 'import-workbook: a cell no block took is an unparsed block, by tab and cell: ' + JSON.stringify(t.unparsed));
+    const inv = t.inventory[0];
+    ok(inv.personal.map(p => `${p.name}:${p.inUse}`).join() === 'Rep One:true,Rep Two:false' && inv.team.map(p => `${p.name}:${p.inUse}`).join() === 'Team Booth 1:true',
+      'import-workbook: column A is the booth inventory, Booth in Use read from the key: ' + JSON.stringify(inv));
+    // the whole-book layer: ids, names, nicknames, the report
+    const res = W.parseWorkbook({ sheetNames: ['January', 'TEMPLATE'], date1904: false, sheet: () => sheet }, { year: 2027, division: 'abc', nicknames: { ann: 'Ann Able' } });
+    ok(res.events.every(e => /^abc-2027-[a-z0-9-]+-\d{4}$/.test(e.id)) && new Set(res.events.map(e => e.id)).size === res.events.length && res.skippedTabs.join() === 'TEMPLATE',
+      'import-workbook: ids start with the division and year and are unique; a non-month tab is skipped: ' + res.events.map(e => e.id).join(' '));
+    ok(res.slotNames.join() === 'Ann,Bea,Cal,Dee,Eve,Fay,Gus' && res.unmappedNames.join() === 'Bea,Cal,Dee,Eve,Fay,Gus' && res.events.find(e => e.name === 'Invented Home Show').booths[0].shifts[0].slots[0].rep === 'Ann Able',
+      'import-workbook: the distinct names in shift cells, the nickname table applied, the names it lacks listed: ' + JSON.stringify([res.slotNames, res.unmappedNames]));
+    const rp = res.report;
+    ok(rp.events === 7 && rp.bySection.key === 1 && rp.bySection.vjv === 5 && rp.bySection.project === 1 && rp.halfShiftDays === 3 && rp.fieldTrainees === 1 && rp.slots.open === 5 && rp.staleDates.events === 2 && rp.mallBlocksSkipped === 1 && rp.unparsedBlocks === 1,
+      'import-workbook: the report counts: ' + JSON.stringify(rp));
+    // the bits on their own
+    const wk = W.parseWeekHeader('WEEK 1 (July 30-6)', 2026, 6);
+    ok(wk && wk.start.toISOString().slice(0, 10) === '2026-06-30' && wk.friday.toISOString().slice(0, 10) === '2026-07-03' && wk.corrected, 'import-workbook: a mistyped week header squares to Tuesday-Monday from its Monday end');
+    ok(W.parseWeekHeader('WEEK 1 (Dec 30 - Jan 5)', 2026, 0).start.toISOString().slice(0, 10) === '2025-12-30', 'import-workbook: the January tab\'s first week starts in December of the year before');
+    const dr = W.parseDatesText('Feb 23-March 1', new Date(Date.UTC(2027, 1, 26)));
+    ok(dr && dr.start.toISOString().slice(0, 10) === '2027-02-23' && dr.end.toISOString().slice(0, 10) === '2027-03-01' && W.parseDatesText('TBD', null) === null, 'import-workbook: dates text across a month; TBD is no date');
+    ok(W.outRefusal(path.join(REPO, 'out', 'x.json')) && W.outRefusal(path.join(REPO, 'nope', 'deeper', 'x.json')) && W.outRefusal(path.join(home, 'x.json')) === null,
+      'import-workbook: --out is refused inside this repo (even a folder not made yet) and allowed in a scratch folder');
+  });
+
+  await section('import-workbook: lib/xlsx.mjs reads a tiny workbook built here, and the CLI end to end', async () => {
+    const X = await import(path.join(REPO, 'scripts/lib/xlsx.mjs'));
+    const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+    const REL = t => `http://schemas.openxmlformats.org/officeDocument/2006/relationships/${t}`;
+    const strings = ['Not Booked', 'Booked', 'WEEK 1 (Dec 29 - Jan 4)', 'KEY EVENTS', 'Invented Home Show', 'Jan 2-3', 'Springfield', 'Sat', 'Ann & Bo', 'Split Tabs'];
+    const sst = `<sst ${NS} count="${strings.length}">${strings.map(s => `<si><t>${s.replace(/&/g, '&amp;')}</t></si>`).join('')}<si><r><t>Ri</t></r><r><t>ch</t></r><rPh><t>x</t></rPh></si></sst>`;
+    const c = (ref, inner, s = 0, t = '') => `<c r="${ref}" s="${s}"${t ? ` t="${t}"` : ''}>${inner}</c>`;
+    const sheetXml = `<worksheet ${NS}><sheetData>`
+      + `<row r="1">${c('B1', '<v>0</v>', 2, 's')}${c('C1', '<v>1</v>', 0, 's')}${c('D1', '<v>9</v>', 3, 's')}</row>`
+      + `<row r="2">${c('A2', '<v>2</v>', 0, 's')}</row>`
+      + `<row r="3">${c('B3', '<v>3</v>', 0, 's')}</row>`
+      + `<row r="4">${c('B4', '<v>4</v>', 2, 's')}${c('E4', '<is><t>Inline &amp; plain</t></is>', 0, 'inlineStr')}${c('F4', '<v>10</v>', 0, 's')}</row>`
+      + `<row r="5">${c('B5', '<v>5</v>', 0, 's')}<c r="C5" s="1"/></row>`
+      + `<row r="6">${c('B6', '<v>6</v>', 1, 's')}</row>`
+      + `<row r="7">${c('B7', '<v>1745.5</v>')}${c('C7', '<v>8</v>', 0, 's')}${c('D7', '<v>1</v>', 0, 'b')}</row>`
+      + `<row r="8">${c('B8', `<v>${SERIAL('2027-01-02')}</v>`)}${c('C8', '<v>7</v>', 0, 's')}${c('D8', '<v>8</v>', 3, 's')}</row>`
+      + `</sheetData><mergeCells count="1"><mergeCell ref="B3:F3"/></mergeCells><hyperlinks><hyperlink ref="B4" r:id="rId1"/></hyperlinks></worksheet>`;
+    const files = {
+      '[Content_Types].xml': '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
+      'xl/workbook.xml': `<workbook ${NS}><workbookPr/><sheets><sheet name="January" sheetId="1" r:id="rId1"/><sheet name="TEMPLATE" sheetId="2" r:id="rId2"/></sheets></workbook>`,
+      'xl/_rels/workbook.xml.rels': `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL('worksheet')}" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${REL('worksheet')}" Target="/xl/worksheets/sheet2.xml"/><Relationship Id="rId3" Type="${REL('styles')}" Target="styles.xml"/><Relationship Id="rId4" Type="${REL('sharedStrings')}" Target="sharedStrings.xml"/><Relationship Id="rId5" Type="${REL('theme')}" Target="theme/theme1.xml"/></Relationships>`,
+      'xl/theme/theme1.xml': '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:themeElements><a:clrScheme name="T"><a:dk1><a:srgbClr val="000000"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="000000"/></a:dk2><a:lt2><a:srgbClr val="FFFFFF"/></a:lt2><a:accent1><a:srgbClr val="111111"/></a:accent1><a:accent2><a:srgbClr val="222222"/></a:accent2><a:accent3><a:srgbClr val="333333"/></a:accent3><a:accent4><a:srgbClr val="444444"/></a:accent4><a:accent5><a:srgbClr val="555555"/></a:accent5><a:accent6><a:srgbClr val="46BDC6"/></a:accent6></a:clrScheme></a:themeElements></a:theme>',
+      'xl/styles.xml': `<styleSheet ${NS}><fonts count="2"><font><sz val="10"/></font><font><strike/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFF9900"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor theme="9"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor theme="0"/></patternFill></fill></fills><cellXfs count="4"><xf fillId="0" fontId="0"/><xf fillId="4" fontId="0"/><xf fillId="2" fontId="0"/><xf fillId="3" fontId="1"/></cellXfs></styleSheet>`,
+      'xl/sharedStrings.xml': sst,
+      'xl/worksheets/sheet1.xml': sheetXml,
+      'xl/worksheets/_rels/sheet1.xml.rels': `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL('hyperlink')}" Target="https://example.com/show?a=1&amp;b=2" TargetMode="External"/><Relationship Id="rId2" Type="${REL('comments')}" Target="../comments1.xml"/></Relationships>`,
+      'xl/comments1.xml': `<comments ${NS}><authors><author/></authors><commentList><comment ref="B5" authorId="0"><text><t xml:space="preserve">Check the dates
+with the promoter</t></text></comment></commentList></comments>`,
+      'xl/worksheets/sheet2.xml': `<worksheet ${NS}><sheetData/></worksheet>`,
+    };
+    for (const deflate of [false, true]) {
+      const wb = X.openWorkbook(X.writeZip(files, { deflate }));
+      const sh = wb.sheet('January'), g = ref => { const p = X.parseRef(ref); return sh.get(p.r, p.c) || {}; };
+      const tag = deflate ? ' (deflated)' : ' (stored)';
+      ok(wb.sheetNames.join() === 'January,TEMPLATE' && !wb.date1904, 'xlsx: tab names in order' + tag);
+      ok(g('B4').v === 'Invented Home Show' && g('B4').fill === 'FFFF9900' && g('B4').link === 'https://example.com/show?a=1&b=2', 'xlsx: shared string, solid fill, hyperlink' + tag + ': ' + JSON.stringify(g('B4')));
+      ok(g('B7').v === 1745.5 && g('D7').v === true && g('C7').v === 'Ann & Bo' && g('E4').v === 'Inline & plain', 'xlsx: number, boolean, entity, inline string' + tag);
+      ok(g('B6').v === 'Springfield' && g('B6').fill === null && sh.get(4, 2) === undefined && g('F4').v === 'Rich', 'xlsx: a theme fill that resolves to white is no fill; a styled empty cell with no fill is not kept; rich text runs join, phonetic runs do not' + tag + ': ' + JSON.stringify([g('B6'), sh.get(4, 2), g('F4')]));
+      ok(g('D1').fill === 'FF46BDC6' && g('D8').fill === 'FF46BDC6' && g('D8').strike === true, 'xlsx: a theme colour resolves through the theme, so the key cell and a cell agree; strike-through is read' + tag);
+      ok(g('B5').comment === 'Check the dates\nwith the promoter' && sh.merges.length === 1 && sh.merges[0].ref === 'B3:F3' && sh.merges[0].c1 === 5, 'xlsx: comments and merges' + tag);
+      ok(X.serialToDate(g('B8').v).toISOString().slice(0, 10) === '2027-01-02', 'xlsx: a date serial' + tag);
+    }
+    ok(X.cellRef(0, 27) === 'AB1' && X.parseRef('AB12').c === 27 && X.parseRef('AB12').r === 11, 'xlsx: cell references both ways');
+    let threw = ''; try { X.openWorkbook(Buffer.from('not a zip at all, just text')); } catch (e) { threw = e.message; }
+    ok(/not a zip/.test(threw), 'xlsx: a file that is not a zip is refused by name: ' + threw);
+
+    // the CLI: a book on disk, out in a scratch folder (600), never inside the repo, never as Rising Sun
+    const book = path.join(home, 'book.xlsx'); fs.writeFileSync(book, X.writeZip(files));
+    const iw = (...a) => new Promise(res => execFile(process.execPath, [path.join(REPO, 'scripts/import-workbook.mjs'), ...a], { env: { PATH: process.env.PATH, HOME: home } }, (err, stdout, stderr) => res({ code: err ? err.code : 0, stdout, stderr })));
+    const outFile = path.join(home, 'import-out', 'abc-2027.json');
+    r = await iw(book, '--division', 'abc', '--year', '2027', '--out', outFile);
+    const doc = fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, 'utf8')) : { events: [] };
+    ok(r.code === 0 && doc.events.length === 1 && doc.events[0].name === 'Invented Home Show' && doc.events[0].id === 'abc-2027-invented-home-show-0101' && (fs.statSync(outFile).mode & 0o777) === 0o600,
+      'import-workbook CLI: reads the book, writes the events (mode 600): ' + r.stderr + r.stdout.slice(0, 300));
+    ok(/events 1 \(by section: key 1\)/.test(r.stdout) && /distinct names in shift cells 1: Ann & Bo/.test(r.stdout) && !/\$1,7|1745|1746/.test(r.stdout), 'import-workbook CLI: the report, with the names for the nickname table and no costs: ' + r.stdout);
+    const inRepo = path.join(REPO, 'out', 'import-test-should-not-exist.json');
+    r = await iw(book, '--division', 'abc', '--year', '2027', '--out', inRepo);
+    ok(r.code === 1 && /refused/.test(r.stderr) && !fs.existsSync(inRepo), 'import-workbook CLI: --out inside the repo is refused and nothing is written: ' + r.stderr);
+    r = await iw(book, '--division', 'rising-sun', '--year', '2027');
+    ok(r.code === 1 && /Rising Sun/.test(r.stderr), 'import-workbook CLI: Rising Sun is never a workbook import: ' + r.stderr);
+    r = await iw(book, '--year', '2027');
+    ok(r.code === 1 && /--division/.test(r.stderr), 'import-workbook CLI: --division is required');
+    r = await iw(book, '--division', 'abc', '--year', '2027', '--strict');
+    ok(r.code === 0, 'import-workbook CLI: --strict passes a book with nothing left unread: ' + r.stderr + r.stdout.slice(0, 400));
+  });
+
   await section('no env', async () => {
     // ---- missing env is a loud failure
     r = await board(['tick'], { BOARD_SUPABASE_URL: '', BOARD_SERVICE_KEY: '' }); ok(r.code !== 0 && /board\.env/.test(r.stderr), 'no env: exits non-zero and says where to put it');

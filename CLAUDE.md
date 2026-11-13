@@ -112,6 +112,10 @@ routines in `.claude/skills/` keep it true.
   is reported, never overwritten; a count that doesn't match, or a Cutco with no number, writes nothing for that
   show. Needs poppler (Homebrew). Hand-run; not scheduled. First run 2026-10-26 (actor `service:maricopa-booths`).
   Details and what the 2027 plans said: `docs/maricopa-booths.md`.
+- `scripts/import-workbook.mjs` + `scripts/lib/xlsx.mjs` — another coordinator's yearly schedule workbook (.xlsx, a tab
+  per month, status by cell colour) into board-shaped events, written to one JSON file outside this repo (refused inside
+  it). No database, no `--apply` (2026-11-06; parked on its branch until Alan says merge). Layout, mapping and open
+  questions: `docs/import-workbook.md`. Its tests use invented grids only; the real books never come into the repo.
 - `scripts/sheet-sync.mjs` — the Sheet -> board sync (stage 2 of the roadmap, live 2026-09-23). **Two books since
   2026-10-23** (Alan: "upload the Jan-May 2027 sheet"): the Sept-Feb and Jan-May schedules are separate Google Sheets
   that both carry January and February (config `sheets`). Each weekend is fed by one book only: until the January
