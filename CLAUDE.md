@@ -261,15 +261,23 @@ routines in `.claude/skills/` keep it true.
   indoor/outdoor answer is only reported, never overwritten. Every move writes `datesNote` (shown on the board as
   "checked" or "VC dates"), `datesSource`, `datesMoved`. Output `out/research/<label>-<date>.json` (600) and a
   report without contacts. Runs: the date research 7 days before a meeting, the preflight 2 days before
-  (rsd-shift-picking com.rsd.preflight), and the booking sweep's disagreements.
+  (rsd-shift-picking com.rsd.preflight), and the booking sweep's disagreements. Since 2026-11-13 each of the two
+  pre-meeting runs is a window, not one day: `board tick` lists the date research from 7 days before through 3 days
+  before, and the preflight from 2 days before through the meeting day, each until it has reached the board for that
+  meeting. "Reached the board" is a file: `apply --apply` leaves `out/research/done/<label>-<meeting>-on-<date>.json`
+  the moment it starts writing (stamped "done" at the end), and the tick reads the names. So a morning that fails
+  before the board step (the VC pull, the event check, the API) is tried again the next day, and a run that got as
+  far as writing is never started again by itself (it costs money and can move dates). A dry apply leaves no mark; a
+  mark from outside the window (a run forced by hand weeks early) does not count. To let a run go again, delete its file.
 - Both run from rsd-shift-picking's Wednesday 08:00 job (`run-event-check.sh` there), which owns the VC
   login (Playwright + Keychain; this repo has no node_modules) and all texting. `scripts/lib/board-api.mjs`
   is their REST layer (same env file and changelog path as board.mjs).
 - `deploy/tick.py` — the launchd entry point (`com.allinalan.rsd-board-tick`, 07:00 daily on the
   mini): keeps `settings.roster` in step with the rep master list (above), then decides what is due and notifies Alan.
   It does not run routines. `--dry`, `--status`. Wednesday is
-  no longer "due" (the event check runs unattended); the date research (7 days before a meeting), the preflight
-  (2 days before) and the booking sweep (days 2-8 after) are marked `auto` (they run themselves from
+  no longer "due" (the event check runs unattended); the date research (from 7 days before a meeting, until it has
+  reached the board or day 3), the preflight (from 2 days before, until it has or the meeting day) and the booking
+  sweep (days 2-8 after) are marked `auto` (they run themselves from
   rsd-shift-picking), so they are logged, never a "go run it" notice. It reminds Alan to send the freshmen training sign-in
   sheet two days after a January/August meeting (Jan 20 / Aug 15 when none is set), and wakes Messages with a cheap
   read before texting (a cold Messages after the 2026-09-22 reboot timed out the 2026-09-23 notice). The Dec 28

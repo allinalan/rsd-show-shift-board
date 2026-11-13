@@ -16,8 +16,8 @@ returns `{ date, due: [{ routine, meeting?, note }] }`. Then, in this order:
 
 | routine | run |
 |---|---|
-| `date-research` | runs itself (`"auto": true`, 7 days before a meeting: rsd-shift-picking com.rsd.preflight researches every upcoming show's dates) |
-| `preflight` | runs itself (`"auto": true`, 2 days before a meeting: rsd-shift-picking com.rsd.preflight). Do not run the **board-preflight** skill unless Alan asks for the hand-run fallback |
+| `date-research` | runs itself (`"auto": true`, from 7 days before a meeting through 3 days before, until it has reached the board: rsd-shift-picking com.rsd.preflight researches every upcoming show's dates; `"retry": true` on the later days) |
+| `preflight` | runs itself (`"auto": true`, from 2 days before a meeting through the meeting day, until it has reached the board: rsd-shift-picking com.rsd.preflight). Do not run the **board-preflight** skill unless Alan asks for the hand-run fallback |
 | `booking-sweep` | runs itself (`"auto": true`, days 2-8 after a meeting: rsd-shift-picking com.rsd.bookingsweep). Do not run the **board-booking-sweep** skill unless Alan asks for the hand-run fallback |
 | `event-check` | runs itself (rsd-shift-picking's Wednesday 08:00 job); **board-event-check** is the hand-run fallback |
 

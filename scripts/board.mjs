@@ -32,7 +32,10 @@
                                                          word goes once into each mirrored show's team notes; dry unless
                                                          --apply, which refuses before config stage3.cutover unless --force)
     board history set <baseId> <year> <cpo> [orders]
-    board tick [--date 2027-01-08]                      (which routines are due today; "auto": true = runs itself)
+    board tick [--date 2027-01-08]                      (which routines are due today; "auto": true = runs itself.
+                                                         The two pre-meeting research runs are windows: due each day
+                                                         until scripts/board-research.mjs apply has left its mark in
+                                                         out/research/done/ for that meeting, or the window ends)
     board changelog [--limit 50]
     board kiosks [--year 2026] [--json]                 (the Kiosk Schedule: each mall's status, captain and days staffed)
     board kiosks seed                                   (add seed/kiosks.json malls the board doesn't have; never touches one it has)
@@ -146,6 +149,18 @@ const rollId = (e, Y) => Y + '-' + baseId(e.id).replace(/[^A-Za-z0-9_\-.~:@+]/g,
 const yearOf = e => +(e.year || e.season || 0);
 const isSE = d => /\bSE\b/i.test(d || '');
 const today = () => { const d = flags.date ? fromISO(flags.date) : new Date(); d.setHours(0, 0, 0, 0); return d; };
+// The days a pre-meeting research run reached the board for a meeting (2026-11-13). scripts/board-research.mjs apply
+// leaves one small file per run in <out>/research/done/, named <routine>-<meeting>-on-<day>.json, the moment it starts
+// writing the board. Only the names are read, so a half-written file still counts. No folder yet = no run yet; a folder
+// that cannot be read stops the tick (loud), because guessing either way could repeat a run or skip one.
+const OUT_DIR = process.env.BOARD_OUT_DIR || path.join(REPO, 'out');
+function researchRanOn(routine, meeting) {
+  let names;
+  try { names = fs.readdirSync(path.join(OUT_DIR, 'research', 'done')); } catch (e) { if (e.code === 'ENOENT') return []; throw e; }
+  const days = [];
+  for (const n of names) { const m = n.match(/^(date-research|preflight)-(\d{4}-\d{2}-\d{2})-on-(\d{4}-\d{2}-\d{2})\.json$/); if (m && m[1] === routine && m[2] === meeting) days.push(m[3]); }
+  return days;
+}
 
 // spot(b) = the booth's "last year's spot" tag on a Maricopa show (scripts/lib/booth-spots.mjs), {} on any other
 function rollDoc(e, Y, spot = () => ({}), rollAppDates = () => ({})) {
@@ -343,10 +358,22 @@ const commands = {
     // the date research 7 days before (every upcoming show's dates: reps are already looking), the preflight 2 days
     // before (dates, venue, promoter, and the blanks the booking sweep needs). Each texts Alan and e-mails the
     // coordinators its report.
+    // Each is a WINDOW with a done mark, not one day (2026-11-13). Until then each had exactly one morning (day 7, day 2):
+    // if that morning's VectorConnect pull, API or network failed, the run alerted and was never tried again. Now the
+    // date research is due from 7 days before a meeting through 3 days before, and the preflight from 2 days before
+    // through the meeting day, each until it has reached the board for that meeting (researchRanOn above: the mark
+    // scripts/board-research.mjs apply leaves when it starts writing). A run that got that far is never started again
+    // by itself: it costs money and can move dates. A failure before that leaves no mark, so the next morning tries again.
+    // A mark from outside the window (a run forced by hand weeks early) does not count as this window's run.
     for (const m of ms) {
       const d = Math.round((m - t) / 864e5);
-      if (d === 7) due.push({ routine: 'date-research', meeting: iso(m), auto: true, note: 'runs itself (rsd-shift-picking com.rsd.preflight): research every upcoming show\'s dates, fix the board, text the reps whose days moved' });
-      if (d === 2) due.push({ routine: 'preflight', meeting: iso(m), auto: true, note: 'runs itself (rsd-shift-picking com.rsd.preflight): research every upcoming show: dates, venue, promoter, and the blanks the booking sweep needs' });
+      const ran = (routine, first, last) => researchRanOn(routine, iso(m)).some(day => { const b = Math.round((m - fromISO(day)) / 864e5); return b <= first && b >= last; });
+      if (d <= 7 && d >= 3 && !ran('date-research', 7, 3)) due.push({ routine: 'date-research', meeting: iso(m), auto: true, daysBefore: d, retry: d < 7,
+        note: d === 7 ? 'runs itself (rsd-shift-picking com.rsd.preflight): research every upcoming show\'s dates, fix the board, text the reps whose days moved'
+          : `${d} days before: the date research has not reached the board for this meeting yet, so it runs itself again today (through 3 days before)` });
+      if (d <= 2 && d >= 0 && !ran('preflight', 2, 0)) due.push({ routine: 'preflight', meeting: iso(m), auto: true, daysBefore: d, retry: d < 2,
+        note: d === 2 ? 'runs itself (rsd-shift-picking com.rsd.preflight): research every upcoming show: dates, venue, promoter, and the blanks the booking sweep needs'
+          : `${d === 0 ? 'meeting day' : '1 day before'}: the preflight has not reached the board for this meeting yet, so it runs itself again today (through the meeting day)` });
       if (d <= -2 && d >= -8) due.push({ routine: 'booking-sweep', meeting: iso(m), auto: true, day: -d, followUp: d < -2,
         note: d === -2 ? 'runs itself (rsd-shift-picking com.rsd.bookingsweep): booking requests for staffed shows VC does not have, the Prospective list to Olean, board dates that disagree with VC researched and corrected; Alan approves by text'
           : `follow-up day ${-d}: runs itself, and texts Alan only when something new is ready` });
