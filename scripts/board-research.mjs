@@ -29,7 +29,11 @@
   shows left out (never moved; the sweep lists them for Alan).
   apply, dates (every mode):
     - the research found this year's dates (a page states them; a quote is kept) -> they win: if the board's days
-      are not inside them, the show moves (lib/dates.mjs planMove: days that still happen keep their reps, a day
+      are not inside them, the show moves, when the page is the show's own (confidence "official": the event's, the
+      promoter's or the host city's). Dates found only on a third-party listing never move a show: they are a
+      question in the report and nothing is written, unless VC already disagrees with the board and the listing
+      sits inside VC's run, which leaves it to the VC rule below (2026-11-13)
+      (lib/dates.mjs planMove: days that still happen keep their reps, a day
       that moves to the same weekday carries its reps, a day that is gone is reported with its reps, except that a
       shift row one person held on every day of a run that keeps its length moves whole, and the report says the
       day they got for the day they lost (Alan, 2026-10-27); start and end are the selling days, never an SE day; a day with no
@@ -141,7 +145,10 @@ const differs = (a, b) => { const x = normName(a), y = normName(b); return !!x &
 const urlKey = (u, withPath) => { try { const x = new URL(/^https?:\/\//i.test(u) ? u : `https://${u}`); return x.hostname.replace(/^www\./i, '').toLowerCase() + (withPath ? x.pathname.replace(/\/+$/, '').toLowerCase() : ''); } catch (e) { return null; } };
 export const sameUrl = (a, b, withPath = true) => { const x = urlKey(t(a), withPath), y = urlKey(t(b), withPath); return !!x && x === y; };
 
-/** The decision for one show's dates. Pure: returns { kind, truth?, basis?, source?, why? }. */
+/**
+ * The decision for one show's dates. Pure: returns { kind, truth?, basis?, source?, why? }.
+ * kind: not-researched | failed | cancelled | confirmed | move | question | unconfirmed. Only "move" changes dates.
+ */
 export function decideDates(tgt, res, run) {
   const vcRun = tgt.vc ? { start: tgt.vc.start, end: tgt.vc.end } : null;
   if (!res || res.notResearched) return { kind: 'not-researched' };
@@ -154,7 +161,15 @@ export function decideDates(tgt, res, run) {
     const truth = { start: d.start, end: d.end };
     // VC disagrees unless its run covers the show's (a VC set-up day is fine; VC holding one day of two is not)
     if (run && within(run, truth)) return { kind: 'confirmed', truth, basis: 'researched', source: d.sourceUrl, confidence: d.confidence, vcDisagrees: !!(vcRun && !within(truth, vcRun)) };
-    return { kind: 'move', truth, basis: 'researched', source: d.sourceUrl, confidence: d.confidence };
+    // A MOVE needs the show's own page (the rule: the date the show's own page states wins). Until 2026-11-13 any
+    // confidence but "none" moved a show, so a third-party listing could. Dates found only on a secondary source are
+    // never written: they are a question in the report. One case goes on to the VC rule below, exactly as if nothing
+    // had been found online: VC already disagrees with the board and the listing's dates sit inside VC's run.
+    if (d.confidence === 'official') return { kind: 'move', truth, basis: 'researched', source: d.sourceUrl, confidence: d.confidence };
+    if (!(vcRun && run && !within(run, vcRun) && within(truth, vcRun))) {
+      return { kind: 'question', truth, source: d.sourceUrl, confidence: d.confidence,
+        why: `${host(d.sourceUrl)} (a third-party listing, not the show's own page) gives ${fmt(truth)}; the board has ${fmt(run)}${vcRun ? ` and VC ${fmt(vcRun)}` : ''}. Only the show's own page moves a date, so nothing was changed; if ${fmt(truth)} is right, change it on the board` };
+    }
   }
   if (vcRun && run && !within(run, vcRun)) return { kind: 'move', truth: vcRun, basis: 'vc' };
   return { kind: 'unconfirmed', why: d && d.notYetAnnounced ? "this year's dates aren't announced yet" : 'no page online confirms the dates' };
@@ -249,6 +264,7 @@ async function apply() {
     if (d.kind === 'not-researched') out.notResearched.push(base);
     else if (d.kind === 'failed') out.failed.push({ ...base, why: d.why });
     else if (d.kind === 'cancelled') out.cancelled.push({ ...base, source: d.source, why: d.why });
+    else if (d.kind === 'question') out.questions.push({ ...base, why: d.why, source: d.source });   // a third-party listing: never written
     else if (d.kind === 'unconfirmed') { if (tgt.datesEstimated || tgt.mismatch) out.unconfirmed.push({ ...base, why: d.why, estimated: tgt.datesEstimated }); }
     else if (d.kind === 'confirmed') {
       out.confirmed++;

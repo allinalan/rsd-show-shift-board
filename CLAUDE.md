@@ -241,7 +241,11 @@ routines in `.claude/skills/` keep it true.
   as `rolledLater`, Alan 2026-10-24: a roll must not spend the next meeting's research money or trip the 25-move limit;
   `rolledForLater()` in lib/dates.mjs, shared with fill-dates);
   `apply` takes the findings and writes the board. Alan's date rule: the date
-  a page states for this edition wins (quote and URL kept); nothing found online and VC disagrees = VC's dates,
+  the show's own page states for this edition wins (quote and URL kept). Since 2026-11-13 a date MOVE needs that page
+  (`confidence: "official"`: the event's, the promoter's or the host city's): dates found only on a third-party listing
+  never move a show. They are a question in the report and nothing is written, unless VC already disagrees with the
+  board and the listing sits inside VC's run, which leaves it to the VC rule (`decideDates`, kind `question`). Nothing
+  found online and VC disagrees = VC's dates,
   with `datesNote` on the board saying so; a failed lookup changes nothing; a cancellation is reported, never
   written; multi-week shows are never moved; more than 25 moves at once moves none (exit 5). When the page backs the
   board and VC's run does not cover it (VC holds one day of two), the report says VC is the one to fix. Each show is
