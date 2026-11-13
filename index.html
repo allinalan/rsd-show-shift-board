@@ -1434,6 +1434,9 @@ const TIER_ACCESS={Elite:'Elite',Key:'Varsity',Traditional:'JV'};
    not its tier's JV, and "Freshmen" shows up in the access-level drop-down. Same pattern as config mesaPattern (the tests
    hold the two together). Tier stays Traditional: the picking system counts Mesa shifts as Traditional. */
 const MESA_RE=/mesa\s*market|swap\s*meet|swapmeet/i;
+/* What each access-level filter shows (Alan, 2026-11-12): a JV rep can work Mesa too, so JV lists the Freshmen shows
+   beside its own, and its count in the drop-down includes them. Every other level shows only its own shows. */
+const LVL_SHOWS={JV:['JV','Freshmen']};
 const accOf=e=>{
   let v=e.access;
   if(!v&&e.source!=='board') v=e.level==='Varsity'?'Varsity':e.level==='JV'?'JV':e.level==='Trade/Industry'?'Trade/Industry':'';
@@ -1497,7 +1500,7 @@ function matches(e){
   if(F.state.size&&!F.state.has(ps.key))return false;
   if(F.bk&&e.status!==F.bk)return false;
   if(F.tier.size&&!F.tier.has(tierOf(e)))return false;
-  if(F.lvl&&accOf(e)!==F.lvl)return false;
+  if(F.lvl&&!(LVL_SHOWS[F.lvl]||[F.lvl]).includes(accOf(e)))return false;
   if(F.rep){
     let hit=false;
     boothsOf(e).forEach((b,bi)=>b.shifts.forEach((s,si)=>s.slots.forEach((sl,di)=>{
@@ -1783,8 +1786,9 @@ function refreshFilters(){
     sc[e.status]=(sc[e.status]||0)+1;tc[tierOf(e)]=(tc[tierOf(e)]||0)+1;ac[accOf(e)]=(ac[accOf(e)]||0)+1;
     const k=pickState(e).key;kc[k]=(kc[k]||0)+1;});
   const ls=document.getElementById('lvl'); const kl=ls.value; ls.innerHTML='<option value="">All access levels</option>';
+  const lvlN=x=>(LVL_SHOWS[x]||[x]).reduce((n,y)=>n+(ac[y]||0),0);
   ACCESS.concat(ac['Unassigned']?['Unassigned']:[]).filter(x=>ac[x]).forEach(x=>{
-    const o=document.createElement('option');o.value=x;o.textContent=(x==='Unassigned'?'No access set':x)+' ('+ac[x]+')';ls.appendChild(o);}); ls.value=kl;
+    const o=document.createElement('option');o.value=x;o.textContent=(x==='Unassigned'?'No access set':x)+' ('+lvlN(x)+')';ls.appendChild(o);}); ls.value=kl;
   const bks=document.getElementById('bk'); const kb=bks.value; bks.innerHTML='<option value="">Any booking status</option>';
   SORDER.filter(s=>sc[s]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s+' ('+sc[s]+')';bks.appendChild(o);}); bks.value=kb;
   chipBar('stateChips',KORDER.filter(k=>kc[k]).map(k=>[k,kc[k]]),F.state,'c-',KLABEL);
