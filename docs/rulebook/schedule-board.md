@@ -22,5 +22,7 @@ The rules Schedule Board already runs by, in plain words, written down from its 
 From changes merged later on 2026-11-13:
 
 - A blank Start Date is filled only from the show's own page; a date found only on a third-party listing is left blank and comes to Alan as a question. (2026-11-13, PR 44)
+- With no signal or wifi, the board opens the last copy this phone saved, view only, with the time it is from (red once over 2 days old); nothing done offline is saved to send later. (2026-11-14, PR 46)
+  Where: index.html offline block; sw.js
 
 Left out of this book: Which book feeds which weekends and the handover morning (config `sheets`, `handover.on`) and the name aliases were seen in settings but not read through.

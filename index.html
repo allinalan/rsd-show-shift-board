@@ -1100,12 +1100,24 @@ body:not(.gridv):not(.kioskv) .band:not(.past)>.band-h{position:sticky;top:calc(
 .kmr .kw .covask{margin-top:2px}
 .kmine .covin{font-style:normal;font-weight:500;color:var(--pend)}
 .kmine span.now .covin{color:inherit}
+
+/* ---- the offline bar (2026-11-14, the offline block): the phone's saved copy, or the signal gone mid-visit. At the top of the
+   header, so it scrolls away with the title; red once the copy is over 2 days old. --info on --info-bg 5.8:1 light, 7.2:1 dark;
+   --pend on --pend-bg 4.7:1 light, 6.6:1 dark ---- */
+.offbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;padding:8px 12px;border-radius:var(--r);
+  background:var(--info-bg);color:var(--info);font-size:var(--t-foot);line-height:1.4}
+.offbar[hidden]{display:none}
+.offbar.old{background:var(--pend-bg);color:var(--pend);font-weight:500}
+.offbar span{flex:1 1 220px}
+.offbar button{flex:none;font:inherit;font-weight:600;color:inherit;background:none;border:1px solid currentColor;border-radius:99px;padding:4px 14px;min-height:32px;cursor:pointer}
+@media (pointer:coarse){ .offbar button{min-height:44px} }
 </style>
 
 <!-- Only the last row (.segrow, plus .modes beside it on a wide screen) stays pinned: the header sticks at a negative
      top that syncTopH() measures, so the title and the tallies scroll away above it (Alan, 2026-10-15). -->
 <header class="top">
  <div class="top-in">
+  <div class="offbar" id="offbar" role="status" hidden><span id="offbarT"></span><button type="button" id="offRetry">Try again</button></div>
   <div class="brandrow">
    <span class="mark"><span class="glyph" id="glyph">RSD</span><h1 id="title">Show Shift Board</h1></span>
    <span class="season" id="divchip">Rising Sun Division</span>
@@ -1314,7 +1326,9 @@ const save=()=>{try{localStorage.setItem(LS,JSON.stringify(store));}catch(e){}};
 
 let settings=Object.assign({},DEFAULT_SETTINGS);
 const RM=matchMedia('(prefers-reduced-motion: reduce)');   // reduced motion: nothing waits on an animation
-let db=null, dbState='loading', dbKind='none';   // dbState: loading | ready | static | none · dbKind: supabase | static | none
+let db=null, dbState='loading', dbKind='none';   // dbState: loading | ready | static | none | copy · dbKind: supabase | static | none
+let wired=false, offline=null, copyP=Promise.resolve(null);   // the offline mode (offline block below): config.js names a database · null = live, else {kind:'copy'|'lost', at, why}
+const live=new Set();             // the parts read from the database this visit (COPY_PARTS); the rest may still be the phone's copy
 let authUser=null, isEditor=false, isOwner=false, editorName='';   // editorName: the editors list's name, for the "Manual · <name>" tag
 let neverList=[];                 // never_work docs
 const neverKeys=()=>new Set(neverList.map(n=>n.seriesKey).filter(Boolean));
@@ -1334,7 +1348,8 @@ const ARM_MS=10e3;
 const isArmed=key=>!!armed&&armed.key===key&&Date.now()-armed.at<ARM_MS;
 function arm(key,redraw){ const prev=armed, at=Date.now(); armed={key,at,redraw}; if(prev&&prev.key!==key) prev.redraw(); redraw();
   setTimeout(()=>{ if(armed&&armed.at===at){ armed=null; redraw(); } },ARM_MS+50); }
-const plan=()=>!!store.plan && (dbKind!=='supabase' || isEditor);
+const plan=()=>!!store.plan && (dbKind!=='supabase' || isEditor) && !onCopy();   // the phone's saved copy is view only
+const onCopy=()=>!!offline&&offline.kind==='copy';
 const viewNever=()=>store.year==='never';
 const viewKiosk=()=>store.year==='kiosk';
 const gridView=()=>store.view==='grid';
@@ -1560,6 +1575,7 @@ async function loadCoverage(){
     const {data,error}=await db.client.from('coverage').select('id,data').in('data->>status',COV_OPEN);
     if(seq!==covSeq) return;   // a newer read is on its way
     if(error) throw error;
+    gotLive('coverage');
     const m=coverageMap(data||[]), sg=JSON.stringify([...m]);
     if(!covSub){ covSub=true;   // only once the table answers: no realtime channel pointed at a table that isn't there
       db.client.channel('rt-coverage').on('postgres_changes',{event:'*',schema:'public',table:'coverage'},()=>{ clearTimeout(covTimer); covTimer=setTimeout(loadCoverage,400); }).subscribe(); }
@@ -1748,7 +1764,7 @@ function renderHeader(){
   const st=document.getElementById('stamp');
   const parts=[];
   if(nS) parts.push(`<span>${nS} from the Sheet · snapshot ${esc(D.meta.sheetAsOf)} · VC status as of ${esc(D.meta.vcAsOf)}</span>`);
-  if(nB) parts.push(`<span>${nB} events · ${dbKind==='supabase'?'live':'read-only preview'}</span>`);
+  if(nB) parts.push(`<span>${nB} events · ${liveWord()}</span>`);
   { const nm=nextMeeting(); if(nm) parts.push(`<span class="stamp-mtg">Next shift-picking meeting <b>${esc(nm.label)}</b> · ${nm.days===0?'today':nm.days===1?'tomorrow':'in '+nm.days+' days'}</span>`); }
   if(dbState==='none') parts.push(`<span class="stamp-db">shared storage unavailable in this view</span>`);
   if(!nS&&!nB) parts.push(`<span>nothing in ${year()} yet</span>`);
@@ -1798,6 +1814,7 @@ function refreshFilters(){
 /* ---- board ---- */
 function build(){
   document.querySelector('.controls').hidden=false;
+  renderOffline();
   document.body.classList.toggle('plan',plan());
   document.body.classList.toggle('gridv',gridView());
   document.body.classList.toggle('kioskv',viewKiosk());
@@ -1813,8 +1830,8 @@ function build(){
   const board=document.getElementById('board');
   if(!EV.length){
     const y=year(), prev=eventsIn(y-1).length;
-    if(dbState==='loading'){board.innerHTML=`<div class="sk-list" aria-busy="true"><span class="ksr" role="status">Loading ${y}…</span>${'<div class="sk"></div>'.repeat(4)}</div>`;return;}
-    if(dbState==='none'){board.innerHTML=`<div class="empty-season"><b>Nothing in ${y} here.</b><span>The board couldn't reach its database. Check config.js and the README.</span></div>`;return;}
+    if(dbState==='loading'||(dbState==='ready'&&dbKind==='supabase'&&!live.has('events'))){board.innerHTML=`<div class="sk-list" aria-busy="true"><span class="ksr" role="status">Loading ${y}…</span>${'<div class="sk"></div>'.repeat(4)}</div>`;return;}
+    if(dbState==='none'){const [b,why]=noneMsg(); board.innerHTML=`<div class="empty-season"><b>${b}</b><span>${why}</span></div>`;return;}
     board.innerHTML=`<div class="empty-season"><b>${y} is empty.</b><span>${plan()?(prev?`Roll ${y-1} forward to start from its ${prev} shows, or add events one at a time.`:'Add events one at a time, or roll forward once the year before has shows.'):'Turn on Plan mode to roll forward or add events.'}</span>${plan()&&prev&&dbState==='ready'?`<button class="btn" id="emptyRoll">Roll ${y-1} into ${y}</button>`:''}</div>`;return;
   }
   if(!list.length){board.innerHTML='<p class="empty-state">Nothing matches those filters.</p>';return;}
@@ -2028,13 +2045,13 @@ function renderKiosks(){
   const booked=list.filter(k=>kStatus(k)==='Booked').length, prosp=list.filter(k=>kStatus(k)==='Prospective').length;
   document.getElementById('tally').innerHTML=`<div class="t-open"><b>${openN}</b><span>Open shifts</span></div><div><b>${filledN}</b><span>Filled</span></div>`+
     `<div class="t-booked"><b>${booked}</b><span>Malls booked</span></div><div><b>${prosp}</b><span>Prospective</span></div>`;
-  document.getElementById('stamp').innerHTML=list.length?`<span>${list.length} mall${list.length===1?'':'s'} in ${Y} · ${dbKind==='supabase'?'live':'read-only preview'}</span>`:'';
+  document.getElementById('stamp').innerHTML=list.length?`<span>${list.length} mall${list.length===1?'':'s'} in ${Y} · ${liveWord()}</span>`:'';
   document.getElementById('footNote').textContent='One shift per mall per day; two names is a split day. Open means a booked mall with nobody on that day yet. Board changes are shared live.';
   P_('btnKAdd').hidden=!(dbState==='ready'&&kioskState==='ready');
   const yseg=`<div class="seg" role="tablist">${kYears().map(y=>`<button role="tab" data-kyear="${y}" aria-selected="${y===Y}">${y}</button>`).join('')}</div>`;
   const head=(sub,cov)=>`<div class="band-h"><h2>Kiosk Schedule</h2>${sub?`<span class="sub">${sub}</span>`:''}${yseg}${cov||''}</div>`;
   if(kioskState!=='ready'||dbState==='none'){
-    board.innerHTML=`<section class="band kiosk">${head()}<div class="empty-season">${dbState==='none'?'<b>The board couldn\'t reach its database.</b><span>Check config.js and the README.</span>'
+    board.innerHTML=`<section class="band kiosk">${head()}<div class="empty-season">${dbState==='none'?`<b>${noneMsg()[0]}</b><span>${noneMsg()[1]}</span>`
       :kioskState==='missing'?`<b>The Kiosk Schedule isn't set up in the database yet.</b><span>${isOwner?'Run supabase/schema.sql once in the Supabase SQL editor (it adds the kiosks table), then <code>node scripts/board.mjs kiosks seed</code>.':'Alan is setting it up.'}</span>`
       :'<div class="sk-list" aria-busy="true"><span class="ksr" role="status">Loading the kiosks…</span><div class="sk"></div><div class="sk"></div></div>'}</div></section>`; return;
   }
@@ -3270,6 +3287,96 @@ P('ctlToggle').addEventListener('click',()=>{ const on=document.body.classList.t
 addEventListener('scroll',()=>{ document.querySelector('.top').classList.toggle('scrolled',scrollY>=stickAt-1); },{passive:true});   // the hairline shows once the bar is pinned
 addEventListener('touchstart',()=>{},{passive:true});   // iOS Safari shows :active (the press state) only when a touch listener exists
 P('planMode').checked=plan();
+/* offline:start
+   The offline mode (Alan, 2026-11-14: "an offline mode so if someone doesn't have service or wifi it can still load the
+   board"). Every time the board reads the database, the phone keeps a copy of all it shows (every season, the Kiosk tab,
+   the promoter contacts). With no signal, or no answer in COPY_WAIT_MS, the board opens that copy, view only, under a bar
+   that says how old it is; it goes live again by itself. sw.js keeps the page itself so it opens at all. Pure, so the tests
+   run this block by itself. */
+const COPY_WAIT_MS=5000;          // from the tap: no answer from the board by then, the copy shows while it keeps trying
+const COPY_OLD_MS=2*86400e3;      // a copy older than 2 days turns the bar red and says how old
+const COPY_PARTS=['events','never','settings','overrides','history','kiosks','coverage'];
+const WKD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function asOfLabel(ms){ const d=new Date(ms); if(!isFinite(d.getTime())) return 'an unknown time';
+  const h=d.getHours(); return `${WKD[d.getDay()]} ${d.getMonth()+1}/${d.getDate()} ${h%12||12}:${String(d.getMinutes()).padStart(2,'0')} ${h<12?'AM':'PM'}`; }
+/* the bar's words. o.kind: copy (the phone's saved copy, view only) | lost (the live board, signal gone mid-visit) |
+   none (couldn't load, no copy on this phone) */
+function offlineLine(o,now){
+  if(o.kind==='none') return {old:false,text:'Can\'t reach the board right now.'};
+  if(o.kind==='lost') return {old:false,text:`No connection since ${asOfLabel(o.at)}. The board is as it was then; changes won't save until you're back online.`};
+  const age=now-o.at, old=!(age<=COPY_OLD_MS), days=Math.floor(age/86400e3);
+  const head=o.why==='offline'?'Offline':o.why==='slow'?'Weak signal':'Can\'t reach the board';
+  const tail=o.why==='slow'?'View only while it keeps trying.':o.why==='offline'?'View only until you\'re back online.':'View only until it answers.';
+  return {old,text:`${head} · the board as of ${asOfLabel(o.at)}, saved on this phone.${old?` That copy is ${isFinite(days)?days+' days':'too'} old.`:''} ${tail}`};
+}
+/* what is kept: the page's own state as read, contacts included (anyone can read them on the live page) */
+function copyOf(p,now,liveParts,prev){ const c={v:1,savedAt:now};
+  COPY_PARTS.forEach(k=>{ c[k]=liveParts.has(k)||!prev||prev[k]==null?p[k]:prev[k]; });   // a part that failed to load keeps the last copy's
+  return c; }
+function copyOk(c){ if(!c||typeof c!=='object'||c.v!==1||!isFinite(c.savedAt)||!(c.savedAt>0)||!Array.isArray(c.events)) return false;
+  const arr=k=>c[k]==null||Array.isArray(c[k]), obj=k=>c[k]==null||(typeof c[k]==='object'&&!Array.isArray(c[k]));
+  return c.events.every(e=>e&&typeof e==='object')&&arr('never')&&arr('kiosks')&&arr('coverage')&&obj('settings')&&obj('overrides')&&obj('history'); }
+/* only the parts not read live this visit come from the copy */
+function copyPick(c,liveParts){ const o={}; COPY_PARTS.forEach(k=>{ if(!liveParts.has(k)&&c[k]!=null) o[k]=c[k]; }); return o; }
+/* a copy is kept only from the live database, never from a copy or the seed preview */
+const mayKeep=s=>s.dbKind==='supabase'&&!s.offline&&s.liveParts.has('events')&&s.contactsOk!==false;   // contacts ride in the shows: a read that lost them keeps the last copy
+/* offline:end */
+const COPY_CACHE='rsd-board-copy-v1', COPY_URL='offline-copy.json';   // sw.js clears only its own rsd-board-shell-* caches
+const liveWord=()=>offline?(offline.kind==='copy'?'saved on this phone':'offline'):dbKind==='supabase'?'live':'read-only preview';
+const noneMsg=()=>wired?['The board couldn\'t load, and this phone has no copy of it yet.','No signal? Open the board once with signal and this phone keeps a copy for next time.']
+  :['The board couldn\'t reach its database.','Check config.js and the README.'];
+async function readCopy(){
+  try{ if(!window.caches) return null; const r=await (await caches.open(COPY_CACHE)).match(COPY_URL); const c=r?await r.json():null; return copyOk(c)?c:null; }
+  catch(e){ console.warn('Show Shift Board: no offline copy read:',(e&&e.message)||e); return null; } }
+let copyT=0;
+function keepCopy(){ clearTimeout(copyT); copyT=setTimeout(async()=>{
+  if(!window.caches||!mayKeep({dbKind,offline,liveParts:live,contactsOk:db&&db.contactsRead?db.contactsRead():true})) return;
+  try{ const prev=await copyP;
+    const c=copyOf({events:boardEvents,never:neverList,settings,overrides:ovMap,history:histMap,kiosks,coverage:[...covMap]},Date.now(),live,prev);
+    await (await caches.open(COPY_CACHE)).put(COPY_URL,new Response(JSON.stringify(c),{headers:{'content-type':'application/json'}}));
+    copyP=Promise.resolve(c); }
+  catch(e){ console.warn('Show Shift Board: the offline copy was not saved:',(e&&e.message)||e); } },1500); }
+function renderOffline(){ const b=document.getElementById('offbar'); if(!b) return;
+  const o=offline||(wired&&dbState==='none'?{kind:'none'}:null);   // couldn't load and no copy: the bar still carries Try again
+  b.hidden=!o; if(!o) return;
+  const l=offlineLine(o,Date.now()); document.getElementById('offbarT').textContent=l.text; b.classList.toggle('old',l.old); }
+/* a part read live: the copy is kept again, and a live read of the shows ends the offline mode */
+function gotLive(part){ if(dbKind!=='supabase') return; live.add(part); if(part==='events'&&(offline||dbState==='none')) backLive(); keepCopy(); }
+async function useCopy(why){
+  const c=await copyP; if(!c) return false;
+  if(live.has('events')||onCopy()) return true;
+  const p=copyPick(c,live); let cov=null;
+  try{ if(Array.isArray(p.coverage)) cov=new Map(p.coverage); }   // the one part that can throw: read before anything is replaced
+  catch(e){ console.warn('Show Shift Board: the offline copy\'s coverage asks are left out:',(e&&e.message)||e); }
+  if(p.never) neverList=p.never;
+  if(p.settings) settings=Object.assign({},DEFAULT_SETTINGS,p.settings);
+  if(p.overrides) ovMap=p.overrides;
+  if(p.history) histMap=p.history;
+  if(Array.isArray(p.kiosks)){ kiosks=p.kiosks; kioskState='ready'; }
+  if(cov){ covMap=cov; covSig=JSON.stringify(p.coverage); }
+  if(p.events) boardEvents=p.events;
+  offline={kind:'copy',at:c.savedAt,why}; dbState='copy';
+  closePanels();   // view only: no editing panel stays open over the copy
+  P('planMode').checked=false; P('planMode').disabled=true;
+  build(); return true;
+}
+function lostLive(){ if(offline) return; offline={kind:'lost',at:Date.now()}; renderOffline(); }   // no redraw: what is half-typed stays
+function backLive(){ const was=onCopy()||dbState==='none'; offline=null; if(dbKind==='supabase') dbState='ready'; renderOffline(); P('planMode').disabled=false;
+  if(was){ P('planMode').checked=!!store.plan; loadCoverage(); checkEditor().then(()=>{ syncInit(); build(); }); } }
+/* try the board again: on the network coming back, a tap on Try again, the page shown again, and every 30 s while off
+   (or while it couldn't load at all: no copy on this phone yet) */
+const notLive=()=>!!offline||(wired&&dbState==='none');
+function retryLive(mayReload){ if(!notLive()) return;
+  if(db&&db.kind==='supabase'){ db.reloadAll(); loadCoverage(); }
+  else if(wired&&(mayReload||(dbState==='none'&&navigator.onLine!==false))) location.reload(); }   // the Supabase library never loaded: only loading the page again can bring it (by itself only when there is nothing on screen to lose)
+addEventListener('online',()=>retryLive(true));
+addEventListener('offline',()=>{ if(!wired) return; if(live.has('events')) lostLive(); else useCopy('offline'); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) retryLive(false); });
+setInterval(()=>{ if(notLive()&&!document.hidden) retryLive(false); },30e3);
+P('offRetry').addEventListener('click',()=>{ const b=P('offRetry'); b.disabled=true; b.textContent='Trying…'; retryLive(true);
+  setTimeout(()=>{ b.disabled=false; b.textContent='Try again'; },3000); });
+if('serviceWorker' in navigator&&window.isSecureContext) addEventListener('load',()=>navigator.serviceWorker.register('sw.js')   // after load: its downloads never race the board's first reads
+  .catch(e=>console.warn('Show Shift Board: the offline worker did not start (the board still works, not with no signal):',(e&&e.message)||e)));
 build();
 /* ---- data layer ----
    The page talks to one tiny interface: doc(path).update|set|delete|onSnapshot and
@@ -3288,9 +3395,10 @@ function makeSupabaseDb(cfg){
   const PRIVATE=['contact','phone','email'], CT='event_contacts';
   const splitPriv=o=>{ const pub={},priv={}; for(const k in (o||{})){ (PRIVATE.includes(k)?priv:pub)[k]=o[k]; } return {pub,priv}; };
   const some=o=>Object.keys(o).length>0, filled=o=>Object.values(o).some(v=>v!=null&&String(v).trim()!=='');
-  async function contactMap(){ try{ const {data,error}=await sb.from(CT).select('id,data'); if(error||!data) return {}; const m={}; data.forEach(r=>{m[r.id]=r.data||{};}); return m; }catch(e){ return {}; } }
+  let contactsOk=true;   // the last read of event_contacts answered (an empty answer is fine: that is RLS saying no rows)
+  async function contactMap(){ try{ const {data,error}=await sb.from(CT).select('id,data'); contactsOk=!error&&!!data; if(!contactsOk) return {}; const m={}; data.forEach(r=>{m[r.id]=r.data||{};}); return m; }catch(e){ contactsOk=false; return {}; } }
   const pick=c=>{ const o={}; PRIVATE.forEach(k=>{ if(c&&c[k]!=null) o[k]=c[k]; }); return o; };
-  const reloaders=[];
+  const reloaders=[], loaders=[];   // reloaders: the shows, after sign-in/out · loaders: every reader, for the offline mode's retry
   async function fetchAll(t){ const {data,error}=await sb.from(t).select('id,data').order('id'); if(error) throw mapErr(error);
     if(t!=='events') return data.map(r=>({id:r.id,data:()=>r.data}));
     const cm=await contactMap(); return data.map(r=>({id:r.id,data:()=>Object.assign({},r.data,pick(cm[r.id]))})); }
@@ -3299,6 +3407,8 @@ function makeSupabaseDb(cfg){
     async rpc(name,args){ const {data,error}=await sb.rpc(name,args); if(error) throw mapErr(error); return data; },
     async row(t,id){ const {data,error}=await sb.from(t).select('data').eq('id',id).maybeSingle(); if(error) throw mapErr(error); return data?data.data:null; },
     refresh(){ reloaders.forEach(f=>f()); },   // after sign-in/out: contacts become readable (or stop being)
+    reloadAll(){ loaders.forEach(f=>f()); },   // the offline mode: read everything again once the board may answer
+    contactsRead(){ return contactsOk; },      // the offline copy is not kept from a read that lost the contacts
     doc(path){ const {t,id}=split(path); return {
       async update(patch){ let pub=patch, priv={}; if(t==='events') ({pub,priv}=splitPriv(patch));
         if(some(priv)){ const {error}=await sb.rpc('merge_doc',{tbl:CT,doc_id:id,patch:priv}); if(error) throw mapErr(error); }
@@ -3310,10 +3420,10 @@ function makeSupabaseDb(cfg){
       async delete(){ const {error}=await sb.from(t).delete().eq('id',id); if(error) throw mapErr(error);
         if(t==='events'){ try{ await sb.from(CT).delete().eq('id',id); }catch(e){} } },
       onSnapshot(cb,err){ const load=async()=>{ try{ const {data,error}=await sb.from(t).select('data').eq('id',id).maybeSingle(); if(error) throw mapErr(error); cb({exists:!!data,data:()=>data?data.data:undefined}); }catch(e){ err&&err(e); } };
-        load(); chan(t,p=>{ const hit=(p.new&&p.new.id===id)||(p.old&&p.old.id===id); if(hit) load(); }); }
+        load(); loaders.push(load); chan(t,p=>{ const hit=(p.new&&p.new.id===id)||(p.old&&p.old.id===id); if(hit) load(); }); }
     }; },
     collection(t){ return {
-      onSnapshot(cb,err){ const load=async()=>{ try{ cb({docs:await fetchAll(t)}); }catch(e){ err&&err(e); } }; load(); chan(t,load); if(t==='events'){ reloaders.push(load); chan(CT,load); } },
+      onSnapshot(cb,err){ const load=async()=>{ try{ cb({docs:await fetchAll(t)}); }catch(e){ err&&err(e); } }; load(); loaders.push(load); chan(t,load); if(t==='events'){ reloaders.push(load); chan(CT,load); } },
       async add(doc){ let priv={}; if(t==='events'){ const sp=splitPriv(doc); doc=sp.pub; priv=sp.priv; }
         const slug=String(doc.name||'event').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);
         const id=(doc.year||'x')+'-'+slug+'-'+Math.random().toString(36).slice(2,7);
@@ -3335,16 +3445,27 @@ function makeStaticDb(){
       onSnapshot(cb){ load(t).then(rows=>cb({docs:(Array.isArray(rows)?rows:[]).map(r=>{ const {id,...d}=r; return {id,data:()=>d}; })})); } }; }
   };
 }
+let editorOf='';   // whose editor check isEditor holds
 async function checkEditor(){
-  isEditor=false; isOwner=false; editorName='';
-  if(!authUser||!db||db.kind!=='supabase') return;
-  try{ const {data}=await db.client.from('editors').select('role,name').eq('email',String(authUser.email).toLowerCase()).maybeSingle();
-    isEditor=!!data; isOwner=!!data&&data.role==='owner'; editorName=data&&data.name?String(data.name).trim():''; }catch(e){}
+  const email=authUser&&authUser.email?String(authUser.email).toLowerCase():'';
+  if(email!==editorOf){ isEditor=false; isOwner=false; editorName=''; editorOf=''; }
+  if(!email||!db||db.kind!=='supabase') return;
+  // a read that fails (no signal, 2026-11-14) keeps what was known for the same person: going back live after the offline
+  // copy re-checks, and a weak signal used to take an editor out of Plan mode right there
+  try{ const {data,error}=await db.client.from('editors').select('role,name').eq('email',email).maybeSingle(); if(error) return;
+    isEditor=!!data; isOwner=!!data&&data.role==='owner'; editorName=data&&data.name?String(data.name).trim():''; editorOf=email; }catch(e){}
 }
 (async()=>{
   const cfg=window.BOARD_CONFIG||{};
-  try{ db=(cfg.supabaseUrl&&cfg.supabaseAnonKey&&window.supabase)?makeSupabaseDb(cfg):makeStaticDb(); }catch(e){ console.error(e); db=null; }
-  if(!db){ dbState='none'; build(); return; }
+  wired=!!(cfg.supabaseUrl&&cfg.supabaseAnonKey);
+  // a wired board never falls back to the seed: until 2026-11-14 a Supabase library that didn't load (a weak signal) showed
+  // the September 2026 seed as a "read-only preview". Now it is the phone's own copy, with its date, or a plain "couldn't load".
+  try{ db=wired?(window.supabase?makeSupabaseDb(cfg):null):makeStaticDb(); }catch(e){ console.error(e); db=null; }
+  if(wired){ copyP=readCopy();
+    if(!db||navigator.onLine===false) useCopy(navigator.onLine===false?'offline':'failed').then(ok=>{ if(!ok&&!db){ dbState='none'; build(); } });
+    else setTimeout(()=>{ if(!live.has('events')) useCopy('slow'); },Math.max(1000,COPY_WAIT_MS-performance.now()));   // 5 s from the tap, whatever the page itself took
+  }
+  if(!db){ if(!wired){ dbState='none'; build(); } return; }
   dbKind=db.kind; dbState=dbKind==='supabase'?'ready':'static';
   if(dbKind==='supabase'){
     db.auth.onAuthStateChange((_ev,session)=>{ authUser=session?session.user:null;
@@ -3353,17 +3474,17 @@ async function checkEditor(){
       setTimeout(async()=>{ await checkEditor(); if(isEditor) closePanels(); db.refresh(); build(); syncInit(); },0); });
     try{ const {data}=await db.auth.getSession(); authUser=data&&data.session?data.session.user:null; await checkEditor(); }catch(e){}
     syncInit();
-    if(store.plan&&!authUser) openSignin();   // plan mode left on while signed out (or a code on its way): ask again
+    if(store.plan&&!authUser&&!offline&&navigator.onLine!==false) openSignin();   // plan mode left on while signed out (or a code on its way): ask again
   }
-  db.collection('never_work').onSnapshot(snap=>{ neverList=snap.docs.map(d=>Object.assign({id:d.id},d.data()||{})); build(); },()=>{});
-  db.doc('settings/division').onSnapshot(s=>{ if(s.exists) settings=Object.assign({},DEFAULT_SETTINGS,s.data()); build(); },()=>{});
-  db.collection('overrides').onSnapshot(snap=>{ ovMap={}; snap.docs.forEach(d=>{ovMap[d.id]=d.data()||{};}); build(); },()=>{});
-  db.collection('history').onSnapshot(snap=>{ histMap={}; snap.docs.forEach(d=>{const x=d.data()||{}; histMap[d.id]=x.years||{};}); build(); },()=>{});
+  db.collection('never_work').onSnapshot(snap=>{ neverList=snap.docs.map(d=>Object.assign({id:d.id},d.data()||{})); gotLive('never'); build(); },()=>{});
+  db.doc('settings/division').onSnapshot(s=>{ if(s.exists) settings=Object.assign({},DEFAULT_SETTINGS,s.data()); gotLive('settings'); build(); },()=>{});
+  db.collection('overrides').onSnapshot(snap=>{ ovMap={}; snap.docs.forEach(d=>{ovMap[d.id]=d.data()||{};}); gotLive('overrides'); build(); },()=>{});
+  db.collection('history').onSnapshot(snap=>{ histMap={}; snap.docs.forEach(d=>{const x=d.data()||{}; histMap[d.id]=x.years||{};}); gotLive('history'); build(); },()=>{});
   db.collection('kiosks').onSnapshot(snap=>{
     kiosks=snap.docs.map(d=>Object.assign({id:d.id},d.data()||{}));
     kiosks.forEach(k=>{ k.year=+(k.year||0); k.shifts=k.shifts||{}; });
-    kioskState='ready'; build();
-  },()=>{ kioskState='missing'; build(); });   // no kiosks table yet: the tab says so, the rest of the board is untouched
+    kioskState='ready'; gotLive('kiosks'); build();
+  },()=>{ if(live.has('kiosks')||onCopy()) return; kioskState='missing'; build(); });   // no kiosks table yet: the tab says so, the rest of the board is untouched (a failed read with the malls already on screen keeps them)
   loadCoverage();   // the open coverage asks, then live; no coverage table yet = nothing shown, a console.warn
   db.collection('events').onSnapshot(snap=>{
     // Every row in the database is a board show, whoever made it. The row's own `source` ("sheet-sync" on the 166 shows
@@ -3371,8 +3492,11 @@ async function checkEditor(){
     // or dates could be edited on them (found 2026-10-24). It is kept as `madeBy`.
     boardEvents=snap.docs.map(d=>{const x=d.data()||{}; return Object.assign({id:d.id},x,{source:'board',madeBy:x.source||'board'});});
     boardEvents.forEach(e=>{ e.booths=e.booths||[]; e.days=e.days||[]; e.dates=e.dates||[]; e.year=+(e.year||e.season||0); });
-    build();
-  },err=>{ dbState='none'; build(); });
+    gotLive('events'); build();
+  },err=>{   // the shows couldn't be read: signal gone mid-visit, else the phone's copy, else "couldn't load"
+    if(live.has('events')){ lostLive(); return; }
+    if(onCopy()) return;
+    useCopy(navigator.onLine===false?'offline':'failed').then(ok=>{ if(!ok&&!live.has('events')){ dbState='none'; build(); } }); });
   build();
 })();
 })();
