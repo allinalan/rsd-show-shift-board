@@ -3299,8 +3299,10 @@ const COPY_PARTS=['events','never','settings','overrides','history','kiosks','co
 const WKD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function asOfLabel(ms){ const d=new Date(ms); if(!isFinite(d.getTime())) return 'an unknown time';
   const h=d.getHours(); return `${WKD[d.getDay()]} ${d.getMonth()+1}/${d.getDate()} ${h%12||12}:${String(d.getMinutes()).padStart(2,'0')} ${h<12?'AM':'PM'}`; }
-/* the bar's words. o.kind: copy (the phone's saved copy, view only) | lost (the live board, signal gone mid-visit) */
+/* the bar's words. o.kind: copy (the phone's saved copy, view only) | lost (the live board, signal gone mid-visit) |
+   none (couldn't load, no copy on this phone) */
 function offlineLine(o,now){
+  if(o.kind==='none') return {old:false,text:'Can\'t reach the board right now.'};
   if(o.kind==='lost') return {old:false,text:`No connection since ${asOfLabel(o.at)}. The board is as it was then; changes won't save until you're back online.`};
   const age=now-o.at, old=!(age<=COPY_OLD_MS), days=Math.floor(age/86400e3);
   const head=o.why==='offline'?'Offline':o.why==='slow'?'Weak signal':'Can\'t reach the board';
@@ -3311,11 +3313,13 @@ function offlineLine(o,now){
 function copyOf(p,now,liveParts,prev){ const c={v:1,savedAt:now};
   COPY_PARTS.forEach(k=>{ c[k]=liveParts.has(k)||!prev||prev[k]==null?p[k]:prev[k]; });   // a part that failed to load keeps the last copy's
   return c; }
-function copyOk(c){ return !!c&&typeof c==='object'&&c.v===1&&isFinite(c.savedAt)&&c.savedAt>0&&Array.isArray(c.events); }
+function copyOk(c){ if(!c||typeof c!=='object'||c.v!==1||!isFinite(c.savedAt)||!(c.savedAt>0)||!Array.isArray(c.events)) return false;
+  const arr=k=>c[k]==null||Array.isArray(c[k]), obj=k=>c[k]==null||(typeof c[k]==='object'&&!Array.isArray(c[k]));
+  return c.events.every(e=>e&&typeof e==='object')&&arr('never')&&arr('kiosks')&&arr('coverage')&&obj('settings')&&obj('overrides')&&obj('history'); }
 /* only the parts not read live this visit come from the copy */
 function copyPick(c,liveParts){ const o={}; COPY_PARTS.forEach(k=>{ if(!liveParts.has(k)&&c[k]!=null) o[k]=c[k]; }); return o; }
 /* a copy is kept only from the live database, never from a copy or the seed preview */
-const mayKeep=s=>s.dbKind==='supabase'&&!s.offline&&s.liveParts.has('events');
+const mayKeep=s=>s.dbKind==='supabase'&&!s.offline&&s.liveParts.has('events')&&s.contactsOk!==false;   // contacts ride in the shows: a read that lost them keeps the last copy
 /* offline:end */
 const COPY_CACHE='rsd-board-copy-v1', COPY_URL='offline-copy.json';   // sw.js clears only its own rsd-board-shell-* caches
 const liveWord=()=>offline?(offline.kind==='copy'?'saved on this phone':'offline'):dbKind==='supabase'?'live':'read-only preview';
@@ -3324,52 +3328,55 @@ const noneMsg=()=>wired?['The board couldn\'t load, and this phone has no copy o
 async function readCopy(){
   try{ if(!window.caches) return null; const r=await (await caches.open(COPY_CACHE)).match(COPY_URL); const c=r?await r.json():null; return copyOk(c)?c:null; }
   catch(e){ console.warn('Show Shift Board: no offline copy read:',(e&&e.message)||e); return null; } }
-let copyT=0, persistAsked=false;
+let copyT=0;
 function keepCopy(){ clearTimeout(copyT); copyT=setTimeout(async()=>{
-  if(!window.caches||!mayKeep({dbKind,offline,liveParts:live})) return;
+  if(!window.caches||!mayKeep({dbKind,offline,liveParts:live,contactsOk:db&&db.contactsRead?db.contactsRead():true})) return;
   try{ const prev=await copyP;
     const c=copyOf({events:boardEvents,never:neverList,settings,overrides:ovMap,history:histMap,kiosks,coverage:[...covMap]},Date.now(),live,prev);
     await (await caches.open(COPY_CACHE)).put(COPY_URL,new Response(JSON.stringify(c),{headers:{'content-type':'application/json'}}));
-    copyP=Promise.resolve(c);
-    if(!persistAsked&&navigator.storage&&navigator.storage.persist){ persistAsked=true; navigator.storage.persist().catch(()=>{}); } }   // ask the phone not to clear it under storage pressure
+    copyP=Promise.resolve(c); }
   catch(e){ console.warn('Show Shift Board: the offline copy was not saved:',(e&&e.message)||e); } },1500); }
-function renderOffline(){ const b=document.getElementById('offbar'); if(!b) return; b.hidden=!offline; if(!offline) return;
-  const l=offlineLine(offline,Date.now()); document.getElementById('offbarT').textContent=l.text; b.classList.toggle('old',l.old); }
+function renderOffline(){ const b=document.getElementById('offbar'); if(!b) return;
+  const o=offline||(wired&&dbState==='none'?{kind:'none'}:null);   // couldn't load and no copy: the bar still carries Try again
+  b.hidden=!o; if(!o) return;
+  const l=offlineLine(o,Date.now()); document.getElementById('offbarT').textContent=l.text; b.classList.toggle('old',l.old); }
 /* a part read live: the copy is kept again, and a live read of the shows ends the offline mode */
 function gotLive(part){ if(dbKind!=='supabase') return; live.add(part); if(part==='events'&&(offline||dbState==='none')) backLive(); keepCopy(); }
 async function useCopy(why){
   const c=await copyP; if(!c) return false;
   if(live.has('events')||onCopy()) return true;
-  const p=copyPick(c,live);
+  const p=copyPick(c,live); let cov=null;
+  try{ if(Array.isArray(p.coverage)) cov=new Map(p.coverage); }   // the one part that can throw: read before anything is replaced
+  catch(e){ console.warn('Show Shift Board: the offline copy\'s coverage asks are left out:',(e&&e.message)||e); }
   if(p.never) neverList=p.never;
   if(p.settings) settings=Object.assign({},DEFAULT_SETTINGS,p.settings);
   if(p.overrides) ovMap=p.overrides;
   if(p.history) histMap=p.history;
   if(Array.isArray(p.kiosks)){ kiosks=p.kiosks; kioskState='ready'; }
-  if(Array.isArray(p.coverage)){ covMap=new Map(p.coverage); covSig=JSON.stringify(p.coverage); }
+  if(cov){ covMap=cov; covSig=JSON.stringify(p.coverage); }
   if(p.events) boardEvents=p.events;
   offline={kind:'copy',at:c.savedAt,why}; dbState='copy';
-  if(!P('authPanel').hidden) closePanels();
+  closePanels();   // view only: no editing panel stays open over the copy
   P('planMode').checked=false; P('planMode').disabled=true;
   build(); return true;
 }
 function lostLive(){ if(offline) return; offline={kind:'lost',at:Date.now()}; renderOffline(); }   // no redraw: what is half-typed stays
 function backLive(){ const was=onCopy()||dbState==='none'; offline=null; if(dbKind==='supabase') dbState='ready'; renderOffline(); P('planMode').disabled=false;
-  if(was){ loadCoverage(); checkEditor().then(()=>{ P('planMode').checked=plan(); syncInit(); build(); }); } }
+  if(was){ P('planMode').checked=!!store.plan; loadCoverage(); checkEditor().then(()=>{ syncInit(); build(); }); } }
 /* try the board again: on the network coming back, a tap on Try again, the page shown again, and every 30 s while off
    (or while it couldn't load at all: no copy on this phone yet) */
 const notLive=()=>!!offline||(wired&&dbState==='none');
 function retryLive(mayReload){ if(!notLive()) return;
   if(db&&db.kind==='supabase'){ db.reloadAll(); loadCoverage(); }
-  else if(wired&&mayReload) location.reload(); }   // the Supabase library never loaded: only loading the page again can bring it
+  else if(wired&&(mayReload||(dbState==='none'&&navigator.onLine!==false))) location.reload(); }   // the Supabase library never loaded: only loading the page again can bring it (by itself only when there is nothing on screen to lose)
 addEventListener('online',()=>retryLive(true));
 addEventListener('offline',()=>{ if(!wired) return; if(live.has('events')) lostLive(); else useCopy('offline'); });
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) retryLive(false); });
 setInterval(()=>{ if(notLive()&&!document.hidden) retryLive(false); },30e3);
 P('offRetry').addEventListener('click',()=>{ const b=P('offRetry'); b.disabled=true; b.textContent='Trying…'; retryLive(true);
   setTimeout(()=>{ b.disabled=false; b.textContent='Try again'; },3000); });
-if('serviceWorker' in navigator&&window.isSecureContext) navigator.serviceWorker.register('sw.js')
-  .catch(e=>console.warn('Show Shift Board: the offline worker did not start (the board still works, not with no signal):',(e&&e.message)||e));
+if('serviceWorker' in navigator&&window.isSecureContext) addEventListener('load',()=>navigator.serviceWorker.register('sw.js')   // after load: its downloads never race the board's first reads
+  .catch(e=>console.warn('Show Shift Board: the offline worker did not start (the board still works, not with no signal):',(e&&e.message)||e)));
 build();
 /* ---- data layer ----
    The page talks to one tiny interface: doc(path).update|set|delete|onSnapshot and
@@ -3388,7 +3395,8 @@ function makeSupabaseDb(cfg){
   const PRIVATE=['contact','phone','email'], CT='event_contacts';
   const splitPriv=o=>{ const pub={},priv={}; for(const k in (o||{})){ (PRIVATE.includes(k)?priv:pub)[k]=o[k]; } return {pub,priv}; };
   const some=o=>Object.keys(o).length>0, filled=o=>Object.values(o).some(v=>v!=null&&String(v).trim()!=='');
-  async function contactMap(){ try{ const {data,error}=await sb.from(CT).select('id,data'); if(error||!data) return {}; const m={}; data.forEach(r=>{m[r.id]=r.data||{};}); return m; }catch(e){ return {}; } }
+  let contactsOk=true;   // the last read of event_contacts answered (an empty answer is fine: that is RLS saying no rows)
+  async function contactMap(){ try{ const {data,error}=await sb.from(CT).select('id,data'); contactsOk=!error&&!!data; if(!contactsOk) return {}; const m={}; data.forEach(r=>{m[r.id]=r.data||{};}); return m; }catch(e){ contactsOk=false; return {}; } }
   const pick=c=>{ const o={}; PRIVATE.forEach(k=>{ if(c&&c[k]!=null) o[k]=c[k]; }); return o; };
   const reloaders=[], loaders=[];   // reloaders: the shows, after sign-in/out · loaders: every reader, for the offline mode's retry
   async function fetchAll(t){ const {data,error}=await sb.from(t).select('id,data').order('id'); if(error) throw mapErr(error);
@@ -3400,6 +3408,7 @@ function makeSupabaseDb(cfg){
     async row(t,id){ const {data,error}=await sb.from(t).select('data').eq('id',id).maybeSingle(); if(error) throw mapErr(error); return data?data.data:null; },
     refresh(){ reloaders.forEach(f=>f()); },   // after sign-in/out: contacts become readable (or stop being)
     reloadAll(){ loaders.forEach(f=>f()); },   // the offline mode: read everything again once the board may answer
+    contactsRead(){ return contactsOk; },      // the offline copy is not kept from a read that lost the contacts
     doc(path){ const {t,id}=split(path); return {
       async update(patch){ let pub=patch, priv={}; if(t==='events') ({pub,priv}=splitPriv(patch));
         if(some(priv)){ const {error}=await sb.rpc('merge_doc',{tbl:CT,doc_id:id,patch:priv}); if(error) throw mapErr(error); }
@@ -3436,11 +3445,15 @@ function makeStaticDb(){
       onSnapshot(cb){ load(t).then(rows=>cb({docs:(Array.isArray(rows)?rows:[]).map(r=>{ const {id,...d}=r; return {id,data:()=>d}; })})); } }; }
   };
 }
+let editorOf='';   // whose editor check isEditor holds
 async function checkEditor(){
-  isEditor=false; isOwner=false; editorName='';
-  if(!authUser||!db||db.kind!=='supabase') return;
-  try{ const {data}=await db.client.from('editors').select('role,name').eq('email',String(authUser.email).toLowerCase()).maybeSingle();
-    isEditor=!!data; isOwner=!!data&&data.role==='owner'; editorName=data&&data.name?String(data.name).trim():''; }catch(e){}
+  const email=authUser&&authUser.email?String(authUser.email).toLowerCase():'';
+  if(email!==editorOf){ isEditor=false; isOwner=false; editorName=''; editorOf=''; }
+  if(!email||!db||db.kind!=='supabase') return;
+  // a read that fails (no signal, 2026-11-14) keeps what was known for the same person: going back live after the offline
+  // copy re-checks, and a weak signal used to take an editor out of Plan mode right there
+  try{ const {data,error}=await db.client.from('editors').select('role,name').eq('email',email).maybeSingle(); if(error) return;
+    isEditor=!!data; isOwner=!!data&&data.role==='owner'; editorName=data&&data.name?String(data.name).trim():''; editorOf=email; }catch(e){}
 }
 (async()=>{
   const cfg=window.BOARD_CONFIG||{};

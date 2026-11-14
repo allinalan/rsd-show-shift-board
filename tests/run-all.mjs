@@ -624,12 +624,17 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(O.copyOf(parts, at, new Set(['events']), null).history === parts.history, 'copyOf: the first copy takes what the page has');
     ok(!O.copyOk(null) && !O.copyOk('x') && !O.copyOk({ v: 2, savedAt: at, events: [] }) && !O.copyOk({ v: 1, savedAt: NaN, events: [] })
       && !O.copyOk({ v: 1, savedAt: at, events: {} }) && !O.copyOk({ v: 1, savedAt: 0, events: [] }), 'copyOk: only a copy this page wrote is used');
+    ok(!O.copyOk({ ...c, coverage: 'x' }) && !O.copyOk({ ...c, events: [null] }) && !O.copyOk({ ...c, kiosks: {} }) && !O.copyOk({ ...c, settings: [] })
+      && O.copyOk({ v: 1, savedAt: at, events: [] }), 'copyOk: a copy with a part of the wrong shape is not used (it would throw halfway into the board)');
+    ok(O.offlineLine({ kind: 'none' }, at).text === 'Can\'t reach the board right now.', 'no copy on this phone yet: the bar still shows, to carry Try again');
     const pick = O.copyPick(c, new Set(['settings', 'kiosks']));
     ok(!('settings' in pick) && !('kiosks' in pick) && pick.events === c.events && pick.history === c.history && pick.coverage === c.coverage,
       'copyPick: what was already read live stays; only the rest comes from the copy');
     const S = (dbKind, offline, ...p) => O.mayKeep({ dbKind, offline, liveParts: new Set(p) });
     ok(S('supabase', null, 'events') && !S('supabase', { kind: 'copy' }, 'events') && !S('supabase', { kind: 'lost' }, 'events') && !S('static', null, 'events') && !S('supabase', null, 'settings', 'kiosks'),
       'mayKeep: a copy is kept only from the live database\'s shows, never from a copy, a lost signal or the seed preview');
+    ok(!O.mayKeep({ dbKind: 'supabase', offline: null, liveParts: new Set(['events']), contactsOk: false }) && O.mayKeep({ dbKind: 'supabase', offline: null, liveParts: new Set(['events']), contactsOk: true }),
+      'mayKeep: a read of the shows that lost the promoter contacts (a flaky network) keeps the last copy, contacts and all');
     // the page around the block
     ok(/const plan=\(\)=>[^\n]*&& !onCopy\(\);/.test(html), 'index.html: Plan mode is off on the saved copy (view only: nothing is saved to send later)');
     ok(/db=wired\?\(window\.supabase\?makeSupabaseDb\(cfg\):null\):makeStaticDb\(\);/.test(html),
@@ -638,6 +643,11 @@ def post(route, text, mention=None, fallback=True, **k):
     ok(got === [...O.COPY_PARTS].sort().join(), 'index.html: every part of the copy is marked live where the page reads it: ' + got);
     ok(/<div class="offbar" id="offbar" role="status" hidden>/.test(html) && /textContent=l\.text/.test(html), 'index.html: the bar is announced, hidden while live, and never prints HTML');
     ok(/COPY_WAIT_MS-performance\.now\(\)/.test(html), 'index.html: the 5 seconds count from the tap, not from when the page finished loading');
+    ok(/P\('planMode'\)\.checked=!!store\.plan; loadCoverage\(\); checkEditor\(\)/.test(html) && /\.maybeSingle\(\); if\(error\) return;/.test(html),
+      'index.html: going back live leaves the Plan mode switch as the person left it, and a failed editor check keeps what was known (it took editors out of Plan mode on a weak signal)');
+    ok(/contactsOk=!error&&!!data;/.test(html) && /contactsOk:db&&db\.contactsRead\?db\.contactsRead\(\):true/.test(html), 'index.html: the contacts read\'s outcome reaches mayKeep');
+    ok(/const o=offline\|\|\(wired&&dbState==='none'\?\{kind:'none'\}:null\);/.test(html) && /location\.reload\(\)/.test(html.match(/function retryLive[^\n]*\n[^\n]*\n[^\n]*/)[0])
+      && /dbState==='none'&&navigator\.onLine!==false/.test(html), 'index.html: couldn\'t load and no copy: the bar shows Try again, and with the library missing the page loads again by itself (a Home Screen app has no reload button)');
     ok(/const notLive=\(\)=>!!offline\|\|\(wired&&dbState==='none'\);/.test(html) && /if\(part==='events'&&\(offline\|\|dbState==='none'\)\) backLive\(\);/.test(html),
       'index.html: a board that could not load at all (no copy yet) also tries again, and goes live when it can');
     ok(/navigator\.serviceWorker\.register\('sw\.js'\)/.test(html) && /COPY_CACHE='rsd-board-copy-v1'/.test(html), 'index.html: registers sw.js; the copy has a cache sw.js never clears');
@@ -720,6 +730,12 @@ def post(route, text, mention=None, fallback=True, **k):
     fresh.net = okNet('first');
     r = await fresh.fire('fetch', get(SCOPE + 'config.js'));
     ok(r.body === 'first' && fresh.store.get(SCOPE + 'config.js') === 'first', 'nothing kept yet: the network\'s answer, kept');
+    fresh.net = okNet('new key');
+    r = await fresh.fire('fetch', get(SCOPE + 'config.js'));
+    ok(r.body === 'new key', 'config.js is network first: a new key is in use on the next open, not the one after');
+    fresh.net = () => Promise.reject(new TypeError('Load failed'));
+    r = await fresh.fire('fetch', get(SCOPE + 'config.js'));
+    ok(r.body === 'new key', 'config.js with no signal: the phone\'s');
   });
 
   await section('application dates: lib/app-dates.mjs, the page\'s copy, board set, the roll, the research', async () => {

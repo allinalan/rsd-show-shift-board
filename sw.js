@@ -8,8 +8,8 @@
    - The page and this repo's other files: the network first, exactly as with no worker; the phone's copy only when the
      network fails or has not answered in WAIT_MS (the page's own 5 s from the tap covers the rest). Each fresh answer
      replaces the phone's copy.
-   - config.js, the Supabase library and the title font: the phone's copy at once, refreshed behind it for the next visit
-     (they change only with a version or a rebuild; a new config.js is in use from the visit after it is published).
+   - The Supabase library and the title font: the phone's copy at once, refreshed behind it for the next visit (they change
+     only with a version). config.js is one of this repo's files: network first, so a new key is in use at once.
    - Nothing else is touched: the database's traffic (supabase.co), every other page on this site and anything but a GET
      go straight to the network.
 
@@ -22,8 +22,8 @@ const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:o
 const FONT_FILES = 'https://fonts.gstatic.com/';
 const here = f => new URL(f, self.location).href;
 const PAGE = here('./');
-const FRESH = [PAGE, here('manifest.webmanifest'), here('icons/apple-touch-icon.png'), here('icons/icon-192.png'), here('icons/icon-512.png')];
-const KEPT = [here('config.js'), LIB, FONT_CSS];
+const FRESH = [PAGE, here('config.js'), here('manifest.webmanifest'), here('icons/apple-touch-icon.png'), here('icons/icon-192.png'), here('icons/icon-512.png')];
+const KEPT = [LIB, FONT_CSS];
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const own = url => url.startsWith(self.location.origin + '/');

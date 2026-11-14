@@ -11,9 +11,9 @@ routines in `.claude/skills/` keep it true.
   sign-in, apart from Safari's, and Safari's seven-day wipe of site data doesn't touch it.
 - **The offline mode** (Alan, 2026-11-14: "an offline mode so if someone doesn't have service or wifi it can still load the
   board"; all his defaults the same day). `sw.js`, a service worker, keeps the page and what it needs to start (config.js, the
-  Supabase library, the icons, the title font): the page and the repo's files come from the network first (after 2.5 s, the
-  phone's), config.js, the library and the font from the phone at once and refreshed behind it (a new config.js is in use from
-  the visit after it is published). It never touches supabase.co, other pages on the site, or anything but a GET. The board's
+  Supabase library, the icons, the title font): the page, config.js and the repo's other files come from the network first
+  (after 2.5 s, the phone's), the library and the font from the phone at once and refreshed behind it. It never touches
+  supabase.co, other pages on the site, or anything but a GET; it registers after `load`. The board's
   data is the page's own copy (the `offline` block in index.html): every live read keeps one in the Cache API
   (`rsd-board-copy-v1`): every season, history, the Kiosk tab, the coverage asks and the promoter contacts (anyone can read
   those on the live page). With no signal at the tap, no live read of the shows 5 s after it, or that read failing, the board
@@ -21,11 +21,16 @@ routines in `.claude/skills/` keep it true.
   of Sat 11/14 9:41 AM, saved on this phone"; red, with its age, past 2 days). It tries again when the network comes back, on
   Try again, when the page is shown again and every 30 s, and goes live by itself. Signal lost mid-visit keeps the live board
   on screen under a "No connection since" bar, Plan mode as it was: a save then fails as it always did. Nothing is ever kept
-  to send later. A part that fails to load keeps the last copy's, and a copy is only ever written from the live database
-  (`copyOf`, `mayKeep`). Since the same change a wired board never falls back to the September seed (a weak signal that lost
+  to send later. A part that fails to load keeps the last copy's, and a copy is only ever written from the live database,
+  never from a read whose promoter contacts failed (`copyOf`, `mayKeep`, `contactsRead`). Couldn't load and no copy yet: the
+  bar says so and carries Try again (with the Supabase library missing the page loads itself again every 30 s; a Home Screen
+  app has no reload button). Going back live re-checks the editor; since 2026-11-14 a `checkEditor` read that fails keeps
+  what was known for the same person (a weak signal took editors out of Plan mode there). Since the same change a wired board never falls back to the September seed (a weak signal that lost
   the Supabase library showed it as a "read-only preview"). Limits: a phone opens the board once with signal first; in a
   Safari tab iOS clears a site's storage after 7 days without a visit (the Home Screen icon's is kept). To retire the worker,
-  publish a `sw.js` that deletes the `rsd-board-shell-*` caches and calls `self.registration.unregister()`. Not yet tried on
+  publish a `sw.js` that deletes the `rsd-board-shell-*` caches and calls `self.registration.unregister()`. Every Pages site
+  on allinalan.github.io shares one cache store: a worker on another of them must never "delete every cache but mine", or
+  it clears the board's copy. Not yet tried on
   an iPhone (2026-11-14: tested with the suite's fakes; no browser runs in the workroom).
 - `supabase/email-templates/magic-link-or-otp.html` — the sign-in email exactly as set in Supabase
   (subject in its header comment). Restore it from here on a rebuild.
