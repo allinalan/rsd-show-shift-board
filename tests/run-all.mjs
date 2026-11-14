@@ -593,6 +593,135 @@ def post(route, text, mention=None, fallback=True, **k):
       'index.html: the JV filter shows the Freshmen (Mesa) shows too (Alan, 2026-11-12)');
   });
 
+  await section('the offline mode: the page\'s saved copy (index.html offline block) (Alan, 2026-11-14)', async () => {
+    const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    const m = html.match(/\/\* offline:start[\s\S]*?\*\/([\s\S]*?)\/\* offline:end \*\//);
+    ok(!!m, 'index.html: the offline block is marked');
+    const O = new Function(m[1] + '\nreturn { COPY_WAIT_MS, COPY_OLD_MS, COPY_PARTS, asOfLabel, offlineLine, copyOf, copyOk, copyPick, mayKeep };')();
+    const at = new Date(2026, 10, 14, 9, 41).getTime(), H = 3600e3, DAY = 24 * H;
+    ok(O.COPY_WAIT_MS === 5000 && O.COPY_OLD_MS === 2 * DAY, 'Alan\'s defaults: the copy after 5 seconds with no answer, red after 2 days');
+    ok(O.asOfLabel(at) === 'Sat 11/14 9:41 AM' && O.asOfLabel(new Date(2026, 10, 10, 0, 5).getTime()) === 'Tue 11/10 12:05 AM'
+      && O.asOfLabel(new Date(2026, 10, 14, 12, 0).getTime()) === 'Sat 11/14 12:00 PM' && O.asOfLabel(NaN) === 'an unknown time', 'asOfLabel: "Sat 11/14 9:41 AM", noon and midnight right');
+    const line = (why, later) => O.offlineLine({ kind: 'copy', at, why }, at + later);
+    ok(line('offline', 3 * H).text === 'Offline · the board as of Sat 11/14 9:41 AM, saved on this phone. View only until you\'re back online.' && !line('offline', 3 * H).old,
+      'the bar with no signal: what it is, when it is from, that it is view only');
+    ok(/^Weak signal · the board as of Sat 11\/14 9:41 AM, saved on this phone\. View only while it keeps trying\.$/.test(line('slow', H).text)
+      && /^Can't reach the board · /.test(line('failed', H).text), 'the bar on a weak signal, and when the board answers with an error');
+    ok(!line('offline', 2 * DAY).old && line('offline', 2 * DAY + 60e3).old && /That copy is 2 days old\./.test(line('offline', 2 * DAY + 60e3).text)
+      && /That copy is 9 days old\./.test(line('slow', 9 * DAY + H).text), 'over 2 days old: red, and it says how old');
+    const lost = O.offlineLine({ kind: 'lost', at }, at + 10 * DAY);
+    ok(!lost.old && /^No connection since Sat 11\/14 9:41 AM\. /.test(lost.text) && /changes won't save until you're back online/.test(lost.text),
+      'signal gone mid-visit: the board on screen stays, and the bar says changes will not save');
+    const parts = { events: [{ id: '2026-x', name: 'X', phone: '(928) 555-0100', booths: [] }], never: [{ id: 'n' }], settings: { roster: ['Alan'] },
+      overrides: {}, history: { x: { 2025: {} } }, kiosks: [{ id: '2026-mall', year: 2026, shifts: {} }], coverage: [['k', { requester: 'Eli' }]] };
+    ok(O.COPY_PARTS.join() === 'events,never,settings,overrides,history,kiosks,coverage', 'every season (events, history), the Kiosk tab and the coverage asks are in the copy');
+    const c = O.copyOf(parts, at, new Set(O.COPY_PARTS), null);
+    ok(O.copyOk(c) && c.v === 1 && c.savedAt === at && O.COPY_PARTS.every(k => c[k] === parts[k]), 'copyOf: every part as read, stamped with the time');
+    ok(c.events[0].phone === '(928) 555-0100', 'copyOf: the promoter contacts stay in (Alan\'s default: anyone can read them on the live page, and reps call promoters from the show)');
+    const prev = { ...c, history: { kept: {} } };
+    const c2 = O.copyOf({ ...parts, history: {} }, at + H, new Set(O.COPY_PARTS.filter(k => k !== 'history')), prev);
+    ok(c2.history === prev.history && c2.events === parts.events && c2.savedAt === at + H, 'copyOf: a part that failed to load keeps the last copy\'s; never an empty one over it');
+    ok(O.copyOf(parts, at, new Set(['events']), null).history === parts.history, 'copyOf: the first copy takes what the page has');
+    ok(!O.copyOk(null) && !O.copyOk('x') && !O.copyOk({ v: 2, savedAt: at, events: [] }) && !O.copyOk({ v: 1, savedAt: NaN, events: [] })
+      && !O.copyOk({ v: 1, savedAt: at, events: {} }) && !O.copyOk({ v: 1, savedAt: 0, events: [] }), 'copyOk: only a copy this page wrote is used');
+    const pick = O.copyPick(c, new Set(['settings', 'kiosks']));
+    ok(!('settings' in pick) && !('kiosks' in pick) && pick.events === c.events && pick.history === c.history && pick.coverage === c.coverage,
+      'copyPick: what was already read live stays; only the rest comes from the copy');
+    const S = (dbKind, offline, ...p) => O.mayKeep({ dbKind, offline, liveParts: new Set(p) });
+    ok(S('supabase', null, 'events') && !S('supabase', { kind: 'copy' }, 'events') && !S('supabase', { kind: 'lost' }, 'events') && !S('static', null, 'events') && !S('supabase', null, 'settings', 'kiosks'),
+      'mayKeep: a copy is kept only from the live database\'s shows, never from a copy, a lost signal or the seed preview');
+    // the page around the block
+    ok(/const plan=\(\)=>[^\n]*&& !onCopy\(\);/.test(html), 'index.html: Plan mode is off on the saved copy (view only: nothing is saved to send later)');
+    ok(/db=wired\?\(window\.supabase\?makeSupabaseDb\(cfg\):null\):makeStaticDb\(\);/.test(html),
+      'index.html: a board with a database never falls back to the September seed when the Supabase library fails to load');
+    const got = (html.match(/gotLive\('(\w+)'\)/g) || []).map(s => s.slice(9, -2)).sort().join();
+    ok(got === [...O.COPY_PARTS].sort().join(), 'index.html: every part of the copy is marked live where the page reads it: ' + got);
+    ok(/<div class="offbar" id="offbar" role="status" hidden>/.test(html) && /textContent=l\.text/.test(html), 'index.html: the bar is announced, hidden while live, and never prints HTML');
+    ok(/COPY_WAIT_MS-performance\.now\(\)/.test(html), 'index.html: the 5 seconds count from the tap, not from when the page finished loading');
+    ok(/const notLive=\(\)=>!!offline\|\|\(wired&&dbState==='none'\);/.test(html) && /if\(part==='events'&&\(offline\|\|dbState==='none'\)\) backLive\(\);/.test(html),
+      'index.html: a board that could not load at all (no copy yet) also tries again, and goes live when it can');
+    ok(/navigator\.serviceWorker\.register\('sw\.js'\)/.test(html) && /COPY_CACHE='rsd-board-copy-v1'/.test(html), 'index.html: registers sw.js; the copy has a cache sw.js never clears');
+  });
+
+  await section('the offline mode: sw.js keeps the page, network first (Alan, 2026-11-14)', async () => {
+    const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');
+    const src = fs.readFileSync(path.join(REPO, 'sw.js'), 'utf8');
+    const SCOPE = 'https://allinalan.github.io/rsd-show-shift-board/', LIB = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    function makeSW() {   // sw.js against a fake network and cache; its waits run 50 times faster
+      const store = new Map(), names = new Set(['rsd-board-shell-v0', 'rsd-board-copy-v1', 'rep-hub-v1']), handlers = {}, asked = [];
+      const sw = { store, names, asked, skipped: false, claimed: false, net: () => Promise.reject(new TypeError('Load failed')) };
+      const cache = { put: async (k, res) => { store.set(String(k.url || k), await res.text()); }, match: async k => store.has(String(k)) ? new Response(store.get(String(k))) : undefined };
+      const cachesFake = { open: async n => { names.add(n); return cache; }, keys: async () => [...names], delete: async n => names.delete(n) };
+      const fetchFake = (req, init) => { const u = typeof req === 'string' ? req : req.url; asked.push(u); return sw.net(u, init); };
+      const self = { location: new URL(SCOPE + 'sw.js'), addEventListener: (t, f) => { handlers[t] = f; }, skipWaiting: () => { sw.skipped = true; }, clients: { claim: () => { sw.claimed = true; } } };
+      new Function('self', 'caches', 'fetch', 'setTimeout', src)(self, cachesFake, fetchFake, (f, ms) => setTimeout(f, ms / 50));
+      sw.fire = async (type, req) => {
+        const waits = []; let answer = null;
+        handlers[type]({ request: req, waitUntil: p => waits.push(p), respondWith: p => { answer = p; } });
+        const out = { answered: !!answer };
+        if (answer) { try { const res = await answer; out.status = res.status; out.body = await res.text(); } catch (e) { out.error = e; } }
+        await Promise.all(waits); return out;
+      };
+      return sw;
+    }
+    const nav = url => ({ url, method: 'GET', mode: 'navigate' }), get = url => ({ url, method: 'GET', mode: 'no-cors' });
+    const okNet = body => () => Promise.resolve(new Response(body));
+
+    const sw = makeSW();
+    sw.net = u => Promise.resolve(new Response('v1 ' + u));
+    await sw.fire('install');
+    const ext = [...html.matchAll(/<script src="(https:[^"]+)"/g), ...html.matchAll(/<link rel="stylesheet" href="(https:[^"]+)"/g)].map(x => x[1]);
+    const manifest = JSON.parse(fs.readFileSync(path.join(REPO, 'manifest.webmanifest'), 'utf8'));
+    const own = ['config.js', 'manifest.webmanifest', ...manifest.icons.map(i => i.src), ...[...html.matchAll(/rel="apple-touch-icon" href="([^"]+)"/g)].map(x => x[1])].map(f => SCOPE + f);
+    ok(ext.length === 2 && ext.includes(LIB), 'index.html loads two outside files (the Supabase library, the title font): ' + ext.join(' '));
+    const missing = [SCOPE, ...own, ...ext].filter(u => !sw.store.has(u));
+    ok(!missing.length && sw.skipped, 'install keeps the page and everything it needs to start, so it opens with no signal' + (missing.length ? '; missing: ' + missing.join(' ') : ''));
+
+    await sw.fire('activate');
+    ok(!sw.names.has('rsd-board-shell-v0') && sw.names.has('rsd-board-shell-v1') && sw.names.has('rsd-board-copy-v1') && sw.names.has('rep-hub-v1') && sw.claimed,
+      'activate clears only its own old caches: the page\'s copy of the board and other sites\' caches stay');
+
+    sw.net = okNet('page v2');
+    let r = await sw.fire('fetch', nav(SCOPE));
+    ok(r.body === 'page v2' && sw.store.get(SCOPE) === 'page v2', 'with signal the page comes from the network, as with no worker, and replaces the phone\'s copy');
+    sw.net = () => Promise.reject(new TypeError('Load failed'));
+    r = await sw.fire('fetch', nav(SCOPE + '?code=12345678'));
+    ok(r.body === 'page v2', 'no signal: the page opens from the phone (a sign-in link\'s ?code= too)');
+    sw.net = () => Promise.resolve(new Response('down', { status: 503 }));
+    r = await sw.fire('fetch', nav(SCOPE + 'index.html'));
+    ok(r.body === 'page v2' && sw.store.get(SCOPE) === 'page v2', 'GitHub answering with an error: the phone\'s page, and the error is not kept');
+    sw.net = () => sleep(400).then(() => new Response('page v3'));
+    const t0 = Date.now(); r = await sw.fire('fetch', nav(SCOPE)); const took = Date.now() - t0;
+    ok(r.body === 'page v2' && sw.store.get(SCOPE) === 'page v3', 'a weak signal: the phone\'s page after the wait, and the network\'s answer kept for next time when it comes');
+    ok(took >= 400, 'the worker stays alive until the slow answer is kept (waitUntil): ' + took + ' ms');
+
+    sw.net = () => Promise.reject(new TypeError('Load failed'));
+    r = await sw.fire('fetch', get(LIB));
+    ok(r.body === 'v1 ' + LIB, 'the Supabase library opens from the phone with no signal');
+    sw.net = okNet('lib v2');
+    r = await sw.fire('fetch', get(LIB));
+    ok(r.body === 'v1 ' + LIB && sw.store.get(LIB) === 'lib v2', 'the library comes from the phone at once and is refreshed behind it for the next visit');
+    r = await sw.fire('fetch', get('https://fonts.gstatic.com/s/bricolagegrotesque/v1/x.woff2'));
+    ok(r.body === 'lib v2' && sw.store.has('https://fonts.gstatic.com/s/bricolagegrotesque/v1/x.woff2'), 'the title font\'s files are kept the first time they load');
+
+    sw.asked.length = 0;
+    const passed = [];
+    for (const req of [get('https://example-project.supabase.co/rest/v1/events?select=id,data'), { url: SCOPE + 'config.js', method: 'POST', mode: 'cors' },
+      nav(SCOPE + 'docs/design-directions.html'), get(SCOPE + 'seed/events.json'), get('https://allinalan.github.io/other-site/')]) {
+      if (!(await sw.fire('fetch', req)).answered) passed.push(req.url);
+    }
+    ok(passed.length === 5 && !sw.asked.length, 'the database\'s traffic, non-GETs, other pages and the seed go straight to the network, untouched');
+
+    const fresh = makeSW();
+    fresh.net = () => Promise.reject(new TypeError('Load failed'));
+    r = await fresh.fire('fetch', nav(SCOPE));
+    ok(r.error instanceof TypeError, 'nothing kept yet and no signal: the browser\'s own error, as with no worker');
+    fresh.net = okNet('first');
+    r = await fresh.fire('fetch', get(SCOPE + 'config.js'));
+    ok(r.body === 'first' && fresh.store.get(SCOPE + 'config.js') === 'first', 'nothing kept yet: the network\'s answer, kept');
+  });
+
   await section('application dates: lib/app-dates.mjs, the page\'s copy, board set, the roll, the research', async () => {
     const A = await import(path.join(REPO, 'scripts/lib/app-dates.mjs'));
     const html = fs.readFileSync(path.join(REPO, 'index.html'), 'utf8');

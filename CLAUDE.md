@@ -9,6 +9,24 @@ routines in `.claude/skills/` keep it true.
 - `index.html` — the whole app, one file, no build. Deployed by GitHub Pages from `main`.
 - `manifest.webmanifest`, `icons/` — the iPhone Home Screen app ("RSD Board"). An icon keeps its own
   sign-in, apart from Safari's, and Safari's seven-day wipe of site data doesn't touch it.
+- **The offline mode** (Alan, 2026-11-14: "an offline mode so if someone doesn't have service or wifi it can still load the
+  board"; all his defaults the same day). `sw.js`, a service worker, keeps the page and what it needs to start (config.js, the
+  Supabase library, the icons, the title font): the page and the repo's files come from the network first (after 2.5 s, the
+  phone's), config.js, the library and the font from the phone at once and refreshed behind it (a new config.js is in use from
+  the visit after it is published). It never touches supabase.co, other pages on the site, or anything but a GET. The board's
+  data is the page's own copy (the `offline` block in index.html): every live read keeps one in the Cache API
+  (`rsd-board-copy-v1`): every season, history, the Kiosk tab, the coverage asks and the promoter contacts (anyone can read
+  those on the live page). With no signal at the tap, no live read of the shows 5 s after it, or that read failing, the board
+  opens the copy **view only** (Plan mode off, `dbState` `copy`) under a bar at the top of the header ("Offline · the board as
+  of Sat 11/14 9:41 AM, saved on this phone"; red, with its age, past 2 days). It tries again when the network comes back, on
+  Try again, when the page is shown again and every 30 s, and goes live by itself. Signal lost mid-visit keeps the live board
+  on screen under a "No connection since" bar, Plan mode as it was: a save then fails as it always did. Nothing is ever kept
+  to send later. A part that fails to load keeps the last copy's, and a copy is only ever written from the live database
+  (`copyOf`, `mayKeep`). Since the same change a wired board never falls back to the September seed (a weak signal that lost
+  the Supabase library showed it as a "read-only preview"). Limits: a phone opens the board once with signal first; in a
+  Safari tab iOS clears a site's storage after 7 days without a visit (the Home Screen icon's is kept). To retire the worker,
+  publish a `sw.js` that deletes the `rsd-board-shell-*` caches and calls `self.registration.unregister()`. Not yet tried on
+  an iPhone (2026-11-14: tested with the suite's fakes; no browser runs in the workroom).
 - `supabase/email-templates/magic-link-or-otp.html` — the sign-in email exactly as set in Supabase
   (subject in its header comment). Restore it from here on a rebuild.
 - `config.js` — Supabase URL + anon key for this deployment (public by design; RLS guards writes).
@@ -407,6 +425,11 @@ the service key moves them on.
   board, which would drop what is half-typed in another field. A removed show is read back like a mall: a delete the
   database refuses comes back without an error.
 
+- **The offline copy is view only, and nothing is queued offline** (2026-11-14). A pick or edit made with no signal is never
+  kept to send later: it could land on a slot someone else took meanwhile, and `set_slot` would refuse it after the rep had
+  walked away thinking they had it. A new collection the page reads joins `COPY_PARTS` and calls `gotLive('<part>')` where it
+  is read (the tests hold the two together), or it is blank offline. A new file the page needs to start goes into `sw.js`'s
+  lists (the tests check every outside script and stylesheet in index.html is kept).
 - **Upcoming or past is the show's last day, `lastDay()` (lib/match.mjs), never the raw End Date cell** (2026-10-14).
   Its own selling days, then the End Date only when the Start Date sits within a week of them. Cells from another
   edition kept Pinetop-Lakeside (ran Sep 25-27, cells Oct 27) on JP's list weeks after it ran, and made Havasu Island
