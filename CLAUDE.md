@@ -463,7 +463,10 @@ the service key moves them on.
   `supabase/schema.sql`). Never write a whole `booths` copied from the page through `merge_doc` again: that is how a pick
   made a second earlier on another screen was put back with no error. A routine that moves one person's shift uses
   `setSlot` in `scripts/lib/board-api.mjs` (the same function, with the routine as the changelog actor): rsd-shift-picking's
-  coverage agent since 2026-10-27. The Sheet sync, the research and roll-forward still write whole shows through
+  coverage agent since 2026-10-27, and ALMA Stats since 2026-11-18 (actor `service:alma-stats`, ALMA's write gate #20: a rep's
+  own tapped "What happened?" for a day they didn't work marks their place "didn't work" (set-up, cancelled, no shift; every
+  filled place that day only when Vector shows nobody sold there) or moves it to the rep who covered; no approval, Alan gets
+  the week's changes on Fridays in #rsd-stats; source allinalan/alma `src/pocket/shiftboard.js`). The Sheet sync, the research and roll-forward still write whole shows through
   `merge_doc` (they rebuild a show, not one slot; the sync stops on January 13).
 - A shift is a slot with a `rep` that isn't empty or `__X__`. **SE days are never shifts.** Nor are set-up / tear-down
   days ("set-up" with a hyphen too) or a day column that names no day ("Tucson, AZ", "Service Events"): the page's
