@@ -977,6 +977,9 @@ h1{font-size:var(--t-title2);line-height:28px;letter-spacing:-.018em}
 .ctl-toggle{border-radius:10px}
 .btn{font-size:var(--t-foot);border-radius:10px;padding:8px 14px}
 @media (pointer:coarse){ .btn,.ctl-toggle,.sheetlink{min-height:44px} .sheetlink{display:inline-flex;align-items:center} }
+/* Grid: a show's name is a 36px tap target on a phone, not a 20px line of text (tests/phone-check.mjs). The padding
+   grows the button into .gevin's own 9-10px padding and the negative margin hands it back, so nothing moves. */
+@media (pointer:coarse){ .gevin .glink{padding:8px 0;margin:-8px 0} }
 .chip{font-family:var(--f-body);font-size:var(--t-foot);font-weight:500;min-height:30px}
 .chip .n{font-size:var(--t-cap)}
 @media (pointer:coarse){ .chip{min-height:36px;position:relative} .chip::after{content:"";position:absolute;inset:-4px -3px} }
