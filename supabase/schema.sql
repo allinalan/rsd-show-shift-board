@@ -56,7 +56,7 @@ create index if not exists events_status_idx   on events ((data->>'status'));
 create index if not exists changelog_at_idx    on changelog (at desc);
 
 -- ---------- helpers ----------
-create or replace function touch_updated_at() returns trigger language plpgsql as $$
+create or replace function touch_updated_at() returns trigger language plpgsql set search_path = public as $$
 begin new.updated_at = now(); return new; end $$;
 
 do $$ declare t text; begin
@@ -66,16 +66,16 @@ do $$ declare t text; begin
   end loop;
 end $$;
 
-create or replace function is_editor() returns boolean language sql stable security definer as $$
+create or replace function is_editor() returns boolean language sql stable security definer set search_path = public as $$
   select exists (select 1 from editors where email = lower(coalesce(auth.jwt()->>'email','')))
 $$;
-create or replace function is_owner() returns boolean language sql stable security definer as $$
+create or replace function is_owner() returns boolean language sql stable security definer set search_path = public as $$
   select exists (select 1 from editors where email = lower(coalesce(auth.jwt()->>'email','')) and role = 'owner')
 $$;
 
 -- every write lands in changelog: who, what, when. Routines announce themselves through
--- merge_doc's actor argument; people show up as their email.
-create or replace function log_change() returns trigger language plpgsql security definer as $$
+-- merge_doc's actor argument (the service key only, since 2026-11-21); people show up as their email.
+create or replace function log_change() returns trigger language plpgsql security definer set search_path = public as $$
 declare who text;
 begin
   who := coalesce(nullif(current_setting('board.actor', true), ''), auth.jwt()->>'email', auth.role(), 'unknown');
@@ -97,7 +97,7 @@ end $$;
 -- shallow-merge a patch into a document, creating it if needed. This is what the page's
 -- doc(path).update(patch) calls, so a concurrent edit to a different field is never clobbered.
 create or replace function merge_doc(tbl text, doc_id text, patch jsonb, actor text default null)
-returns jsonb language plpgsql security definer as $$
+returns jsonb language plpgsql security definer set search_path = public as $$
 declare out jsonb;
 begin
   if tbl not in ('events','history','settings','seasons','never_work','overrides','event_contacts','kiosks','coverage') then
@@ -106,7 +106,9 @@ begin
   if not (is_editor() or auth.role() = 'service_role') then
     raise exception 'not an editor' using errcode = '42501';
   end if;
-  if actor is not null then perform set_config('board.actor', actor, true); end if;
+  -- only the service key (the mini's routines) may name the changelog's actor, as in set_slot; an editor's own write is
+  -- logged as their email whatever they pass (2026-11-21, Alan's go; the page never passes one)
+  if actor is not null and auth.role() = 'service_role' then perform set_config('board.actor', actor, true); end if;
   execute format('insert into %I (id, data) values ($1, $2) on conflict (id) do update set data = %I.data || excluded.data returning data', tbl, tbl)
     into out using doc_id, patch;
   return out;
