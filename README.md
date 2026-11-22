@@ -95,3 +95,4 @@ publish one.
 ## Development
 `node tests/run-all.mjs` before every commit. Nothing to build. `python3 -m http.server` (or any static server) in the repo root, open
 `index.html`. With `config.js` blank it shows `seed/` read-only, which is enough to work on layout.
+After a change to how the page looks, `node tests/phone-check.mjs` (a real browser at iPhone sizes; needs Playwright).

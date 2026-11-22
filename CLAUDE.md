@@ -327,6 +327,13 @@ routines in `.claude/skills/` keep it true.
 - `tests/run-all.mjs` — CLI, launcher, Sheet-parser, matcher, sync and event-check tests against an in-memory fake database. Run before every commit.
   Each block is a `section()`: one that throws is a single named failure, the blocks after it still run, and the count
   always prints. `./install.sh --arm` refuses while this fails.
+- `tests/phone-check.mjs` — the page itself in a real browser at 375 and 390px (iPhones) and 1000px, every view (Cards, Grid,
+  each season, Kiosk, Never), the Filters panel and an opened card: no sideways scroll, nothing cut off at the edge, every
+  button/tab/field at least 24x32px on a phone, no text under 11px, the Kiosk layout right for the width, no JS errors. Blank
+  config.js (the seed preview), every other site blocked but Google Fonts, so it never reads or writes the real board. Needs
+  Playwright (found at ~/.local/share/playwright on the mini); exit 2 = couldn't run. `--shots` saves every view to
+  out/phone-check/. Run it after any change to the page's look. Not in run-all.mjs (that suite needs no browser). Added
+  2026-11-21; its first run found the Grid's show names were 20px tap targets on a phone (now 36px, nothing moved).
 - `docs/ROADMAP.md` — the staged plan to replace the Sheet by Fall 2027. `docs/stage-3-january.md` — stage 3 moved to the
   January 13, 2027 meeting (Alan, 2026-10-27): what the board still needs, the board → Sheet mirror, the parallel run, the
   cutover. `docs/HANDOFF.md` — go-live steps.
