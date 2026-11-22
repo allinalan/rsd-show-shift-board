@@ -597,6 +597,14 @@ same statements as `supabase/schema.sql`), after 22 cases ran against them in a 
 (editor, service key and anon; nothing stayed), then again on the deployed functions, and a call over the REST API to an
 id that does not exist (the service key answered "gone", the anon key "permission denied"). Supabase grants anon execute on
 every new function in `public`; the schema takes it back for these two.
+Hardening on 2026-11-21 (Alan's go, after a Supabase security-advisor pass): `merge_doc`, `is_editor`, `is_owner`,
+`log_change` and `touch_updated_at` got `set search_path = public` (as `set_slot` already had), and `merge_doc` names the
+changelog actor only for the service key, as `set_slot`/`set_booths` do (an editor's write is logged as their email whatever
+they pass; the page never passes one, the mini's routines use the service key). Live as SQL through the connector, the
+same statements as `supabase/schema.sql`, after a rehearsal that rolled itself back (service key + actor kept, editor +
+made-up actor logged as their email, signed-in non-editor and anon refused 42501, grants unchanged), then the same calls
+on the deployed functions (rolled back). The advisor's other warnings are by design: anon `coverage_request` (SUNNY),
+the secret-keyed `relay_*` (ALMA), `rls_auto_enable` (an event trigger, not callable), `alma_relay` tables with no policy.
 
 The `kiosks` table went into the live database on 2026-10-14: the same statements as `supabase/schema.sql`, run as SQL
 (Supabase's migration tool hung on them), then the ten malls from `seed/kiosks.json` (the changelog names
