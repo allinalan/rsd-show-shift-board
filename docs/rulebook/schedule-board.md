@@ -24,5 +24,7 @@ From changes merged later on 2026-11-13:
 - A blank Start Date is filled only from the show's own page; a date found only on a third-party listing is left blank and comes to Alan as a question. (2026-11-13, PR 44)
 - With no signal or wifi, the board opens the last copy this phone saved, view only, with the time it is from (red once over 2 days old); nothing done offline is saved to send later. (2026-11-14, PR 46)
   Where: index.html offline block; sw.js
+- In Plan mode, Add event can look a show up online from a few words ("NHRA 2027, last week of February") and fill the form, only from the show's own pages, at most $10 a week; nothing is added until a coordinator presses Add event, and a show already on the board is offered instead of a copy. (2026-11-25, PR 50)
+  Where: index.html show-lookup block; scripts/lib/show-lookup.mjs; scripts/sync-requests.mjs; rsd-shift-picking lookup-show.js
 
 Left out of this book: Which book feeds which weekends and the handover morning (config `sheets`, `handover.on`) and the name aliases were seen in settings but not read through.
