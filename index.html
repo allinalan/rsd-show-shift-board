@@ -126,9 +126,15 @@ body.plan .switch{color:var(--navy)}
 .form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
 .form label,.panel label.full{display:flex;flex-direction:column;gap:4px;font-size:var(--t-cap2);text-transform:uppercase;letter-spacing:.04em;
   color:var(--ink-3);font-family:var(--f-disp);font-weight:600}
-.form input,.form select,.panel textarea{font:inherit;font-family:var(--f-body);font-size:var(--t-sub);text-transform:none;letter-spacing:0;
+.form input,.form select,.panel textarea,.lookrow input{font:inherit;font-family:var(--f-body);font-size:var(--t-sub);text-transform:none;letter-spacing:0;
   color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
 .panel textarea{resize:vertical;font-family:var(--f-num);font-size:var(--t-foot)}
+/* Look it up (2026-11-25): the line at the top of Add event, and what came back */
+.lookrow{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.lookrow label.full{flex:1 1 240px}
+.lookout{font-size:var(--t-foot);color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.lookout.s-failed{border-color:var(--pend)}
+.lookout p{margin:0}
 .progress{height:8px;border-radius:99px;background:var(--line-soft);position:relative;overflow:hidden}
 .progress i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ok);transition:width .2s;border-radius:99px}
 .progress span{position:absolute;right:0;top:12px;font-family:var(--f-num);font-size:var(--t-cap2);color:var(--ink-3)}
@@ -1204,6 +1210,13 @@ body:not(.gridv):not(.kioskv) .band:not(.past)>.band-h{position:sticky;top:calc(
   </div>
   <div class="panel" id="addPanel" hidden>
    <div class="panel-h">Add an event</div>
+   <div class="lookup" id="qaLook" hidden>
+    <div class="lookrow">
+     <label class="full">Look it up online<input id="qaAsk" type="text" maxlength="300" autocomplete="off" enterkeyhint="search" placeholder="NHRA 2027, last week of February"></label>
+     <button class="btn ghost" id="qaAskGo">Look it up</button>
+    </div>
+    <div class="lookout" id="qaFound" hidden aria-live="polite"></div>
+   </div>
    <div class="form">
     <label>Event name<input id="qaName" type="text" placeholder="Prescott Fall Arts &amp; Crafts Show"></label>
     <label>Start date<input id="qaStart" type="date"></label>
@@ -3108,7 +3121,8 @@ P('qaGo').addEventListener('click',async()=>{
     tier:P('qaTier').value,access:P('qaAcc').value,level:'',flag:'',status:'Prospective',vcNumber:'',dead:false,
     booths:[{label:'',status:'',days,dates,shifts:[{label:'Shift 1',slots:days.map(()=>({rep:'',ft:[]}))}]}],createdAt:new Date().toISOString()};
   for(const [f] of APP_DATES) if(doc[f]) doc[f+'Source']=manualSrc();
-  try{ const ref=await db.collection('events').add(doc); toast('Added '+name+' to '+Y); ['qaName','qaStart','qaEnd','qaCity','qaLoc','qaAddr','qaSetting','qaPromoter','qaContact','qaPhone','qaEmail','qaWeb','qaCost','qaApply','qaApplyOpens','qaApplyBy','qaSubNotes','qaNotes'].forEach(i=>P(i).value=''); P('qaMore').open=false; closePanels(); open.add(ref.id); if(Y!==year()){store.year=Y;save();} }
+  Object.assign(doc,lookExtras(doc,lookDone,iso(TODAY)));   // Look it up: est. / "checked" dates and research-tagged application dates, while untouched
+  try{ const ref=await db.collection('events').add(doc); toast('Added '+name+' to '+Y); lookReset(); ['qaName','qaStart','qaEnd','qaCity','qaLoc','qaAddr','qaSetting','qaPromoter','qaContact','qaPhone','qaEmail','qaWeb','qaCost','qaApply','qaApplyOpens','qaApplyBy','qaSubNotes','qaNotes'].forEach(i=>P(i).value=''); P('qaMore').open=false; closePanels(); open.add(ref.id); if(Y!==year()){store.year=Y;save();} }
   catch(err){ toastErr(err&&err.code==='quota_exceeded'?'The board is full — remove some events first':'Couldn\'t add — check your edit access'); }
 });
 P('btnKAdd').addEventListener('click',openKAdd);
@@ -3273,6 +3287,7 @@ async function loadSync(){
     if(error){ syncReady=false; syncRows=[]; } else { syncReady=true; syncRows=data||[]; } }catch(e){ /* offline: keep what we had */ }
   renderSync(); }
 function syncInit(){
+  lookupInit();   // Look it up (Add event) starts and stops with the same sign-in
   if(!(dbKind==='supabase'&&isEditor&&db&&db.client)){ renderSync(); return; }
   if(!syncSub){ syncSub=true; db.client.channel('rt-sheet_syncs').on('postgres_changes',{event:'*',schema:'public',table:'sheet_syncs'},()=>loadSync()).subscribe(); }
   loadSync(); }
@@ -3286,6 +3301,131 @@ P('btnSync').addEventListener('click',async()=>{
   await loadSync(); });
 P('syncMore').addEventListener('click',()=>{ const last=syncLast(); if(!last) return; closePanels(); renderSyncPanel(last); P('syncPanel').hidden=false; P('syncPanel').scrollIntoView({behavior:'smooth',block:'nearest'}); });
 P('syncClose').addEventListener('click',closePanels);
+/* show-lookup:start
+   Look it up (Alan, 2026-11-25: "add NHRA to 2027 Show shift board I believe its in the last week of February ... look it
+   up via AI web search and pull as much as info as it can"; all his defaults). The words go in show_lookups; the Mac
+   mini's listener (scripts/sync-requests.mjs) runs the lookup (rsd-shift-picking lookup-show.js, $10 a week) and writes
+   back what goes in the form (scripts/lib/show-lookup.mjs: a field only from the show's own pages; dates from its own
+   page, else the days the words name, marked est.). This fills the Add event form and nothing else: a coordinator checks
+   it and presses Add event. A field someone typed in is never overwritten; one a lookup filled is, by the next lookup.
+   A show already on that year's board is offered instead: fill its blank fields (never its name or dates), or open it.
+   Editors only (the table's RLS). Pure parts first; the tests run them. */
+const LOOK_FIELDS={name:'qaName',startDate:'qaStart',endDate:'qaEnd',cityState:'qaCity',location:'qaLoc',address:'qaAddr',setting:'qaSetting',promoter:'qaPromoter',contact:'qaContact',phone:'qaPhone',email:'qaEmail',website:'qaWeb',cost:'qaCost',applyUrl:'qaApply',applyOpens:'qaApplyOpens',applyBy:'qaApplyBy'};
+const LOOK_WORDS={name:'name',dates:'dates',cityState:'city',location:'venue',address:'address',setting:'indoor/outdoor',promoter:'promoter',contact:'contact name',phone:'phone',email:'email',website:'website',cost:'booth cost',applyUrl:'application link',applyOpens:'applications open',applyBy:'application deadline'};
+const LOOK_SLOW_MS=4*60e3;
+/** The year the words name ("NHRA 2027"), else the season tab that is open. */
+const lookYear=(words,fallback)=>{ const m=String(words||'').match(/\b(20\d\d)\b/); return m?+m[1]:fallback; };
+/** [input id, value] for every field the lookup gave. */
+const lookFill=r=>Object.entries(LOOK_FIELDS).filter(([f])=>r&&r.fields&&String(r.fields[f]||'').trim()).map(([f,id])=>[id,String(r.fields[f]).trim()]);
+/** A show's blank fields the lookup can fill: never its name or dates; the application dates keep their research tag.
+    noContacts: the promoter contacts could not be read, so a blank one may not really be blank. */
+function lookBlanks(e,r,noContacts){ const p={}; if(!r||!r.fields) return p;
+  for(const f of Object.keys(LOOK_FIELDS)){
+    if(f==='name'||f==='startDate'||f==='endDate'||(noContacts&&(f==='contact'||f==='phone'||f==='email'))) continue;
+    const v=String(r.fields[f]||'').trim(); if(!v||String(e[f]||'').trim()) continue;
+    p[f]=v; if(r.sources&&r.sources[f]) p[f+'Source']=r.sources[f]; }
+  return p; }
+/** What the lookup adds to the new show Add event saves: est. or "checked" on its dates, the research tag on its
+    application dates. Only while each still says what the lookup put there; anything typed over is a person's. */
+function lookExtras(doc,r,today){ const x={}; if(!r) return x; const d=r.dates||{}, f=r.fields||{};
+  const same=(a,b)=>a&&doc.startDate===a&&doc.endDate===b;
+  if(d.how==='official'&&same(d.start,d.end)) Object.assign(x,{datesEstimated:false,datesNote:`Dates per ${lookHost(d.url)} (looked up ${today})`,datesSource:{basis:'researched',url:d.url,checkedAt:today}});
+  else if((d.how==='guess'&&same(d.start,d.end))||(d.listing&&same(d.listing.start,d.listing.end))) x.datesEstimated=true;
+  for(const k of ['applyOpens','applyBy']) if(doc[k]&&f[k]===doc[k]&&r.sources&&r.sources[k]) x[k+'Source']=r.sources[k];
+  return x; }
+const lookHost=u=>{ try{ return new URL(u).hostname.replace(/^www\./,''); }catch(x){ return ''; } };
+const lookDay=s=>{ const d=fromISO(s); return d?d.toLocaleDateString('en-US',{weekday:'short',month:'numeric',day:'numeric'}):String(s||''); };
+const lookRun=(a,b)=>!a?'':a===b?lookDay(a):lookDay(a)+' to '+lookDay(b);
+/** The words under the form, one paragraph each (HTML): what it found and from where, the dates' standing, what was
+    left out, and a show the board already has. */
+function lookLines(r){
+  const L=[], d=r.dates||{}, f=r.fields||{};
+  L.push(f.name?`<b>Found ${esc(f.name)}</b>${f.cityState?' · '+esc(f.cityState):''}. Check the form, then press Add event.`:'<b>It could not tell which event that is.</b> Try its full name, or fill the form by hand.');
+  if(d.how==='official') L.push(`Dates ${esc(lookRun(d.start,d.end))} are from the show's own page (${esc(lookHost(d.url))}).`);
+  else if(d.how==='guess') L.push(`Dates ${esc(lookRun(d.start,d.end))} come from your words and are marked est.: no page from the show confirmed them.`);
+  else L.push('No dates: no page from the show gave them and your words named no time. Type them in.');
+  if(d.listing) L.push(`A listing (${esc(lookHost(d.listing.url))}) says ${esc(lookRun(d.listing.start,d.listing.end))}. Only the show's own page counts, so check it. <button class="btn ghost" data-look-dates>Use these dates (est.)</button>`);
+  if(d.otherYear) L.push(`The show's page gives ${esc(lookRun(d.otherYear.start,d.otherYear.end))}, which is not this year's or runs over a week, so it was not used.`);
+  if(d.setAside) L.push(`Dates set aside: ${esc(d.setAside)}.`);
+  if(d.cancelled) L.push(`<b>A page says this edition is cancelled:</b> ${esc(d.cancelled)}`);
+  if(d.notYetAnnounced) L.push('This year\'s dates are not announced yet.');
+  for(const s of r.from||[]) L.push(`From ${esc(lookHost(s.url))}: ${esc(s.fields.map(k=>LOOK_WORDS[k]||k).join(', '))}.`);
+  if((r.leftOut||[]).length) L.push('Only on a listing, so not filled in: '+r.leftOut.map(x=>`${esc(LOOK_WORDS[x.field]||x.field)} "${esc(x.value)}" (${esc(lookHost(x.url))})`).join('; ')+'.');
+  for(const m of r.onBoard||[]){ const run=lookRun(m.startDate,m.endDate)||('weekend of '+lookDay(m.weekend));
+    const moved=d.how==='official'&&m.startDate&&(m.startDate!==d.start||m.endDate!==d.end)?` Its own page says ${esc(lookRun(d.start,d.end))}: if that is right, change the dates on its card.`:'';
+    L.push(`<b>Already on the board?</b> ${esc(m.name)} · ${esc(run)}${m.status?' · '+esc(m.status):''}.${moved} <button class="btn ghost" data-look-fill="${esc(m.id)}">Fill its blank fields</button> <button class="btn ghost" data-look-open="${esc(m.id)}">Open it</button>`); }
+  if(r.summary) L.push(`<span class="hint">${esc(r.summary)}</span>`);
+  return L; }
+/* show-lookup:end */
+let lookRow=null, lookReady=null, lookSub=false, lookAsk='', lookDone=null, lookUsed=null;
+const lookOpen=()=>!!lookRow&&(lookRow.status==='pending'||lookRow.status==='running');
+function renderLook(){
+  const box=P('qaLook'), out=P('qaFound'), btn=P('qaAskGo'), editor=dbKind==='supabase'&&isEditor;
+  box.hidden=!(editor&&(lookReady===true||(lookReady===false&&isOwner)));
+  if(box.hidden) return;
+  if(lookReady===false){ out.hidden=false; out.className='lookout s-failed'; btn.disabled=true;
+    out.innerHTML='<p><b>Look it up is not set up yet.</b> Paste supabase/show-lookups.sql into the Supabase SQL editor once.</p>'; return; }
+  btn.disabled=lookOpen(); btn.textContent=lookOpen()?'Looking…':'Look it up';
+  let html='', cls='';
+  if(lookAsk){ html=`<p><b>${esc(lookAsk)}</b></p>`; cls=' s-failed'; }
+  else if(!lookRow){ out.hidden=true; return; }
+  else if(lookRow.status==='pending'){ const waited=Date.now()-Date.parse(lookRow.requested_at);
+    html=waited>LOOK_SLOW_MS?`<p><b>Still waiting for the Mac mini</b> after ${Math.round(waited/60e3)} min. It looks every 30 seconds, so it may be off, asleep or paused. The request stays and runs when the mini is back.</p>`
+      :'<p><b>Asked the Mac mini to look it up.</b> It starts within 30 seconds, and a lookup takes 1 to 3 minutes. You can keep working.</p>'; }
+  else if(lookRow.status==='running') html='<p><b>Searching the web now…</b> The form fills in when it is done.</p>';
+  else if(lookRow.status==='done'&&lookRow.result) html=lookLines(lookRow.result).map(l=>`<p>${l}</p>`).join('');
+  else { html=`<p><b>${lookRow.status==='refused'?'Not looked up':'The lookup failed'}:</b> ${esc((lookRow.result&&lookRow.result.error)||'no reason given')}</p>`; cls=' s-failed'; }
+  out.className='lookout'+cls; out.innerHTML=html; out.hidden=false; }
+/* the form: fill what the lookup found, never over what someone typed (data-lk holds what a lookup put there) */
+function lookApply(r){
+  if(!r||lookUsed===lookRow.id) return; lookUsed=lookRow.id; lookDone=r;
+  let more=false;
+  for(const [id,v] of lookFill(r)){ const el=P(id); if(el.value&&el.dataset.lk!==el.value) continue;
+    el.value=v; el.dataset.lk=v; if(!['qaName','qaStart','qaEnd','qaCity'].includes(id)) more=true; }
+  const n=P('qaNotes'); if(r.notes&&(!n.value||n.dataset.lk===n.value)){ n.value=r.notes; n.dataset.lk=r.notes; }
+  if(more) P('qaMore').open=true; }
+function lookReset(){ lookRow=null; lookDone=null; lookAsk=''; P('qaAsk').value=''; P('qaFound').hidden=true;
+  Object.values(LOOK_FIELDS).concat('qaNotes').forEach(id=>{ delete P(id).dataset.lk; }); }
+async function loadLook(){
+  if(!(dbKind==='supabase'&&isEditor&&db&&db.client)){ renderLook(); return; }
+  try{
+    if(lookRow){ const {data,error}=await db.client.from('show_lookups').select('id,requested_at,ask,year,status,result').eq('id',lookRow.id).maybeSingle();
+      if(!error&&data){ lookRow=data; if(data.status==='done') lookApply(data.result); } }
+    else { const {error}=await db.client.from('show_lookups').select('id').limit(1); lookReady=!error; }
+  }catch(e){ /* offline: keep what we had */ }
+  renderLook(); }
+function lookupInit(){
+  if(!(dbKind==='supabase'&&isEditor&&db&&db.client)){ renderLook(); return; }
+  if(!lookSub){ lookSub=true; db.client.channel('rt-show_lookups').on('postgres_changes',{event:'*',schema:'public',table:'show_lookups'},p=>{ if(lookRow&&p.new&&p.new.id===lookRow.id) loadLook(); }).subscribe(); }
+  loadLook(); }
+/* a slow net under realtime while a lookup is open, and "after N min" that keeps up */
+setInterval(()=>{ if(isEditor&&lookOpen()) loadLook(); },15e3);
+async function lookAskGo(){
+  if(!isEditor||!db||!db.client||lookOpen()) return;
+  const words=P('qaAsk').value.replace(/\s+/g,' ').trim(); lookAsk='';
+  if(words.length<3){ lookAsk='Type the show, and the year or when you think it is (for example: NHRA 2027, last week of February).'; renderLook(); return; }
+  P('qaAskGo').disabled=true;
+  try{ const {data,error}=await db.client.from('show_lookups').insert({ask:words,year:lookYear(words,year())}).select('id,requested_at,ask,year,status,result').single();
+    if(error) lookAsk=/row-level security|policy/i.test(error.message)?'Couldn\'t ask: you already have 3 lookups waiting, or you are not on the editor list.':'Couldn\'t ask for a lookup: '+error.message+'.';
+    else { lookRow=data; lookUsed=null; } }
+  catch(e){ lookAsk='Couldn\'t ask for a lookup: '+(e.message||e)+'.'; }
+  renderLook(); }
+P('qaAskGo').addEventListener('click',lookAskGo);
+P('qaAsk').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); lookAskGo(); } });
+P('qaFound').addEventListener('click',async ev=>{
+  const r=lookRow&&lookRow.result; if(!r) return;
+  if(ev.target.closest('[data-look-dates]')&&r.dates&&r.dates.listing){ const l=r.dates.listing; P('qaStart').value=l.start; P('qaEnd').value=l.end; P('qaStart').dataset.lk=l.start; P('qaEnd').dataset.lk=l.end; toast('The listing\'s dates are in, marked est.'); return; }
+  const op=ev.target.closest('[data-look-open]'), fl=ev.target.closest('[data-look-fill]'), id=(op||fl)&&(op||fl).dataset[op?'lookOpen':'lookFill']; if(!id) return;
+  const e=boardEvents.find(x=>x.id===id); if(!e){ toastErr('That show is not on the board any more'); return; }
+  if(fl){ const p=lookBlanks(e,r,db.contactsRead&&!db.contactsRead());
+    if(!Object.keys(p).length){ toast('Nothing to fill: '+e.name+' already has everything the lookup found'); return; }
+    if(r.notes) p.notes=(String(e.notes||'').trim()?String(e.notes).trim()+'\n':'')+r.notes;   // team notes are appended, never replaced
+    fl.disabled=true; const ok=await patchEvent(id,p); fl.disabled=false; if(!ok) return;
+    const n=Object.keys(p).filter(k=>LOOK_FIELDS[k]).length; toast(`Filled ${n} blank field${n===1?'':'s'} on ${e.name}`); }
+  closePanels(); open.add(id); const Y=yearOf(e); if(Y!==year()){ store.year=Y; save(); } build();
+  setTimeout(()=>{ const c=document.querySelector(`[data-id="${CSS.escape(id)}"]`); if(c) c.scrollIntoView({behavior:'smooth',block:'center'}); },300); });
+/* a field someone types in is theirs from then on */
+P('addPanel').addEventListener('input',ev=>{ const el=ev.target; if(el&&el.dataset&&el.dataset.lk!==undefined&&el.value!==el.dataset.lk) delete el.dataset.lk; });
 P('ctlToggle').addEventListener('click',()=>{ const on=document.body.classList.toggle('filters-open'); P('ctlToggle').setAttribute('aria-expanded',on); });
 addEventListener('scroll',()=>{ document.querySelector('.top').classList.toggle('scrolled',scrollY>=stickAt-1); },{passive:true});   // the hairline shows once the bar is pinned
 addEventListener('touchstart',()=>{},{passive:true});   // iOS Safari shows :active (the press state) only when a touch listener exists

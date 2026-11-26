@@ -42,6 +42,9 @@ something is, tells Alan on Slack and iMessage what to say to Claude. It does no
 itself yet (`docs/ROADMAP.md`, stage 2). Every 30 seconds `scripts/sync-requests.mjs` checks whether
 an editor pressed **Sync from the Sheet** on the board and, if so, runs the Sheet -> board sync; from
 October 15, 2026 it also runs that sync by itself every hour, 7am-9pm (`docs/HANDOFF.md` section 10).
+The same job answers **Look it up** in plan mode's Add event (2026-11-25): type a show the way you'd
+say it ("NHRA 2027, last week of February"), and a minute or two later the form is filled from the
+show's own web pages for you to check and add (rsd-shift-picking's `lookup-show.js`, $10 a week).
 
 ## How it runs
 

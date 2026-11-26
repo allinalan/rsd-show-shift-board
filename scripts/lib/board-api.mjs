@@ -102,5 +102,11 @@ export function boardApi({ actor } = {}) {
       /** Update the rows with these ids that are still in `from`; returns the rows it changed. */
       move: (ids, from, patch) => rest('PATCH', `sheet_syncs?id=in.(${ids.join(',')})&status=eq.${from}`, patch, { Prefer: 'return=representation' }),
     },
+    /** show_lookups: Plan mode's "Look it up" presses and what each found (schema.sql, 2026-11-25; scripts/lib/show-lookup.mjs). */
+    lookups: {
+      open: () => rest('GET', 'show_lookups?select=id,requested_by,requested_at,ask,year,status,started_at&status=in.(pending,running)&order=id'),
+      /** Update the rows with these ids that are still in `from`; returns the rows it changed. */
+      move: (ids, from, patch) => rest('PATCH', `show_lookups?id=in.(${ids.join(',')})&status=eq.${from}`, patch, { Prefer: 'return=representation' }),
+    },
   };
 }
