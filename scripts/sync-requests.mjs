@@ -34,8 +34,14 @@
   that still cannot read the board exits 0 with its one log line until sync.watch.failuresBeforeExit runs in a
   row have failed (4, two minutes); from then on each run exits 1 until it clears. Writes are never repeated.
 
+  LOOK IT UP (Alan, 2026-11-25). After its own work, each run also takes the oldest waiting "Look it up" press from
+  Plan mode's Add event (show_lookups) and runs rsd-shift-picking's lookup-show.js for it, one at a time
+  (scripts/lib/show-lookup.mjs; Claude with web search, $10 a week). What it finds goes back onto the row for the page
+  to fill the form; nothing is written to a show. Its trouble is its own log line, said once, and the row's words on
+  the page: never the sync's alerts or exit code. config lookup.on false turns it off.
+
   Kill switch: a PAUSED file in the repo root (presses wait on the page; they are not lost), or
-  ./install.sh --disarm. Log: logs/sync-requests.log (one line per sync, nothing when idle).
+  ./install.sh --disarm. Log: logs/sync-requests.log (one line per sync or lookup, nothing when idle).
 
   Usage: sync-requests.mjs [-- <extra sheet-sync args>]        (the tests pass --grid and --date through)
   Exit:  0 nothing to do, a sync ran (whatever it found), or a first few failed reads · 1 the board could not be
@@ -49,6 +55,7 @@ import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import { boardApi } from './lib/board-api.mjs';
 import { isMain } from './lib/is-main.mjs';
+import { runLookups, pickingLookup } from './lib/show-lookup.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PASS = process.argv.includes('--') ? process.argv.slice(process.argv.indexOf('--') + 1) : [];
@@ -254,6 +261,24 @@ const WATCH = path.join(STATE, 'sync-requests.watch.json');   // what has been s
 const loadWatch = () => { try { const j = JSON.parse(fs.readFileSync(WATCH, 'utf8')); return j && typeof j === 'object' && !Array.isArray(j) ? j : null; } catch { return null; } };
 const saveWatch = st => { fs.mkdirSync(STATE, { recursive: true }); fs.writeFileSync(WATCH + '.tmp', JSON.stringify(st), { mode: 0o600 }); fs.renameSync(WATCH + '.tmp', WATCH); };
 
+// ---------- Look it up (2026-11-25): one waiting press per run, after the sync's own work ----------
+const LOOKUP_ERR = path.join(STATE, 'show-lookups.error');      // said once, like the board being unreachable
+async function lookups() {
+  let cfg = {}; try { cfg = JSON.parse(fs.readFileSync(path.join(REPO, 'config', 'event-check.json'), 'utf8')).lookup || {}; } catch { /* the defaults */ }
+  try {
+    await runLookups({ api: boardApi({ actor: 'service:show-lookup' }), lookup: pickingLookup(cfg), log: say, cfg });
+    if (fs.existsSync(LOOKUP_ERR)) { fs.rmSync(LOOKUP_ERR, { force: true }); say('Look it up: working again'); }
+  } catch (e) {
+    let m = String(e.message || e).slice(0, 300);
+    if (/show_lookups -> 404/.test(m)) m = 'the show_lookups table is not in the database yet: paste supabase/show-lookups.sql into the Supabase SQL editor once';
+    let last = ''; try { last = fs.readFileSync(LOOKUP_ERR, 'utf8'); } catch { /* first time */ }
+    if (m !== last) {
+      say(`Look it up: ${m} (said once; the next line is when it works again)`);
+      try { fs.mkdirSync(STATE, { recursive: true }); fs.writeFileSync(LOOKUP_ERR, m, { mode: 0o600 }); } catch { /* the log line is enough */ }
+    }
+  }
+}
+
 /** One run: the listener's work, then what it means for Alan. Returns the exit code. */
 async function listen() {
   if (fs.existsSync(path.join(REPO, 'PAUSED'))) return 0;        // the kill switch: not a read, nothing counted, nothing said
@@ -269,6 +294,7 @@ async function listen() {
       try { fs.mkdirSync(STATE, { recursive: true }); fs.writeFileSync(LAST_ERR, msg, { mode: 0o600 }); } catch { /* the log line is enough */ }
     }
   }
+  if (!msg) await lookups();                                     // the board answered: any Look it up press waiting
   let sync = {}; try { sync = syncCfg(); } catch { /* said above when it mattered; the defaults stand in */ }
   const W = watchSettings(sync), now = Date.now(), had = loadWatch(), before = JSON.stringify(had);
   const { st } = watch({ st: had, seen: { ...seen, error: msg || null }, now, sync });

@@ -2,7 +2,8 @@
 #
 # Install the board's two jobs ON THE MAC MINI. Safe to re-run. Writes them DISARMED by default.
 #   com.allinalan.rsd-board-tick   07:00 daily: decides what is due, notifies Alan (deploy/tick.py)
-#   com.allinalan.rsd-board-sync   every 30 s: the board's "Sync from the Sheet" button (scripts/sync-requests.mjs)
+#   com.allinalan.rsd-board-sync   every 30 s: the board's "Sync from the Sheet" button and Plan mode's Look it up
+#                                  (scripts/sync-requests.mjs)
 #
 #   ./install.sh            # preflight, install the pre-commit leak check, render the plists to out/ (NOT installed)
 #   ./install.sh --arm      # same, then load both jobs. Refuses off the mini or on any FAIL.
@@ -64,6 +65,11 @@ done
 # ...and the button's requests live in sheet_syncs (supabase/schema.sql, 2026-09-28). A read with the service key; writes nothing.
 SYNCS="$(cd "$PROJECT" && /usr/local/bin/node --input-type=module -e "import {boardApi} from './scripts/lib/board-api.mjs'; const r = await boardApi().syncs.open(); console.log('ok ' + r.length)" 2>&1 | tail -1)"
 case "$SYNCS" in "ok "*) ok "sheet_syncs table reachable (${SYNCS#ok } open request(s))";; *) bad "sheet_syncs not reachable: run supabase/schema.sql in the Supabase SQL editor (${SYNCS:0:160})";; esac
+# Plan mode's Look it up (2026-11-25): the same listener answers show_lookups with rsd-shift-picking's lookup-show.js.
+# A WARN, never a FAIL: without it only Look it up waits; the sync is untouched.
+LOOKS="$(cd "$PROJECT" && /usr/local/bin/node --input-type=module -e "import {boardApi} from './scripts/lib/board-api.mjs'; const r = await boardApi().lookups.open(); console.log('ok ' + r.length)" 2>&1 | tail -1)"
+case "$LOOKS" in "ok "*) ok "show_lookups table reachable (${LOOKS#ok } open lookup(s))";; *) warn "show_lookups not reachable, so Look it up waits: paste supabase/show-lookups.sql into the Supabase SQL editor once (${LOOKS:0:160})";; esac
+[ -f "$HOME/automations/rsd-shift-picking/lookup-show.js" ] && ok "rsd-shift-picking has lookup-show.js (Look it up)" || warn "no ~/automations/rsd-shift-picking/lookup-show.js: Look it up presses fail and say so (git -C ~/automations/rsd-shift-picking pull)"
 # Coordinator e-mails from a board session go through the shared mailroom (CLAUDE.md). Its check sends
 # nothing. A WARN, never a FAIL: the daily tick does not e-mail, so this must not block arming.
 MAILROOM="$HOME/ai-system/lib/mailroom/gmail_send.py"

@@ -1639,6 +1639,12 @@ def post(route, text, mention=None, fallback=True, **k):
   });
 
   // ---- event-check end to end: write-back rules, Mesa, the past, the placeholder, the safety refusal
+  await section('Look it up: the form from a lookup, the shows already on the board, the listener\'s turn, the page (2026-11-25)', async () => {
+    // tests/show-lookup.mjs: all in-process (fakes for the board and for rsd-shift-picking's lookup-show.js); it runs alone too
+    const { showLookupTests } = await import(path.join(REPO, 'tests/show-lookup.mjs'));
+    await showLookupTests({ ok, REPO });
+  });
+
   await section('event-check end to end', async () => {
     for (const t of Object.keys(db)) db[t].clear();
     const e = (id, name, weekend, reps, extra = {}) => T('events').set(id, { year: 2026, name, weekend, startDate: weekend, endDate: weekend, days: ['Friday'], dates: [weekend],

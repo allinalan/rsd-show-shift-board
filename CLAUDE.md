@@ -218,6 +218,32 @@ routines in `.claude/skills/` keep it true.
   run that cannot read the board exits 0 with its one log line until `failuresBeforeExit` (4) runs in a row have
   failed; from then on each exits 1 until it clears. The rules are pure functions (`watch`, `deliver`,
   `readTwice`) the tests drive with their own clock. `PAUSED` silences all of it.
+- **Look it up** (Alan, 2026-11-25: "Create a way in plan mode to use AI/Search feature where I can say 'add NHRA to 2027
+  Show shift board I believe its in the last week of February' It will then go look it up via AI web search and pull as
+  much as info as it can to put onto the show shift schedule"; all his defaults the same day). Plan mode's Add event has a
+  Look it up line (editors only): the words and the year (the one typed, else the season tab open) go into `show_lookups`.
+  The same 30-second listener (`com.allinalan.rsd-board-sync`), after its own sync work, takes the oldest waiting press,
+  one per run, and runs rsd-shift-picking's `lookup-show.js` (Claude with web search: the preflight's lookup, scope
+  `find`, which first works out which event the words mean; its model and its money live there: **$10 a week**, apart
+  from the $60 per meeting, and `data/.preflight-paused` there stops it). `scripts/lib/show-lookup.mjs` turns the findings
+  into the form by the preflight's own rules on a blank show (`decideFields`, `decideAppDates`): a field only from the
+  event's, promoter's or host city's page; a venue, address or promoter found only on a listing is named under the form,
+  never put in it, and a listing's phone or e-mail is not passed on at all. **Dates**: the show's own page fills them
+  (the show then shows "checked"); otherwise the days the words name go in, marked est.; a listing's dates are named
+  beside them with a "Use these dates (est.)" button, never used by themselves (the 2026-11-13 rule). The pages it used
+  go in Team notes. **A show already on that year's board** (`onBoard`: the found name by `nameScore` 0.5 or better, or a
+  distinctive word typed; Alan's own example, NHRA Nationals, is on 2027 already) is offered instead: "Fill its blank
+  fields" (never its name or dates; skips the contacts when their read failed; team notes appended) or "Open it"; a date
+  its own page disagrees with is named for a person to change on the card. **Nothing writes a show by itself**: the
+  coordinator checks the form and presses Add event, which saves the lookup's tags only while each field still holds what
+  the lookup put there (a field someone typed in is theirs and is never overwritten). The page's half is the
+  `show-lookup` block in index.html (its pure parts are tested); a row left running 15 minutes is marked failed, never run
+  again by itself (it costs money); the listener's log has one line per lookup, no contacts or addresses; its trouble is
+  said once in the log and on the row, never in the sync's alerts or exit code. Config `lookup` (on, timeoutMinutes 7,
+  staleMinutes 15, maxDays 7). Tests: `tests/show-lookup.mjs` (in-process, also a run-all section). **Waits for one step
+  of Alan's**: paste `supabase/show-lookups.sql` into the Supabase SQL editor once (until then the box tells the owner so,
+  hides for the others, and the listener logs it once). Not yet tried against the live API or on an iPhone (2026-11-25:
+  built in the workroom with the suites' fakes).
 - `scripts/event-check.mjs` — the Wednesday Event Check against the board, unattended: matches every
   staffed non-Mesa event to a VectorConnect My Events pull (`scripts/lib/match.mjs`: VC number first, then
   name + shared distinctive word + date gate, aliases/rejects in `config/event-check.json`, Queen Creek by
@@ -392,7 +418,10 @@ it on, texts both reps and moves the shift only after both reply YES. Who may as
 `requesters`), written only by that agent from the rep master list. `editors` — who may write. `changelog` — every write. `sheet_syncs` — a plain table (not
 `{id, data}`): one row per Sync press or `--apply` sync run (`status` pending → running → done | stopped | failed,
 `result` = counts and the changed/held/conflict lists, never contacts). Editors read and insert pending rows; only
-the service key moves them on.
+the service key moves them on. `show_lookups` (2026-11-25, Look it up) — a plain table like it: `ask` (3-300
+characters), `year`, `status` pending → running → done | failed | refused, `result` (the form's fields, the dates and
+where they came from, what was left out, `onBoard`, the cost; can carry a promoter's contact from their own page, so
+editors only). Editors read and ask, at most 3 open each; only the service key moves a row on. Also `supabase/show-lookups.sql`.
 
 ## Rules that are easy to get wrong
 
