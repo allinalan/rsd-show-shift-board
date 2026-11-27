@@ -135,6 +135,16 @@ body.plan .switch{color:var(--navy)}
 .lookout{font-size:var(--t-foot);color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
 .lookout.s-failed{border-color:var(--pend)}
 .lookout p{margin:0}
+.lookrev{display:flex;flex-direction:column;gap:6px;min-width:0;border-top:1px solid var(--line-soft);padding-top:8px}
+.lkrow{display:grid;grid-template-columns:auto minmax(0,1fr);min-width:0;column-gap:8px;row-gap:2px;align-items:start;padding:6px 8px;border:1px solid var(--line-soft);border-radius:8px;background:var(--surface);cursor:pointer}
+.lkrow input{grid-row:span 3;margin-top:2px;width:20px;height:20px}
+.lkrow.up{border-color:color-mix(in srgb,var(--ink) 25%,var(--line-soft))}
+.lk-l{font-weight:600;color:var(--ink)}
+.lk-l::first-letter{text-transform:uppercase}
+.lk-why a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.lk-v,.lk-why{overflow-wrap:anywhere}
+.lkgo{display:flex;gap:8px;flex-wrap:wrap}
+.lkgo .btn{min-height:40px}
 .progress{height:8px;border-radius:99px;background:var(--line-soft);position:relative;overflow:hidden}
 .progress i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ok);transition:width .2s;border-radius:99px}
 .progress span{position:absolute;right:0;top:12px;font-family:var(--f-num);font-size:var(--t-cap2);color:var(--ink-3)}
@@ -3352,12 +3362,81 @@ function lookLines(r){
   for(const s of r.from||[]) L.push(`From ${esc(lookHost(s.url))}: ${esc(s.fields.map(k=>LOOK_WORDS[k]||k).join(', '))}.`);
   if((r.leftOut||[]).length) L.push('Only on a listing, so not filled in: '+r.leftOut.map(x=>`${esc(LOOK_WORDS[x.field]||x.field)} "${esc(x.value)}" (${esc(lookHost(x.url))})`).join('; ')+'.');
   for(const m of r.onBoard||[]){ const run=lookRun(m.startDate,m.endDate)||('weekend of '+lookDay(m.weekend));
-    const moved=d.how==='official'&&m.startDate&&(m.startDate!==d.start||m.endDate!==d.end)?` Its own page says ${esc(lookRun(d.start,d.end))}: if that is right, change the dates on its card.`:'';
-    L.push(`<b>Already on the board?</b> ${esc(m.name)} · ${esc(run)}${m.status?' · '+esc(m.status):''}.${moved} <button class="btn ghost" data-look-fill="${esc(m.id)}">Fill its blank fields</button> <button class="btn ghost" data-look-open="${esc(m.id)}">Open it</button>`); }
+    const moved=d.how==='official'&&m.startDate&&(m.startDate!==d.start||m.endDate!==d.end)?` Its own page says ${esc(lookRun(d.start,d.end))}: Review an update shows why and moves it if you say so.`:'';
+    L.push(`<b>Already on the board?</b> ${esc(m.name)} · ${esc(run)}${m.status?' · '+esc(m.status):''}.${moved} <button class="btn ghost" data-look-review="${esc(m.id)}">Review an update</button> <button class="btn ghost" data-look-open="${esc(m.id)}">Open it</button>`); }
   if(r.summary) L.push(`<span class="hint">${esc(r.summary)}</span>`);
   return L; }
+/* Review an update (Alan, 2026-11-26: "if it's already on the board ... ask if we want to move the old event to the new date
+   and update the info ... gives the evidence why we should update or shouldn't"; all his defaults). One row per difference
+   between the card and the lookup: what the card says, what was found, where, and update or keep with the reason. The
+   rules are fixed, no AI: the show's own page beats a blank or an estimate; a VectorConnect booking, a date someone set and
+   a value the card already has are kept unless a person ticks them; the name is never ticked for you. Dates are moved only
+   from the show's own page; the reps on it move with it (a second press names them). */
+const LOOK_CONTACTS=['contact','phone','email'];
+const LOOK_WD=['sun','mon','tue','wed','thu','fri','sat'];
+const lookSame=(a,b)=>String(a||'').replace(/\s+/g,' ').trim().toLowerCase()===String(b||'').replace(/\s+/g,' ').trim().toLowerCase();
+/** The page a field came from: the dates' page, a research tag's, else the page the lines under the form name. */
+function lookFrom(r,k){ if(k==='dates') return (r.dates&&r.dates.url)||''; const s=r.sources&&r.sources[k]; if(s&&s.url) return s.url;
+  const p=(r.from||[]).find(x=>(x.fields||[]).includes(k)); return p?p.url:''; }
+/** Everyone staffed on a show (a closed day is not a name). */
+function lookStaffed(e){ const n=new Set(); (e.booths||[]).forEach(b=>(b.shifts||[]).forEach(s=>(s.slots||[]).forEach(sl=>{ const v=sl&&sl.rep; if(v&&v!=='__X__') n.add(v); }))); return [...n].sort(); }
+/** The days of the week a run covers, as the card spells its days (fri, sat, sun). */
+function lookWeekdays(a,b){ const s=fromISO(a), e=fromISO(b); if(!s||!e||e<s) return []; const out=[];
+  for(let d=new Date(s);d<=e&&out.length<8;d.setDate(d.getDate()+1)) out.push(LOOK_WD[d.getDay()]); return out; }
+/** The rows of Review an update for card e and lookup r. o.noContacts: the promoter contacts could not be read. */
+function lookPlan(e,r,o){ o=o||{}; const rows=[]; if(!e||!r) return {rows};
+  const f=r.fields||{}, d=r.dates||{}, host=k=>lookHost(lookFrom(r,k))||'the lookup';
+  if(d.how==='official'&&d.start&&d.end&&(d.start!==e.startDate||d.end!==e.endDate)){
+    const run=lookRun(d.start,d.end), src=host('dates'), said=d.words?` ("${String(d.words).replace(/\s+/g,' ').slice(0,160)}")`:'';
+    const row={field:'dates',label:'Dates',now:lookRun(e.startDate,e.endDate)||'no dates',found:run,url:lookFrom(r,'dates')};
+    if(String(e.vcNumber||'').trim()){ row.rec='keep'; row.why=`VectorConnect has it as ${e.vcNumber}${e.vcStatus?' ('+e.vcStatus+')':''}, and a booking's dates beat a web page. Check VC; tick this only if VC is wrong too. Its own page (${src}) says ${run}${said}.`; }
+    else if(e.datesEstimated===true){ row.rec='update'; row.why=`The card's dates are an estimate (est.), and the show's own page (${src}) says ${run}${said}.`; }
+    else if(e.datesSource&&e.datesSource.basis==='researched'){ row.rec='update'; row.why=`The card's dates came from an earlier look (${lookHost(e.datesSource.url)||'research'}${e.datesSource.checkedAt?', '+e.datesSource.checkedAt:''}); the show's own page (${src}) now says ${run}${said}.`; }
+    else { row.rec='keep'; row.why=`Someone set these dates on the card. The show's own page (${src}) says ${run}${said}. Tick it if the page is right.`; }
+    const want=lookWeekdays(d.start,d.end), have=(e.days||[]).map(x=>String(x||'').trim().slice(0,3).toLowerCase()).filter(x=>LOOK_WD.includes(x));
+    if(want.length&&have.length&&want.join()!==have.join()) row.why+=` Its page runs ${want.join('-')}; the card's booths work ${have.join('-')} and keep those days, so change them on the card if the show's days changed.`;
+    if(e.madeBy==='sheet-sync') row.why+=' This show came from the Google Sheet: its row there stays where it is until someone moves it (the sync keeps the board\'s dates and asks if the Sheet changes them later).';
+    row.staffed=lookStaffed(e);
+    if(row.staffed.length) row.why+=` ${row.staffed.length} name${row.staffed.length===1?'':'s'} on it move${row.staffed.length===1?'s':''} with it: ${row.staffed.join(', ')}.`;
+    rows.push(row); }
+  for(const k of Object.keys(LOOK_FIELDS)){
+    if(k==='startDate'||k==='endDate'||(o.noContacts&&LOOK_CONTACTS.includes(k))) continue;
+    const v=String(f[k]||'').trim(), now=String(e[k]||'').trim(); if(!v||lookSame(now,v)) continue;
+    const src=host(k), tag=e[k+'Source'], row={field:k,label:LOOK_WORDS[k]||k,now,found:v,url:lookFrom(r,k)};
+    if(k==='name'){ row.rec='keep'; row.why=`Reps know it by the card's name. Its own page (${src}) calls it "${v}". Tick it to rename the card.`; }
+    else if(!now){ row.rec='update'; row.why=row.url?'Blank on the card. From':'Blank on the card.'; }
+    else if(tag&&tag.kind==='research'){ row.rec='update'; row.why=`The card's date came from research; ${src} now says ${v}.`; }
+    else { row.rec='keep'; row.why=`The card already says "${now}"${tag&&tag.kind==='manual'?' (typed by a person)':''}; ${src} says "${v}". Tick it if the page is newer.`; }
+    rows.push(row); }
+  return {rows}; }
+/** What Update card writes for the ticked rows of card e: the fields (with their research tags and the team notes line), the
+    new start date with its "checked" tag, and what Undo puts back. */
+function lookWrite(e,r,picked,today){ const patch={}, undo={}, d=r.dates||{}; let moveTo=null, dateTags=null, undoDates=null;
+  for(const x of picked){
+    if(x.field==='dates'){ moveTo=d.start; dateTags={datesEstimated:false,datesNote:`Dates per ${lookHost(d.url)} (looked up ${today})`,datesSource:{basis:'researched',url:d.url,checkedAt:today}};
+      undoDates={start:e.startDate,tags:{datesEstimated:e.datesEstimated===undefined?null:e.datesEstimated,datesNote:e.datesNote||'',datesSource:e.datesSource||null}}; continue; }
+    patch[x.field]=x.found; undo[x.field]=e[x.field]||'';
+    if(r.sources&&r.sources[x.field]){ patch[x.field+'Source']=r.sources[x.field]; undo[x.field+'Source']=e[x.field+'Source']||null; } }
+  if(picked.length&&r.notes&&!String(e.notes||'').includes(r.notes)){ patch.notes=(String(e.notes||'').trim()?String(e.notes).trim()+'\n':'')+r.notes; undo.notes=e.notes||''; }   // team notes are appended, never replaced
+  return {patch,undo,moveTo,dateTags,undoDates}; }
+/** The panel (HTML). ticks[field]: that row is ticked; armed: the second press that moves the names. */
+function lookReviewHtml(e,plan,ticks,armed){
+  if(!plan.rows.length) return `<div class="lookrev"><p><b>${esc(e.name)} already matches what the lookup found.</b> Nothing to update.</p></div>`;
+  const link=u=>/^https?:\/\//i.test(u||'')?` <a href="${esc(u)}" target="_blank" rel="noopener">${esc(lookHost(u))}</a>`:'';
+  const rows=plan.rows.map(x=>`<label class="lkrow${x.rec==='update'?' up':''}"><input type="checkbox" data-look-tick="${esc(x.field)}"${ticks[x.field]?' checked':''}><span class="lk-l">${esc(x.label)}</span><span class="lk-v">${esc(x.now||'blank')} → <b>${esc(x.found)}</b></span><span class="lk-why"><b>${x.rec==='update'?'Update':'Keep'}:</b> ${esc(x.why)}${link(x.url)}</span></label>`).join('');
+  const mv=plan.rows.find(x=>x.field==='dates'), names=mv&&ticks.dates?mv.staffed||[]:[];
+  const go=armed&&names.length?`Move ${names.length} name${names.length===1?'':'s'} too: press again`:'Update card';
+  return `<div class="lookrev"><p><b>Update ${esc(e.name)}?</b> The ticked rows are the ones the evidence backs. Nothing changes until you press Update card.</p>${rows}<div class="lkgo"><button class="btn" data-look-apply>${esc(go)}</button> <button class="btn ghost" data-look-cancel>Not now</button></div></div>`; }
+/** Opening the board brings back this person's last lookup: one still going, or one done in the last hour that was not used
+    or cleared on this phone (gone). */
+const LOOK_KEEP_MS=60*60e3;
+function lookRestore(row,now,gone){ if(!row||(gone||[]).includes(row.id)) return false;
+  if(row.status==='pending'||row.status==='running') return true;
+  const t=Date.parse(row.finished_at||row.requested_at); return !!t&&now-t<LOOK_KEEP_MS; }
 /* show-lookup:end */
-let lookRow=null, lookReady=null, lookSub=false, lookAsk='', lookDone=null, lookUsed=null;
+let lookRow=null, lookReady=null, lookSub=false, lookAsk='', lookDone=null, lookUsed=null, lookRev=null, lookTicks={}, lookArmed=false;
+const lookNoContacts=()=>!!(db&&db.contactsRead&&!db.contactsRead());
+function lookGone(id){ if(id==null) return; const g=(store.lookGone||[]).filter(x=>x!==id); g.push(id); store.lookGone=g.slice(-20); save(); }
 const lookOpen=()=>!!lookRow&&(lookRow.status==='pending'||lookRow.status==='running');
 function renderLook(){
   const box=P('qaLook'), out=P('qaFound'), btn=P('qaAskGo'), editor=dbKind==='supabase'&&isEditor;
@@ -3371,9 +3450,11 @@ function renderLook(){
   else if(!lookRow){ out.hidden=true; return; }
   else if(lookRow.status==='pending'){ const waited=Date.now()-Date.parse(lookRow.requested_at);
     html=waited>LOOK_SLOW_MS?`<p><b>Still waiting for the Mac mini</b> after ${Math.round(waited/60e3)} min. It looks every 30 seconds, so it may be off, asleep or paused. The request stays and runs when the mini is back.</p>`
-      :'<p><b>Asked the Mac mini to look it up.</b> It starts within 30 seconds, and a lookup takes 1 to 3 minutes. You can keep working.</p>'; }
+      :'<p><b>Asked the Mac mini to look it up.</b> It starts within 30 seconds, and a lookup takes about 5 minutes. You can keep working, or leave and come back: it waits here for you.</p>'; }
   else if(lookRow.status==='running') html='<p><b>Searching the web now…</b> The form fills in when it is done.</p>';
-  else if(lookRow.status==='done'&&lookRow.result) html=lookLines(lookRow.result).map(l=>`<p>${l}</p>`).join('');
+  else if(lookRow.status==='done'&&lookRow.result){ html=lookLines(lookRow.result).map(l=>`<p>${l}</p>`).join('');
+    const e=lookRev&&boardEvents.find(x=>x.id===lookRev);
+    if(e) html+=lookReviewHtml(e,lookPlan(e,lookRow.result,{noContacts:lookNoContacts()}),lookTicks,lookArmed); }
   else { html=`<p><b>${lookRow.status==='refused'?'Not looked up':'The lookup failed'}:</b> ${esc((lookRow.result&&lookRow.result.error)||'no reason given')}</p>`; cls=' s-failed'; }
   out.className='lookout'+cls; out.innerHTML=html; out.hidden=false; }
 /* the form: fill what the lookup found, never over what someone typed (data-lk holds what a lookup put there) */
@@ -3384,14 +3465,19 @@ function lookApply(r){
     el.value=v; el.dataset.lk=v; if(!['qaName','qaStart','qaEnd','qaCity'].includes(id)) more=true; }
   const n=P('qaNotes'); if(r.notes&&(!n.value||n.dataset.lk===n.value)){ n.value=r.notes; n.dataset.lk=r.notes; }
   if(more) P('qaMore').open=true; }
-function lookReset(){ lookRow=null; lookDone=null; lookAsk=''; P('qaAsk').value=''; P('qaFound').hidden=true;
+function lookReset(){ if(lookRow) lookGone(lookRow.id); lookRow=null; lookDone=null; lookAsk=''; lookRev=null; lookArmed=false; P('qaAsk').value=''; P('qaFound').hidden=true;
   Object.values(LOOK_FIELDS).concat('qaNotes').forEach(id=>{ delete P(id).dataset.lk; }); }
 async function loadLook(){
   if(!(dbKind==='supabase'&&isEditor&&db&&db.client)){ renderLook(); return; }
   try{
     if(lookRow){ const {data,error}=await db.client.from('show_lookups').select('id,requested_at,ask,year,status,result').eq('id',lookRow.id).maybeSingle();
       if(!error&&data){ lookRow=data; if(data.status==='done') lookApply(data.result); } }
-    else { const {error}=await db.client.from('show_lookups').select('id').limit(1); lookReady=!error; }
+    else { const {error}=await db.client.from('show_lookups').select('id').limit(1); lookReady=!error;
+      // left the page while it ran: bring this person's last lookup back (lookRestore)
+      const me=authUser&&authUser.email?String(authUser.email).toLowerCase():'';
+      if(lookReady&&me){ const {data}=await db.client.from('show_lookups').select('id,requested_at,finished_at,ask,year,status,result').eq('requested_by',me).order('id',{ascending:false}).limit(1);
+        const row=data&&data[0];
+        if(row&&!lookRow&&lookRestore(row,Date.now(),store.lookGone)){ lookRow=row; lookUsed=null; if(!P('qaAsk').value) P('qaAsk').value=row.ask||''; if(row.status==='done') lookApply(row.result); } } }
   }catch(e){ /* offline: keep what we had */ }
   renderLook(); }
 function lookupInit(){
@@ -3415,15 +3501,48 @@ P('qaAsk').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefa
 P('qaFound').addEventListener('click',async ev=>{
   const r=lookRow&&lookRow.result; if(!r) return;
   if(ev.target.closest('[data-look-dates]')&&r.dates&&r.dates.listing){ const l=r.dates.listing; P('qaStart').value=l.start; P('qaEnd').value=l.end; P('qaStart').dataset.lk=l.start; P('qaEnd').dataset.lk=l.end; toast('The listing\'s dates are in, marked est.'); return; }
-  const op=ev.target.closest('[data-look-open]'), fl=ev.target.closest('[data-look-fill]'), id=(op||fl)&&(op||fl).dataset[op?'lookOpen':'lookFill']; if(!id) return;
+  const rv=ev.target.closest('[data-look-review]');
+  if(rv){ const e=boardEvents.find(x=>x.id===rv.dataset.lookReview); if(!e){ toastErr('That show is not on the board any more'); return; }
+    lookRev=e.id; lookArmed=false; lookTicks=Object.fromEntries(lookPlan(e,r,{noContacts:lookNoContacts()}).rows.map(x=>[x.field,x.rec==='update'])); renderLook(); return; }
+  const tk=ev.target.closest('[data-look-tick]');
+  if(tk){ lookTicks[tk.dataset.lookTick]=tk.checked; lookArmed=false; renderLook(); return; }
+  if(ev.target.closest('[data-look-cancel]')){ lookRev=null; lookArmed=false; renderLook(); return; }
+  const ap=ev.target.closest('[data-look-apply]');
+  if(ap){ await lookUpdateGo(ap,r); return; }
+  const op=ev.target.closest('[data-look-open]'), id=op&&op.dataset.lookOpen; if(!id) return;
   const e=boardEvents.find(x=>x.id===id); if(!e){ toastErr('That show is not on the board any more'); return; }
-  if(fl){ const p=lookBlanks(e,r,db.contactsRead&&!db.contactsRead());
-    if(!Object.keys(p).length){ toast('Nothing to fill: '+e.name+' already has everything the lookup found'); return; }
-    if(r.notes) p.notes=(String(e.notes||'').trim()?String(e.notes).trim()+'\n':'')+r.notes;   // team notes are appended, never replaced
-    fl.disabled=true; const ok=await patchEvent(id,p); fl.disabled=false; if(!ok) return;
-    const n=Object.keys(p).filter(k=>LOOK_FIELDS[k]).length; toast(`Filled ${n} blank field${n===1?'':'s'} on ${e.name}`); }
+  lookShowCard(e); });
+function lookShowCard(e){ const id=e.id;
   closePanels(); open.add(id); const Y=yearOf(e); if(Y!==year()){ store.year=Y; save(); } build();
-  setTimeout(()=>{ const c=document.querySelector(`[data-id="${CSS.escape(id)}"]`); if(c) c.scrollIntoView({behavior:'smooth',block:'center'}); },300); });
+  setTimeout(()=>{ const c=document.querySelector(`[data-id="${CSS.escape(id)}"]`); if(c) c.scrollIntoView({behavior:'smooth',block:'center'}); },300); }
+/* Update card: the ticked rows only, on a fresh copy of the card; the fields through patchEvent, a date move through
+   saveShow (set_booths: the names ride along by day), then the card is read back and Undo offered for 12 s. */
+async function lookUpdateGo(btn,r){
+  const e=boardEvents.find(x=>x.id===lookRev); if(!e){ toastErr('That show is not on the board any more'); return; }
+  const rows=lookPlan(e,r,{noContacts:lookNoContacts()}).rows, picked=rows.filter(x=>lookTicks[x.field]);
+  if(!picked.length){ toast('Nothing is ticked, so nothing changed'); return; }
+  const mv=picked.find(x=>x.field==='dates');
+  if(mv&&(mv.staffed||[]).length&&!lookArmed){ lookArmed=true; renderLook(); return; }
+  const w=lookWrite(e,r,picked,iso(TODAY)), id=e.id, name=e.name;
+  btn.disabled=true; lookArmed=false;
+  let ok=true, fieldsOk=false;
+  if(Object.keys(w.patch).length){ ok=await patchEvent(id,w.patch); fieldsOk=ok; }
+  if(ok&&w.moveTo) ok=await saveShow(e,f=>Object.assign(recomputeDates(f,w.moveTo),w.dateTags));
+  btn.disabled=false;
+  if(!ok){ if(fieldsOk) toastErr(`The info on ${name} was updated, but its dates were not moved. Change them on the card.`); renderLook(); return; }
+  let back=null; try{ back=db.row?await db.row('events',id):null; }catch(x){}
+  const pub=Object.keys(w.patch).filter(k=>!LOOK_CONTACTS.includes(k)&&!/Source$/.test(k));
+  const held=back&&pub.every(k=>String(back[k]||'')===String(w.patch[k]))&&(!w.moveTo||back.startDate===w.moveTo);
+  if(db.row&&!held){ toastErr(`Saved, but ${name} did not read back as updated. Open the card and check it.`); return; }
+  const n=picked.length, what=`Updated ${n} thing${n===1?'':'s'} on ${name}${w.moveTo?', now '+lookRun(back?back.startDate:w.moveTo,back?back.endDate:w.moveTo):''}`;
+  lookReset(); lookShowCard(e);
+  toastUndo(what,async()=>{
+    const now=db.row?await db.row('events',id).catch(()=>null):null;
+    const undo={}; for(const [k,v] of Object.entries(w.undo)) if(!now||JSON.stringify(now[k]===undefined?null:now[k])===JSON.stringify(w.patch[k]===undefined?null:w.patch[k])||LOOK_CONTACTS.includes(k)) undo[k]=v;
+    let good=true; if(Object.keys(undo).length) good=await patchEvent(id,undo);
+    const cur=boardEvents.find(x=>x.id===id);
+    if(good&&w.undoDates&&cur&&(!now||now.startDate===w.moveTo)) good=await saveShow(cur,f=>Object.assign(recomputeDates(f,w.undoDates.start),w.undoDates.tags));
+    if(good) toast('Put '+name+' back as it was'); }); }
 /* a field someone types in is theirs from then on */
 P('addPanel').addEventListener('input',ev=>{ const el=ev.target; if(el&&el.dataset&&el.dataset.lk!==undefined&&el.value!==el.dataset.lk) delete el.dataset.lk; });
 P('ctlToggle').addEventListener('click',()=>{ const on=document.body.classList.toggle('filters-open'); P('ctlToggle').setAttribute('aria-expanded',on); });

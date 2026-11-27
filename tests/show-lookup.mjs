@@ -176,7 +176,7 @@ export async function showLookupTests({ ok, REPO = path.resolve(HERE, '..') }) {
   ok(!!m, 'index.html: the show-lookup block is marked');
   const fromISO = s => { if (!s) return null; const [y, mo, d] = s.split('-').map(Number); return new Date(y, mo - 1, d); };
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const P = new Function('fromISO', 'esc', m[1] + '\nreturn { LOOK_FIELDS, lookYear, lookFill, lookBlanks, lookExtras, lookLines };')(fromISO, esc);
+  const P = new Function('fromISO', 'esc', m[1] + '\nreturn { LOOK_FIELDS, lookYear, lookFill, lookBlanks, lookExtras, lookLines, lookPlan, lookWrite, lookReviewHtml, lookRestore, lookStaffed };')(fromISO, esc);
   ok(P.lookYear('NHRA 2027, last week of February', 2026) === 2027 && P.lookYear('the Prescott rodeo', 2026) === 2026, 'page: the year typed wins; else the season tab open');
   const res = { ...L.formOf(findings(), { year: 2027, today, ask }), onBoard: L.onBoard(events, { name: 'NHRA Arizona Nationals', ask, year: 2027 }) };
   const fill = Object.fromEntries(P.lookFill(res));
@@ -200,10 +200,71 @@ export async function showLookupTests({ ok, REPO = path.resolve(HERE, '..') }) {
   ok(P.lookExtras({ startDate: '2027-02-26', endDate: '2027-02-28' }, guessRes, today).datesEstimated === true && P.lookExtras({ startDate: '2027-02-25', endDate: '2027-02-28' }, guessRes, today).datesEstimated === true,
     'page: the words\' days, or a listing\'s, go on the board marked est.');
   let lines = P.lookLines(res).join('\n');
-  ok(/Found Test Arizona Nationals/.test(lines) && /from the show's own page \(testnationals\.example\)/.test(lines) && /data-look-fill="2027-nhra-nationals-seaacn"/.test(lines) && /Its own page says/.test(lines),
+  ok(/Found Test Arizona Nationals/.test(lines) && /from the show's own page \(testnationals\.example\)/.test(lines) && /data-look-review="2027-nhra-nationals-seaacn"/.test(lines) && /Its own page says/.test(lines),
     'page: the lines say what was found and from where, and offer the show already on the board, with its date difference');
   lines = P.lookLines(L.formOf(findings({ dates: listing, event: { name: 'Evil <img src=x onerror=alert(1)>', cityState: '', confidence: 'official', sourceUrl: PAGE } }), { year: 2027, today, ask })).join('\n');
   ok(!/<img/.test(lines) && /&lt;img/.test(lines) && /data-look-dates/.test(lines) && /marked est\./.test(lines), 'page: whatever a web page said is escaped; a listing\'s dates come with a button, marked est.');
+
+  // ---------- Review an update (Alan, 2026-11-26): the card against the lookup, with the evidence ----------
+  const booths = names => [{ days: ['Friday', 'Saturday', 'Sunday'], shifts: [{ label: 'Shift 1', slots: names.map(rep => ({ rep, ft: [] })) }] }];
+  const card = (o = {}) => ({ id: '2027-nhra-nationals-seaacn', name: 'NHRA Nationals', startDate: '2027-03-19', endDate: '2027-03-21', days: ['Friday', 'Saturday', 'Sunday'],
+    datesEstimated: true, cityState: 'Chandler, AZ', location: '', website: '', notes: '', madeBy: 'sheet-sync', booths: booths(['', '', '']), ...o });
+  const rowOf = (pl, k) => pl.rows.find(x => x.field === k);
+  let pl = P.lookPlan(card(), res, {});
+  let dr = rowOf(pl, 'dates');
+  ok(dr && dr.rec === 'update' && /estimate/.test(dr.why) && /testnationals\.example/.test(dr.why) && /February 26-28, 2027/.test(dr.why) && dr.url === PAGE,
+    'review: estimated dates vs the show\'s own page -> update, and the why quotes the page and names it');
+  ok(/Google Sheet/.test(dr.why) && dr.staffed.length === 0, 'review: a show that came from the Sheet says its Sheet row stays put; nobody staffed, nobody named');
+  ok(rowOf(pl, 'name').rec === 'keep' && rowOf(pl, 'location').rec === 'update' && !rowOf(pl, 'cityState'),
+    'review: the name is never ticked for you; a blank venue is; a city that already matches is no row');
+  pl = P.lookPlan(card({ vcNumber: '00123456', vcStatus: 'Booked' }), res, {});
+  ok(rowOf(pl, 'dates').rec === 'keep' && /VectorConnect has it as 00123456 \(Booked\)/.test(rowOf(pl, 'dates').why), 'review: a VectorConnect booking keeps its dates (a booking beats a web page)');
+  pl = P.lookPlan(card({ datesEstimated: false }), res, {});
+  ok(rowOf(pl, 'dates').rec === 'keep' && /Someone set these dates/.test(rowOf(pl, 'dates').why), 'review: dates a person set are kept unless ticked');
+  pl = P.lookPlan(card({ datesEstimated: false, datesSource: { basis: 'researched', url: LIST, checkedAt: '2026-10-01' } }), res, {});
+  ok(rowOf(pl, 'dates').rec === 'update' && /earlier look/.test(rowOf(pl, 'dates').why), 'review: dates from an earlier lookup give way to the show\'s own page now');
+  pl = P.lookPlan(card({ startDate: '2027-02-26', endDate: '2027-02-28' }), res, {});
+  ok(!rowOf(pl, 'dates'), 'review: dates that already match are no row');
+  pl = P.lookPlan(card(), guessRes, {});
+  ok(!rowOf(pl, 'dates'), 'review: dates only from the words or a listing never offer a move');
+  pl = P.lookPlan(card({ booths: booths(['J. Parker', '__X__', 'Foss']) }), res, {});
+  ok(rowOf(pl, 'dates').staffed.join() === 'Foss,J. Parker' && /2 names on it move with it: Foss, J. Parker/.test(rowOf(pl, 'dates').why), 'review: the reps staffed are named (a closed day is not a name)');
+  pl = P.lookPlan(card({ days: ['Saturday', 'Sunday'] }), res, {});
+  ok(/runs fri-sat-sun; the card's booths work sat-sun/.test(rowOf(pl, 'dates').why), 'review: a page that runs other days than the card\'s booths says so');
+  pl = P.lookPlan(card({ website: 'https://old.example' }), res, {});
+  ok(rowOf(pl, 'website').rec === 'keep' && /already says "https:\/\/old\.example"/.test(rowOf(pl, 'website').why), 'review: a value the card already has is kept unless ticked');
+  pl = P.lookPlan(card({ applyBy: '2027-01-01', applyBySource: { kind: 'research' } }), res, {});
+  ok(rowOf(pl, 'applyBy').rec === 'update', 'review: an application date from earlier research gives way to the page');
+  pl = P.lookPlan(card({ applyBy: '2027-01-01', applyBySource: { kind: 'manual' } }), res, {});
+  ok(rowOf(pl, 'applyBy').rec === 'keep' && /typed by a person/.test(rowOf(pl, 'applyBy').why), 'review: an application date a person typed is kept');
+  pl = P.lookPlan(card(), res, { noContacts: true });
+  ok(!rowOf(pl, 'phone') && !rowOf(pl, 'email') && !rowOf(pl, 'contact'), 'review: no contact rows when the contacts could not be read');
+  const e1 = card({ booths: booths(['Foss', '', '']), notes: 'Booth by the gate', datesNote: '', datesSource: null });
+  pl = P.lookPlan(e1, res, {});
+  let w = P.lookWrite(e1, res, pl.rows.filter(x => ['dates', 'location', 'applyBy'].includes(x.field)), today);
+  ok(w.moveTo === '2027-02-26' && w.dateTags.datesEstimated === false && w.dateTags.datesSource.url === PAGE && /Dates per testnationals\.example/.test(w.dateTags.datesNote),
+    'update: a move goes to the page\'s start date, marked checked from its page');
+  ok(w.patch.location === 'Test Motorsports Park' && w.patch.applyBy === '2027-01-15' && w.patch.applyBySource.kind === 'research' && !('name' in w.patch) && !('website' in w.patch),
+    'update: only the ticked rows are written, with their research tags');
+  ok(w.patch.notes === 'Booth by the gate\n' + res.notes && w.undo.notes === 'Booth by the gate' && w.undo.location === '' && w.undoDates.start === '2027-03-19' && w.undoDates.tags.datesEstimated === true,
+    'update: the team notes get the lookup line appended, never replaced; Undo knows every value it replaced');
+  ok(!('notes' in P.lookWrite({ ...e1, notes: res.notes }, res, [rowOf(pl, 'location')], today).patch), 'update: the notes line is not added twice');
+  let ticks = Object.fromEntries(pl.rows.map(x => [x.field, x.rec === 'update']));
+  let h = P.lookReviewHtml(e1, pl, ticks, false);
+  ok(/data-look-tick="dates" checked/.test(h) && /data-look-tick="name">/.test(h) && /Update card/.test(h) && /<b>Update:<\/b>/.test(h) && /<b>Keep:<\/b>/.test(h) && /href="https:\/\/www\.testnationals\.example\/event"/.test(h),
+    'panel: recommended rows ticked, the name not; update or keep with the reason and a link to the page');
+  ok(/Move 1 name too: press again/.test(P.lookReviewHtml(e1, pl, ticks, true)), 'panel: a move with reps on it takes a second press that says how many');
+  const evil = { ...res, fields: { ...res.fields, location: '<img src=x onerror=alert(1)>' }, from: [{ url: 'javascript:alert(1)', fields: ['location'] }] };
+  h = P.lookReviewHtml(e1, P.lookPlan(e1, evil, {}), { location: true }, false);
+  ok(!/<img/.test(h) && /&lt;img/.test(h) && !/href="javascript/i.test(h), 'panel: what a web page said is escaped, and only an http(s) link is a link');
+  ok(/already matches/.test(P.lookReviewHtml(e1, { rows: [] }, {}, false)), 'panel: nothing to update says so');
+  const now = Date.parse('2026-11-26T06:30:00Z');
+  ok(P.lookRestore({ id: 1, status: 'running', requested_at: '2026-11-26T06:00:00Z' }, now, []) && P.lookRestore({ id: 2, status: 'done', finished_at: '2026-11-26T06:04:40Z' }, now, [])
+    && !P.lookRestore({ id: 2, status: 'done', finished_at: '2026-11-26T06:04:40Z' }, now, [2]) && !P.lookRestore({ id: 3, status: 'done', finished_at: '2026-11-26T04:00:00Z' }, now, []) && !P.lookRestore(null, now, []),
+    'restore: a lookup still going, or done in the last hour and not used here, comes back when the board opens');
+  ok(/finished_at/.test(html) && /eq\('requested_by',me\)/.test(html) && /about 5 minutes/.test(html) && !/1 to 3 minutes/.test(html), 'page: brings back the person\'s own last lookup; the wait says about 5 minutes');
+  ok(/saveShow\(e,f=>Object\.assign\(recomputeDates\(f,w\.moveTo\),w\.dateTags\)\)/.test(html) && /db\.row\('events',id\)/.test(html) && /toastUndo\(what/.test(html),
+    'page: a move goes through saveShow (names ride by day), the card is read back, and Undo is offered');
   ok(/Object\.assign\(doc,lookExtras\(doc,lookDone,iso\(TODAY\)\)\);/.test(html) && /toast\('Added '\+name\+' to '\+Y\); lookReset\(\);/.test(html), 'page: Add event saves the lookup\'s tags and then clears it');
   ok(/function syncInit\(\)\{\n  lookupInit\(\);/.test(html), 'page: Look it up starts with the same sign-in as the Sync button (editors only)');
 
