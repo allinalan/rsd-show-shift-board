@@ -232,9 +232,20 @@ routines in `.claude/skills/` keep it true.
   (the show then shows "checked"); otherwise the days the words name go in, marked est.; a listing's dates are named
   beside them with a "Use these dates (est.)" button, never used by themselves (the 2026-11-13 rule). The pages it used
   go in Team notes. **A show already on that year's board** (`onBoard`: the found name by `nameScore` 0.5 or better, or a
-  distinctive word typed; Alan's own example, NHRA Nationals, is on 2027 already) is offered instead: "Fill its blank
-  fields" (never its name or dates; skips the contacts when their read failed; team notes appended) or "Open it"; a date
-  its own page disagrees with is named for a person to change on the card. **Nothing writes a show by itself**: the
+  distinctive word typed; Alan's own example, NHRA Nationals, is on 2027 already) is offered instead: "Review an update" or "Open it".
+  **Review an update** (Alan, 2026-11-26: "ask if we want to move the old event to the new date and update the info ...
+  gives the evidence why we should update or shouldn't"; all his defaults; replaced "Fill its blank fields"): one row per
+  difference between the card and the lookup (what the card says, what was found, the page, Update or Keep and why), each
+  with its own tick, the recommended ones ticked; nothing changes until Update card. Fixed rules, no AI call (`lookPlan`):
+  dates move only from the show's own page; estimated dates or an earlier lookup's give way to it; a VectorConnect number,
+  dates someone set, and a value the card already has are Keep; the name is never ticked for you; a page that runs other
+  weekdays than the booths says so; a show from the Google Sheet says its Sheet row stays put (the sync keeps a board-moved
+  date and raises a conflict only if the Sheet then moves it); contacts are skipped when their read failed. A move goes
+  through `saveShow` + `recomputeDates` (the names ride along by weekday) with the "checked" tag; with reps on it, a second
+  press names how many. Fields through `patchEvent` with their research tags, team notes appended. The card is read back
+  (a mismatch is a red toast), then Undo for 12 s puts back only what nobody changed since (`lookWrite` keeps the old
+  values). **Leaving the page** no longer loses a lookup: opening the board brings back this person's last one still
+  running, or done in the last hour and not used or cleared on that phone (`lookRestore`, `store.lookGone`). **Nothing writes a show by itself**: the
   coordinator checks the form and presses Add event, which saves the lookup's tags only while each field still holds what
   the lookup put there (a field someone typed in is theirs and is never overwritten). The page's half is the
   `show-lookup` block in index.html (its pure parts are tested); a row left running 15 minutes is marked failed, never run
